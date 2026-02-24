@@ -5,10 +5,8 @@ A command-line interface for interacting with blockchain data via the [Alchemy](
 ## Installation
 
 ```bash
-go install github.com/alchemyplatform/alchemy-cli/cmd/alchemy@latest
+pnpm add -g @alchemyplatform/cli
 ```
-
-Make sure `$(go env GOBIN)` (or `$(go env GOPATH)/bin`) is in your `$PATH`.
 
 ## Authentication
 
@@ -118,82 +116,53 @@ Errors are structured JSON when in JSON mode:
 
 ### Prerequisites
 
-- [Go 1.21+](https://go.dev/dl/)
+- [Node.js 18+](https://nodejs.org/)
+- [pnpm](https://pnpm.io/)
 
 ### Setup
 
 ```bash
 git clone https://github.com/alchemyplatform/alchemy-cli.git
 cd alchemy-cli
-go mod download
+pnpm install
 ```
 
 ### Run during development
 
 ```bash
-go run ./cmd/alchemy --help
-go run ./cmd/alchemy balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+pnpm dev -- --help
+npx tsx src/index.ts balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
 ```
 
-This builds and runs in one step — picks up code changes automatically.
-
-### Install locally
+### Build
 
 ```bash
-go install ./cmd/alchemy
-```
-
-Re-run after changes to update the binary.
-
-### Build a binary
-
-```bash
-go build -o alchemy ./cmd/alchemy
+pnpm build
 ```
 
 ### Run tests
 
 ```bash
-go test ./...
+pnpm test
 ```
 
-### Set version at build time
+### Type check
 
 ```bash
-go build -ldflags "-X github.com/alchemyplatform/alchemy-cli/cmd.Version=1.0.0" -o alchemy ./cmd/alchemy
+pnpm lint
 ```
 
 ## Releasing
 
-Production releases use [GoReleaser](https://goreleaser.com/). To set up:
+Publish to npm:
 
-1. Install GoReleaser: `go install github.com/goreleaser/goreleaser/v2@latest`
-2. Create a `.goreleaser.yaml` config (see below)
-3. Tag a release: `git tag v0.1.0 && git push --tags`
-4. Build: `goreleaser release`
-
-### `.goreleaser.yaml` (TODO)
-
-```yaml
-project_name: alchemy
-builds:
-  - main: ./cmd/alchemy
-    binary: alchemy
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-    ldflags:
-      - -s -w -X github.com/alchemyplatform/alchemy-cli/cmd.Version={{.Version}}
-brews:
-  - repository:
-      owner: alchemyplatform
-      name: homebrew-tap
-    name: alchemy
-    homepage: https://www.alchemy.com/
-    description: Alchemy CLI — interact with blockchain data
+```bash
+pnpm build
+pnpm publish --access public
 ```
 
-This enables:
+Users install with:
 
-- **Homebrew:** `brew install alchemyplatform/tap/alchemy`
-- **Direct download:** Prebuilt binaries for Linux, macOS, and Windows on the GitHub Releases page
-- **Go install:** `go install github.com/alchemyplatform/alchemy-cli/cmd/alchemy@latest`
+```bash
+pnpm add -g @alchemyplatform/cli
+```

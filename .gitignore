@@ -1,6 +1,7 @@
-# Binary
-alchemy
-alchemy-cli
+# Dependencies
+node_modules/
+
+# Build output
 dist/
 
 # IDE
@@ -18,16 +19,9 @@ Thumbs.db
 mise.toml
 .mise.toml
 
-# Config (may contain secrets)
-# ~/.config/alchemy/ is the config dir, but not in this repo
-
 # Test
-coverage.out
-coverage.html
+coverage/
 
-# Misc
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Env
+.env
+.env.local
