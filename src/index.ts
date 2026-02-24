@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { CLIError, ErrorCode } from "./lib/errors.js";
 import { setFlags, printError } from "./lib/output.js";
+import { brandedHelp } from "./lib/ui.js";
 import { registerConfig } from "./commands/config.js";
 import { registerRPC } from "./commands/rpc.js";
 import { registerBalance } from "./commands/balance.js";
@@ -27,6 +28,7 @@ program
   .option("--json", "Force JSON output")
   .option("-q, --quiet", "Suppress non-essential output")
   .option("-v, --verbose", "Enable debug output")
+  .addHelpText("beforeAll", brandedHelp())
   .hook("preAction", () => {
     const opts = program.opts();
     setFlags({
@@ -34,6 +36,19 @@ program
       quiet: opts.quiet,
       verbose: opts.verbose,
     });
+  })
+  .action(async () => {
+    if (process.stdin.isTTY) {
+      const { startREPL } = await import("./commands/interactive.js");
+      // In REPL mode, override exitOverride so errors don't kill the process
+      program.exitOverride();
+      program.configureOutput({
+        writeErr: () => {},
+      });
+      await startREPL(program);
+    } else {
+      program.help();
+    }
   });
 
 registerConfig(program);

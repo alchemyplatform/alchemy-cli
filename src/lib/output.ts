@@ -35,7 +35,10 @@ export function printError(err: CLIError): void {
   if (isJSONMode()) {
     console.error(JSON.stringify(err.toJSON(), null, 2));
   } else {
-    console.error(err.format());
+    const label = `\x1b[1;31m${err.code}:\x1b[0m`;
+    let out = `${label} ${err.message}`;
+    if (err.hint) out += `\n\x1b[2mHint: ${err.hint}\x1b[0m`;
+    console.error(out);
   }
 }
 

@@ -3,6 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { errInvalidArgs, errNotFound } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
+import { bold, brand, dim, withSpinner, timeAgo } from "../lib/ui.js";
 
 export function registerBlock(program: Command) {
   program
@@ -34,10 +35,9 @@ Examples:
         }
 
         const client = clientFromFlags(program);
-        const block = (await client.call("eth_getBlockByNumber", [
-          blockParam,
-          false,
-        ])) as Record<string, unknown> | null;
+        const block = await withSpinner("Fetching block…", "Block fetched", () =>
+          client.call("eth_getBlockByNumber", [blockParam, false]),
+        ) as Record<string, unknown> | null;
 
         if (!block) throw errNotFound(`block ${blockId}`);
 
@@ -46,14 +46,17 @@ Examples:
           return;
         }
 
-        if (block.number) console.log(`Block:        ${block.number}`);
-        if (block.hash) console.log(`Hash:         ${block.hash}`);
-        if (block.timestamp) console.log(`Timestamp:    ${block.timestamp}`);
+        if (block.number) console.log(`${dim("Block:")}        ${bold(String(block.number))}`);
+        if (block.hash) console.log(`${dim("Hash:")}         ${brand(String(block.hash))}`);
+        if (block.timestamp) {
+          const ts = String(block.timestamp);
+          console.log(`${dim("Timestamp:")}    ${ts} ${dim("(" + timeAgo(ts) + ")")}`);
+        }
         if (Array.isArray(block.transactions))
-          console.log(`Transactions: ${block.transactions.length}`);
-        if (block.miner) console.log(`Miner:        ${block.miner}`);
-        if (block.gasUsed) console.log(`Gas Used:     ${block.gasUsed}`);
-        if (block.gasLimit) console.log(`Gas Limit:    ${block.gasLimit}`);
+          console.log(`${dim("Transactions:")} ${block.transactions.length}`);
+        if (block.miner) console.log(`${dim("Miner:")}        ${block.miner}`);
+        if (block.gasUsed) console.log(`${dim("Gas Used:")}     ${block.gasUsed}`);
+        if (block.gasLimit) console.log(`${dim("Gas Limit:")}    ${block.gasLimit}`);
       } catch (err) {
         exitWithError(err);
       }

@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
 import { isJSONMode, debug } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { CLIError } from "../lib/errors.js";
+import { withSpinner } from "../lib/ui.js";
 
 export function registerRPC(program: Command) {
   program
@@ -30,7 +30,9 @@ Examples:
 
         debug(`rpc ${method} %o`, parsed);
 
-        const result = await client.call(method, parsed);
+        const result = await withSpinner(`Calling ${method}…`, `Called ${method}`, () =>
+          client.call(method, parsed),
+        );
 
         if (isJSONMode()) {
           console.log(JSON.stringify(result));

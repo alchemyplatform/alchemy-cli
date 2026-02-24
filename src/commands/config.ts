@@ -3,6 +3,7 @@ import * as config from "../lib/config.js";
 import { errInvalidArgs, errNotFound } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
+import { green, dim } from "../lib/ui.js";
 
 export function registerConfig(program: Command) {
   const cmd = program.command("config").description("Manage CLI configuration");
@@ -21,7 +22,7 @@ export function registerConfig(program: Command) {
         );
       }
       config.save(result.config);
-      printHuman(`Set ${key}\n`, { key, status: "set" });
+      printHuman(`${green("✓")} Set ${key}\n`, { key, status: "set" });
     });
 
   cmd
@@ -54,7 +55,7 @@ export function registerConfig(program: Command) {
         return;
       }
       for (const [k, v] of entries) {
-        console.log(`${k} = ${v}`);
+        console.log(`${dim(k)} = ${v}`);
       }
     });
 }

@@ -3,17 +3,7 @@ import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-
-function weiToEth(wei: bigint): string {
-  const divisor = 10n ** 18n;
-  const whole = wei / divisor;
-  const remainder = wei % divisor;
-
-  if (remainder === 0n) return `${whole}.0`;
-
-  const remStr = remainder.toString().padStart(18, "0").replace(/0+$/, "");
-  return `${whole}.${remStr}`;
-}
+import { brand, dim, green, withSpinner, weiToEth } from "../lib/ui.js";
 
 export function registerBalance(program: Command) {
   program
@@ -33,10 +23,9 @@ Examples:
         }
 
         const client = clientFromFlags(program);
-        const result = (await client.call("eth_getBalance", [
-          address,
-          "latest",
-        ])) as string;
+        const result = await withSpinner("Fetching balance…", "Balance fetched", () =>
+          client.call("eth_getBalance", [address, "latest"]),
+        ) as string;
 
         const wei = BigInt(result);
         const network = resolveNetwork(program);
@@ -49,9 +38,9 @@ Examples:
             network,
           });
         } else {
-          console.log(`Address: ${address}`);
-          console.log(`Balance: ${weiToEth(wei)} ETH`);
-          console.log(`Network: ${network}`);
+          console.log(`${dim("Address:")} ${brand(address)}`);
+          console.log(`${dim("Balance:")} ${green(weiToEth(wei) + " ETH")}`);
+          console.log(`${dim("Network:")} ${network}`);
         }
       } catch (err) {
         exitWithError(err);

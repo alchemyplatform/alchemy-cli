@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { resolveNetwork } from "../lib/resolve.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
+import { green, printTable } from "../lib/ui.js";
 
 const SUPPORTED_NETWORKS = [
   { id: "eth-mainnet", name: "Ethereum Mainnet", chain: "Ethereum" },
@@ -29,11 +30,17 @@ export function registerNetwork(program: Command) {
       }
 
       const current = resolveNetwork(program);
-      console.log("Supported networks:\n");
-      for (const n of SUPPORTED_NETWORKS) {
-        const marker = n.id === current ? "* " : "  ";
-        console.log(`${marker}${n.id.padEnd(20)} ${n.name}`);
-      }
-      console.log(`\nCurrent: ${current}`);
+
+      const rows = SUPPORTED_NETWORKS.map((n) => {
+        const isCurrent = n.id === current;
+        return [
+          isCurrent ? green(n.id) : n.id,
+          isCurrent ? green(n.name) : n.name,
+          n.chain,
+        ];
+      });
+
+      printTable(["Network ID", "Name", "Chain"], rows);
+      console.log(`\nCurrent: ${green(current)}`);
     });
 }

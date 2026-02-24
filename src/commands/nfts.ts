@@ -3,6 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
+import { dim, withSpinner, printTable } from "../lib/ui.js";
 
 interface NFTResponse {
   ownedNfts: Array<{
@@ -31,25 +32,32 @@ Examples:
         }
 
         const client = clientFromFlags(program);
-        const result = (await client.callEnhanced("getNFTsForOwner", {
-          owner: address,
-          withMetadata: "true",
-        })) as NFTResponse;
+        const result = await withSpinner("Fetching NFTs…", "NFTs fetched", () =>
+          client.callEnhanced("getNFTsForOwner", {
+            owner: address,
+            withMetadata: "true",
+          }),
+        ) as NFTResponse;
 
         if (isJSONMode()) {
           printJSON(result);
           return;
         }
 
-        console.log(`NFTs for ${address} (${result.totalCount} total)\n`);
-        for (const nft of result.ownedNfts) {
-          const name = nft.name || `#${nft.tokenId}`;
-          const collection = nft.contract.name || nft.contract.address;
-          console.log(`  ${collection} — ${name}`);
-        }
+        console.log(`NFTs for ${address} ${dim(`(${result.totalCount} total)`)}\n`);
+
         if (result.ownedNfts.length === 0) {
           console.log("  No NFTs found.");
+          return;
         }
+
+        const rows = result.ownedNfts.map((nft) => [
+          nft.contract.name || dim("unnamed"),
+          nft.name || `#${nft.tokenId}`,
+          nft.contract.address,
+        ]);
+
+        printTable(["Collection", "Name", "Contract"], rows);
       } catch (err) {
         exitWithError(err);
       }

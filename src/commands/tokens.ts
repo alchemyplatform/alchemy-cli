@@ -3,6 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
+import { withSpinner, printTable } from "../lib/ui.js";
 
 interface TokenResponse {
   address: string;
@@ -29,34 +30,38 @@ Examples:
         }
 
         const client = clientFromFlags(program);
-        const result = (await client.call("alchemy_getTokenBalances", [
-          address,
-        ])) as TokenResponse;
+        const result = await withSpinner("Fetching token balances…", "Token balances fetched", () =>
+          client.call("alchemy_getTokenBalances", [address]),
+        ) as TokenResponse;
 
         if (isJSONMode()) {
           printJSON(result);
           return;
         }
 
+        const nonZero = result.tokenBalances.filter(
+          (tb) =>
+            tb.tokenBalance !== "0x0" &&
+            tb.tokenBalance !==
+              "0x0000000000000000000000000000000000000000000000000000000000000000",
+        );
+
         console.log(`Token balances for ${address}\n`);
-        let nonZero = 0;
-        for (const tb of result.tokenBalances) {
-          if (
-            tb.tokenBalance === "0x0" ||
-            tb.tokenBalance ===
-              "0x0000000000000000000000000000000000000000000000000000000000000000"
-          )
-            continue;
-          nonZero++;
+
+        if (nonZero.length === 0) {
+          console.log("  No token balances found.");
+          return;
+        }
+
+        const rows = nonZero.map((tb) => {
           const display =
             tb.tokenBalance.length > 20
-              ? tb.tokenBalance.slice(0, 20) + "..."
+              ? tb.tokenBalance.slice(0, 20) + "…"
               : tb.tokenBalance;
-          console.log(`  ${tb.contractAddress}: ${display}`);
-        }
-        if (nonZero === 0) {
-          console.log("  No token balances found.");
-        }
+          return [tb.contractAddress, display];
+        });
+
+        printTable(["Contract", "Balance"], rows);
       } catch (err) {
         exitWithError(err);
       }
