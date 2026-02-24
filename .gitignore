@@ -1,0 +1,33 @@
+# Binary
+alchemy
+alchemy-cli
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tooling
+mise.toml
+.mise.toml
+
+# Config (may contain secrets)
+# ~/.config/alchemy/ is the config dir, but not in this repo
+
+# Test
+coverage.out
+coverage.html
+
+# Misc
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
