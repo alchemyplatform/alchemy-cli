@@ -3,7 +3,7 @@ import * as config from "../lib/config.js";
 import { errInvalidArgs, errNotFound } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { green, dim } from "../lib/ui.js";
+import { green, dim, printHeader, printKeyValue, emptyState } from "../lib/ui.js";
 
 export function registerConfig(program: Command) {
   const cmd = program.command("config").description("Manage CLI configuration");
@@ -51,11 +51,10 @@ export function registerConfig(program: Command) {
 
       const entries = Object.entries(m);
       if (entries.length === 0) {
-        console.log("No configuration set.");
+        emptyState("No configuration set.");
         return;
       }
-      for (const [k, v] of entries) {
-        console.log(`${dim(k)} = ${v}`);
-      }
+      printHeader("Configuration");
+      printKeyValue(entries.map(([k, v]) => [k, String(v)]));
     });
 }

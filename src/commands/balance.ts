@@ -3,7 +3,7 @@ import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { brand, dim, green, withSpinner, weiToEth } from "../lib/ui.js";
+import { green, withSpinner, weiToEth, printHeader, printKeyValue } from "../lib/ui.js";
 
 export function registerBalance(program: Command) {
   program
@@ -38,9 +38,12 @@ Examples:
             network,
           });
         } else {
-          console.log(`${dim("Address:")} ${brand(address)}`);
-          console.log(`${dim("Balance:")} ${green(weiToEth(wei) + " ETH")}`);
-          console.log(`${dim("Network:")} ${network}`);
+          printHeader("Balance");
+          printKeyValue([
+            ["Address", address],
+            ["Balance", green(weiToEth(wei) + " ETH")],
+            ["Network", network],
+          ]);
         }
       } catch (err) {
         exitWithError(err);

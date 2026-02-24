@@ -65,24 +65,103 @@ export async function withSpinner<T>(
   }
 }
 
+// ── Headers & Key-Value ─────────────────────────────────────────────
+
+export function printHeader(title: string): void {
+  if (isJSONMode()) return;
+  console.log(`\n  ${ansi.brand(ansi.bold(`◆ ${title}`))}`);
+  console.log(`  ${ansi.dim("────────────────────────────────────")}`);
+}
+
+export function printKeyValue(
+  pairs: Array<[string, string]>,
+): void {
+  if (isJSONMode()) return;
+  const maxLen = Math.max(...pairs.map(([k]) => k.length));
+  for (const [key, value] of pairs) {
+    console.log(`  ${ansi.dim(key.padEnd(maxLen))}  ${value}`);
+  }
+}
+
+export function emptyState(message: string): void {
+  if (isJSONMode()) return;
+  console.log(`\n  ${ansi.dim(`○ ${message}`)}`);
+}
+
+export function printSyntaxJSON(obj: unknown): void {
+  if (isJSONMode()) {
+    console.log(JSON.stringify(obj));
+    return;
+  }
+  const raw = JSON.stringify(obj, null, 2);
+  const highlighted = raw.replace(
+    /("(?:\\.|[^"\\])*")\s*(:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b|\bnull\b)/g,
+    (match, str, colon, num, lit) => {
+      if (str && colon) return ansi.brand(str) + colon;
+      if (str) return ansi.green(str);
+      if (num) return ansi.cyan(num);
+      if (lit) return ansi.yellow(lit);
+      return match;
+    },
+  );
+  console.log(highlighted);
+}
+
+export function divider(): void {
+  if (isJSONMode()) return;
+  console.log(`  ${ansi.dim("────────────────────────────────────")}`);
+}
+
 // ── Table ────────────────────────────────────────────────────────────
 
 export function printTable(
   headers: string[],
   rows: string[][],
 ): void {
+  if (isJSONMode()) {
+    const table = new Table({
+      head: headers,
+      style: { head: [], border: [] },
+    });
+    for (const row of rows) {
+      table.push(row);
+    }
+    console.log(table.toString());
+    return;
+  }
+
   const table = new Table({
-    head: isJSONMode() ? headers : headers.map((h) => ansi.brand(h)),
-    style: isJSONMode()
-      ? { head: [], border: [] }
-      : {},
+    head: headers.map((h) => ansi.brand(ansi.bold(h))),
+    chars: {
+      top: "─", "top-mid": "┬", "top-left": "┌", "top-right": "┐",
+      bottom: "─", "bottom-mid": "┴", "bottom-left": "└", "bottom-right": "┘",
+      left: "│", "left-mid": "├",
+      mid: "─", "mid-mid": "┼",
+      right: "│", "right-mid": "┤",
+      middle: "│",
+    },
+    style: {
+      head: [],
+      border: [],
+      "padding-left": 1,
+      "padding-right": 1,
+    },
   });
 
-  for (const row of rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const row = i % 2 === 1
+      ? rows[i].map((cell) => ansi.dim(cell))
+      : rows[i];
     table.push(row);
   }
 
-  console.log(table.toString());
+  // Dim the border characters
+  const output = table.toString();
+  const dimBorders = output.replace(
+    /[┌┐└┘┬┴├┤┼─│]/g,
+    (ch) => ansi.dim(ch),
+  );
+  console.log(dimBorders);
 }
 
 // ── Shared utilities ─────────────────────────────────────────────────

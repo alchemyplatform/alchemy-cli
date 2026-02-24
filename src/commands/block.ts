@@ -3,7 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { errInvalidArgs, errNotFound } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { bold, brand, dim, withSpinner, timeAgo } from "../lib/ui.js";
+import { bold, brand, dim, withSpinner, timeAgo, printHeader, printKeyValue } from "../lib/ui.js";
 
 export function registerBlock(program: Command) {
   program
@@ -46,17 +46,22 @@ Examples:
           return;
         }
 
-        if (block.number) console.log(`${dim("Block:")}        ${bold(String(block.number))}`);
-        if (block.hash) console.log(`${dim("Hash:")}         ${brand(String(block.hash))}`);
+        printHeader("Block");
+
+        const pairs: Array<[string, string]> = [];
+        if (block.number) pairs.push(["Block", bold(String(block.number))]);
+        if (block.hash) pairs.push(["Hash", brand(String(block.hash))]);
         if (block.timestamp) {
           const ts = String(block.timestamp);
-          console.log(`${dim("Timestamp:")}    ${ts} ${dim("(" + timeAgo(ts) + ")")}`);
+          pairs.push(["Timestamp", `${ts} ${dim("(" + timeAgo(ts) + ")")}`]);
         }
         if (Array.isArray(block.transactions))
-          console.log(`${dim("Transactions:")} ${block.transactions.length}`);
-        if (block.miner) console.log(`${dim("Miner:")}        ${block.miner}`);
-        if (block.gasUsed) console.log(`${dim("Gas Used:")}     ${block.gasUsed}`);
-        if (block.gasLimit) console.log(`${dim("Gas Limit:")}    ${block.gasLimit}`);
+          pairs.push(["Transactions", String(block.transactions.length)]);
+        if (block.miner) pairs.push(["Miner", String(block.miner)]);
+        if (block.gasUsed) pairs.push(["Gas Used", String(block.gasUsed)]);
+        if (block.gasLimit) pairs.push(["Gas Limit", String(block.gasLimit)]);
+
+        printKeyValue(pairs);
       } catch (err) {
         exitWithError(err);
       }

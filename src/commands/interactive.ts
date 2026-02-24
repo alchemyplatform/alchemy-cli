@@ -42,7 +42,7 @@ export async function startREPL(program: Command): Promise<void> {
   const rl = readline.createInterface({
     input: stdin,
     output: stdout,
-    prompt: "alchemy> ",
+    prompt: "alchemy \x1b[38;2;54;63;249m◆\x1b[39m ",
     completer: (line: string): readline.CompleterResult => {
       const all = [...completions, ...addressHistory];
       const hits = all.filter((c) => c.startsWith(line));

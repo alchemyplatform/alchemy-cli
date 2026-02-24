@@ -3,7 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { withSpinner, printTable } from "../lib/ui.js";
+import { dim, withSpinner, printTable, printHeader, emptyState } from "../lib/ui.js";
 
 interface TokenResponse {
   address: string;
@@ -46,10 +46,10 @@ Examples:
               "0x0000000000000000000000000000000000000000000000000000000000000000",
         );
 
-        console.log(`Token balances for ${address}\n`);
+        printHeader(`Tokens ${dim(`— ${address}`)}`);
 
         if (nonZero.length === 0) {
-          console.log("  No token balances found.");
+          emptyState("No token balances found.");
           return;
         }
 

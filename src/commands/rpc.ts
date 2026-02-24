@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
 import { isJSONMode, debug } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { withSpinner } from "../lib/ui.js";
+import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 
 export function registerRPC(program: Command) {
   program
@@ -34,11 +34,7 @@ Examples:
           client.call(method, parsed),
         );
 
-        if (isJSONMode()) {
-          console.log(JSON.stringify(result));
-        } else {
-          console.log(JSON.stringify(result, null, 2));
-        }
+        printSyntaxJSON(result);
       } catch (err) {
         exitWithError(err);
       }

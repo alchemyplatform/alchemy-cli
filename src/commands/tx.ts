@@ -4,14 +4,15 @@ import { errInvalidArgs, errNotFound } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import {
-  dim,
-  brand,
   green,
+  brand,
   successBadge,
   failBadge,
   withSpinner,
   weiToEth,
   etherscanTxURL,
+  printHeader,
+  printKeyValue,
 } from "../lib/ui.js";
 
 export function registerTx(program: Command) {
@@ -48,28 +49,32 @@ Examples:
           return;
         }
 
-        console.log(`${dim("Transaction:")} ${brand(hash)}`);
-        if (tx.from) console.log(`${dim("From:")}        ${tx.from}`);
-        if (tx.to) console.log(`${dim("To:")}          ${tx.to}`);
+        printHeader("Transaction");
+
+        const pairs: Array<[string, string]> = [["Hash", brand(hash)]];
+        if (tx.from) pairs.push(["From", String(tx.from)]);
+        if (tx.to) pairs.push(["To", String(tx.to)]);
         if (tx.value) {
           const wei = BigInt(tx.value as string);
-          console.log(`${dim("Value:")}       ${green(weiToEth(wei) + " ETH")}`);
+          pairs.push(["Value", green(weiToEth(wei) + " ETH")]);
         }
-        if (tx.blockNumber) console.log(`${dim("Block:")}       ${tx.blockNumber}`);
+        if (tx.blockNumber) pairs.push(["Block", String(tx.blockNumber)]);
         if (receipt) {
           if (receipt.status === "0x1") {
-            console.log(`${dim("Status:")}      ${successBadge()} Success`);
+            pairs.push(["Status", `${successBadge()} Success`]);
           } else if (receipt.status) {
-            console.log(`${dim("Status:")}      ${failBadge()} Failed`);
+            pairs.push(["Status", `${failBadge()} Failed`]);
           }
-          if (receipt.gasUsed) console.log(`${dim("Gas Used:")}    ${receipt.gasUsed}`);
+          if (receipt.gasUsed) pairs.push(["Gas Used", String(receipt.gasUsed)]);
         }
 
         const network = resolveNetwork(program);
         const explorerURL = etherscanTxURL(hash, network);
         if (explorerURL) {
-          console.log(`${dim("Explorer:")}    ${brand(explorerURL)}`);
+          pairs.push(["Explorer", brand(explorerURL)]);
         }
+
+        printKeyValue(pairs);
       } catch (err) {
         exitWithError(err);
       }

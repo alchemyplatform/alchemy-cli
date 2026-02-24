@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { resolveNetwork } from "../lib/resolve.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
-import { green, printTable } from "../lib/ui.js";
+import { green, printTable, printHeader } from "../lib/ui.js";
 
 const SUPPORTED_NETWORKS = [
   { id: "eth-mainnet", name: "Ethereum Mainnet", chain: "Ethereum" },
@@ -31,6 +31,8 @@ export function registerNetwork(program: Command) {
 
       const current = resolveNetwork(program);
 
+      printHeader("Networks");
+
       const rows = SUPPORTED_NETWORKS.map((n) => {
         const isCurrent = n.id === current;
         return [
@@ -41,6 +43,6 @@ export function registerNetwork(program: Command) {
       });
 
       printTable(["Network ID", "Name", "Chain"], rows);
-      console.log(`\nCurrent: ${green(current)}`);
+      console.log(`\n  Current: ${green(current)}`);
     });
 }

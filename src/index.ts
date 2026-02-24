@@ -1,6 +1,6 @@
-import { Command } from "commander";
+import { Command, Help } from "commander";
 import { CLIError, ErrorCode } from "./lib/errors.js";
-import { setFlags, printError } from "./lib/output.js";
+import { setFlags, printError, isJSONMode } from "./lib/output.js";
 import { brandedHelp } from "./lib/ui.js";
 import { registerConfig } from "./commands/config.js";
 import { registerRPC } from "./commands/rpc.js";
@@ -11,6 +11,12 @@ import { registerNFTs } from "./commands/nfts.js";
 import { registerTokens } from "./commands/tokens.js";
 import { registerNetwork } from "./commands/network.js";
 import { registerVersion } from "./commands/version.js";
+
+// ── ANSI helpers for help formatting ────────────────────────────────
+const esc = (code: string) => (s: string) => `\x1b[${code}m${s}\x1b[0m`;
+const hBrand = (s: string) => `\x1b[38;2;54;63;249m${s}\x1b[39m`;
+const hBold = esc("1");
+const hDim = esc("2");
 
 const program = new Command();
 
@@ -28,6 +34,23 @@ program
   .option("--json", "Force JSON output")
   .option("-q, --quiet", "Suppress non-essential output")
   .option("-v, --verbose", "Enable debug output")
+  .configureHelp({
+    formatHelp(cmd, helper) {
+      const defaultHelp = Help.prototype.formatHelp.call(helper, cmd, helper);
+      if (isJSONMode()) return defaultHelp;
+
+      return defaultHelp
+        // Style section headers: "Commands:", "Options:", "Usage:", "Arguments:"
+        .replace(/^(Usage|Commands|Options|Arguments):/gm, (_, title) =>
+          `${hBrand("◆")} ${hBold(title)}\n  ${hDim("────────────────────────────────────")}`)
+        // Style command entries: "  commandName   description"
+        .replace(/^( {2})(\w[\w-]*)( +)(.+)$/gm, (_, indent, name, space, desc) =>
+          `${indent}${hBrand(name)}${space}${hDim(desc)}`)
+        // Style option flags
+        .replace(/^( +)(-[\w, -]+<?\w*>?)( +)(.+)$/gm, (_, indent, flags, space, desc) =>
+          `${indent}${hBrand(flags)}${space}${hDim(desc)}`);
+    },
+  })
   .addHelpText("beforeAll", brandedHelp())
   .hook("preAction", () => {
     const opts = program.opts();
