@@ -3,10 +3,14 @@ import { isJSONMode } from "./output.js";
 
 // ── Raw ANSI helpers ─────────────────────────────────────────────────
 
-const esc = (code: string) => (s: string) => `\x1b[${code}m${s}\x1b[0m`;
+const noColor = "NO_COLOR" in process.env;
+const identity = (s: string) => s;
+
+const esc = (code: string) =>
+  noColor ? identity : (s: string) => `\x1b[${code}m${s}\x1b[0m`;
 
 const rgb = (r: number, g: number, b: number) =>
-  (s: string) => `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m`;
+  noColor ? identity : (s: string) => `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m`;
 
 const ansi = {
   green: esc("32"),
