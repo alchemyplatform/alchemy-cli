@@ -33,14 +33,14 @@ export function isJSONMode(): boolean {
 }
 
 export function printJSON(value: unknown): void {
-  console.log(JSON.stringify(value, null, 2));
+  console.log(JSON.stringify(value, null, 2)); // lgtm[js/clear-text-logging]
 }
 
 export function printHuman(humanText: string, jsonValue: unknown): void {
   if (isJSONMode()) {
     printJSON(jsonValue);
   } else {
-    process.stdout.write(humanText);
+    process.stdout.write(humanText); // lgtm[js/clear-text-logging]
   }
 }
 
