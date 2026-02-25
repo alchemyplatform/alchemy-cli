@@ -4,9 +4,17 @@ A command-line interface for interacting with blockchain data via the [Alchemy](
 
 ## Installation
 
+> **Note:** The npm package is not yet published. For now, install from source:
+
 ```bash
-pnpm add -g @alchemyplatform/cli
+git clone https://github.com/alchemyplatform/alchemy-cli.git
+cd alchemy-cli
+pnpm install
+pnpm build
+pnpm link --global
 ```
+
+This makes the `alchemy` command available globally. To unlink later: `pnpm unlink --global`.
 
 ## Authentication
 
@@ -198,19 +206,14 @@ Errors are structured JSON when in JSON mode:
 - [Node.js 18+](https://nodejs.org/)
 - [pnpm](https://pnpm.io/)
 
-### Setup
-
-```bash
-git clone https://github.com/alchemyplatform/alchemy-cli.git
-cd alchemy-cli
-pnpm install
-```
-
 ### Run during development
 
 ```bash
-pnpm dev -- --help
+# Run directly without building
 npx tsx src/index.ts balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+
+# Or build in watch mode
+pnpm dev
 ```
 
 ### Build
@@ -233,15 +236,7 @@ pnpm lint
 
 ## Releasing
 
-Publish to npm:
-
-```bash
-pnpm build
-pnpm publish --access public
-```
-
-Users install with:
-
-```bash
-pnpm add -g @alchemyplatform/cli
-```
+> **TODO:** Not yet published to npm. Once published, users will install with:
+> ```bash
+> pnpm add -g @alchemyplatform/cli
+> ```
