@@ -220,12 +220,70 @@ export function etherscanTxURL(
 export function brandedHelp(): string {
   if (isJSONMode()) return "";
 
-  return ansi.brand(`
+  // Reimplemented from the official mark geometry:
+  // one shared vertical gradient and three separate bars.
+  const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
+  const gradientAt = (t: number) => {
+    const c0 = { r: 5, g: 213, b: 255 }; // #05D5FF
+    const c1 = { r: 54, g: 63, b: 249 }; // #363FF9 at 72.3958%
+    const c2 = { r: 85, g: 51, b: 255 }; // #5533FF
+
+    if (t <= 0.723958) {
+      const p = t / 0.723958;
+      return rgb(
+        lerp(c0.r, c1.r, p),
+        lerp(c0.g, c1.g, p),
+        lerp(c0.b, c1.b, p),
+      );
+    }
+
+    const p = (t - 0.723958) / (1 - 0.723958);
+    return rgb(
+      lerp(c1.r, c2.r, p),
+      lerp(c1.g, c2.g, p),
+      lerp(c1.b, c2.b, p),
+    );
+  };
+
+  // "." = empty cell, "#" = filled cell.
+  // Compact bitmap keeps proportions predictable across terminals.
+  const mark = [
+    "..............................",
+    "...................####.......",
+    "..................######......",
+    ".................########.....",
+    "................##########....",
+    "...............############...",
+    "..............##############..",
+    "............#####....########.",
+    "...........######.....#######.",
+    "..........#######......######.",
+    ".........########.......#####.",
+    "........########.........####.",
+    ".......########...........###.",
+    "......########..............#.",
+    ".....########..................",
+    "....########...###############",
+    "...########...################",
+    "..########...#################",
+    ".########...##################",
+    "########...###################",
+  ];
+
+  const logo = mark
+    .map((row, rowIdx) => {
+      const color = gradientAt(rowIdx / (mark.length - 1));
+      return row.replace(/#+/g, (run) => color("█".repeat(run.length))).replace(/\./g, " ");
+    })
+    .join("\n");
+
+  const wordmark = ansi.brand(`
     _    _      _
    / \\  | | ___| |__   ___ _ __ ___  _   _
   / _ \\ | |/ __| '_ \\ / _ \\ '_ \` _ \\| | | |
  / ___ \\| | (__| | | |  __/ | | | | | |_| |
 /_/   \\_\\_|\\___|_| |_|\\___|_| |_| |_|\\__, |
-                                      |___/
-`);
+                                      |___/`);
+
+  return "\n" + logo + wordmark + "\n";
 }
