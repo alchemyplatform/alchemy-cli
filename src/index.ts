@@ -11,6 +11,8 @@ import { registerNFTs } from "./commands/nfts.js";
 import { registerTokens } from "./commands/tokens.js";
 import { registerNetwork } from "./commands/network.js";
 import { registerVersion } from "./commands/version.js";
+import { registerChains } from "./commands/chains.js";
+import { registerApps } from "./commands/apps.js";
 
 // ── ANSI helpers for help formatting ────────────────────────────────
 const esc = (code: string) => (s: string) => `\x1b[${code}m${s}\x1b[0m`;
@@ -27,6 +29,7 @@ program
   )
   .version("0.1.0")
   .option("--api-key <key>", "Alchemy API key (env: ALCHEMY_API_KEY)")
+  .option("--access-key <key>", "Alchemy access key (env: ALCHEMY_ACCESS_KEY)")
   .option(
     "-n, --network <network>",
     "Target network (default: eth-mainnet) (env: ALCHEMY_NETWORK)",
@@ -82,6 +85,8 @@ registerBlock(program);
 registerNFTs(program);
 registerTokens(program);
 registerNetwork(program);
+registerChains(program);
+registerApps(program);
 registerVersion(program);
 
 export function exitWithError(err: unknown): never {

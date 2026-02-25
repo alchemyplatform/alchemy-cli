@@ -14,6 +14,19 @@ describe("config set/get", () => {
     expect(config.get(updated, "api_key")).toBe("test123");
   });
 
+  it("sets and gets access-key", () => {
+    const cfg: config.Config = {};
+    const { ok, config: updated } = config.set(cfg, "access-key", "ak_test");
+    expect(ok).toBe(true);
+    expect(config.get(updated, "access-key")).toBe("ak_test");
+    expect(config.get(updated, "access_key")).toBe("ak_test");
+  });
+
+  it("rejects app as a set key", () => {
+    const { ok } = config.set({}, "app", "app-123");
+    expect(ok).toBe(false);
+  });
+
   it("sets and gets network", () => {
     const cfg: config.Config = {};
     const { ok, config: updated } = config.set(cfg, "network", "polygon-mainnet");
@@ -33,8 +46,18 @@ describe("config set/get", () => {
 
 describe("config toMap", () => {
   it("returns populated map", () => {
-    const m = config.toMap({ api_key: "key1", network: "eth-mainnet" });
-    expect(m).toEqual({ api_key: "key1", network: "eth-mainnet" });
+    const m = config.toMap({
+      api_key: "key1",
+      access_key: "ak",
+      app: { id: "app-1", name: "My App", apiKey: "ak-123" },
+      network: "eth-mainnet",
+    });
+    expect(m).toEqual({
+      "api-key": "key1",
+      "access-key": "ak",
+      app: "My App (app-1)",
+      network: "eth-mainnet",
+    });
   });
 
   it("returns empty map for empty config", () => {

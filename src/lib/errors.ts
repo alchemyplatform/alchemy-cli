@@ -1,6 +1,9 @@
 export const ErrorCode = {
   AUTH_REQUIRED: "AUTH_REQUIRED",
   INVALID_API_KEY: "INVALID_API_KEY",
+  INVALID_ACCESS_KEY: "INVALID_ACCESS_KEY",
+  APP_REQUIRED: "APP_REQUIRED",
+  ADMIN_API_ERROR: "ADMIN_API_ERROR",
   NETWORK_ERROR: "NETWORK_ERROR",
   RPC_ERROR: "RPC_ERROR",
   INVALID_ARGS: "INVALID_ARGS",
@@ -47,6 +50,14 @@ export function errAuthRequired(): CLIError {
   );
 }
 
+export function errAccessKeyRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "Access key required. Set ALCHEMY_ACCESS_KEY or run 'alchemy config set access-key <key>'.",
+    "Get an access key: https://www.alchemy.com/docs/reference/admin-api/overview",
+  );
+}
+
 export function errInvalidAPIKey(): CLIError {
   return new CLIError(
     ErrorCode.INVALID_API_KEY,
@@ -80,5 +91,28 @@ export function errRateLimited(): CLIError {
     ErrorCode.RATE_LIMITED,
     "Rate limited. Please wait and try again.",
     "Consider upgrading your Alchemy plan for higher rate limits.",
+  );
+}
+
+export function errInvalidAccessKey(): CLIError {
+  return new CLIError(
+    ErrorCode.INVALID_ACCESS_KEY,
+    "Invalid access key. Check your key and try again.",
+    "Get an access key: https://www.alchemy.com/docs/reference/admin-api/overview",
+  );
+}
+
+export function errAppRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.APP_REQUIRED,
+    "No app selected. Set an app to resolve the API key automatically.",
+    "alchemy config set app <app-id>",
+  );
+}
+
+export function errAdminAPI(status: number, message: string): CLIError {
+  return new CLIError(
+    ErrorCode.ADMIN_API_ERROR,
+    `Admin API error (HTTP ${status}): ${message}`,
   );
 }

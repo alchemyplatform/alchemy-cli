@@ -2,14 +2,24 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 
+export interface AppConfig {
+  id: string;
+  name: string;
+  apiKey: string;
+}
+
 export interface Config {
   api_key?: string;
+  access_key?: string;
+  app?: AppConfig;
   network?: string;
 }
 
 const KEY_MAP: Record<string, keyof Config> = {
   "api-key": "api_key",
   api_key: "api_key",
+  "access-key": "access_key",
+  access_key: "access_key",
   network: "network",
 };
 
@@ -43,7 +53,7 @@ export function save(cfg: Config): void {
 export function get(cfg: Config, key: string): string | undefined {
   const mapped = KEY_MAP[key];
   if (!mapped) return undefined;
-  return cfg[mapped];
+  return cfg[mapped] as string | undefined;
 }
 
 export function set(
@@ -57,12 +67,14 @@ export function set(
 }
 
 export function validKeys(): string[] {
-  return ["api-key", "network"];
+  return ["api-key", "access-key", "network"];
 }
 
 export function toMap(cfg: Config): Record<string, string> {
   const m: Record<string, string> = {};
-  if (cfg.api_key) m.api_key = cfg.api_key;
-  if (cfg.network) m.network = cfg.network;
+  if (cfg.api_key) m["api-key"] = cfg.api_key;
+  if (cfg.access_key) m["access-key"] = cfg.access_key;
+  if (cfg.app) m["app"] = `${cfg.app.name} (${cfg.app.id})`;
+  if (cfg.network) m["network"] = cfg.network;
   return m;
 }

@@ -3,7 +3,11 @@ import {
   CLIError,
   ErrorCode,
   errAuthRequired,
+  errAccessKeyRequired,
   errInvalidAPIKey,
+  errInvalidAccessKey,
+  errAppRequired,
+  errAdminAPI,
   errNetwork,
   errRPC,
   errInvalidArgs,
@@ -48,6 +52,10 @@ describe("convenience constructors", () => {
     { name: "errInvalidArgs", fn: () => errInvalidArgs("bad"), code: ErrorCode.INVALID_ARGS },
     { name: "errNotFound", fn: () => errNotFound("tx"), code: ErrorCode.NOT_FOUND },
     { name: "errRateLimited", fn: errRateLimited, code: ErrorCode.RATE_LIMITED },
+    { name: "errAccessKeyRequired", fn: errAccessKeyRequired, code: ErrorCode.AUTH_REQUIRED },
+    { name: "errInvalidAccessKey", fn: errInvalidAccessKey, code: ErrorCode.INVALID_ACCESS_KEY },
+    { name: "errAppRequired", fn: errAppRequired, code: ErrorCode.APP_REQUIRED },
+    { name: "errAdminAPI", fn: () => errAdminAPI(500, "fail"), code: ErrorCode.ADMIN_API_ERROR },
   ];
 
   for (const { name, fn, code } of cases) {
