@@ -1,5 +1,3 @@
-![Alchemy CLI help output](docs/images/alchemy-help.png)
-
 # Alchemy CLI
 
 A command-line interface for interacting with blockchain data via the [Alchemy](https://www.alchemy.com/) API. Agent-first — optimized for LLM agents, while still great for humans.
