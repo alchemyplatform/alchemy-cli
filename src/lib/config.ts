@@ -13,6 +13,7 @@ export interface Config {
   access_key?: string;
   app?: AppConfig;
   network?: string;
+  verbose?: boolean;
 }
 
 const KEY_MAP: Record<string, keyof Config> = {
@@ -21,6 +22,7 @@ const KEY_MAP: Record<string, keyof Config> = {
   "access-key": "access_key",
   access_key: "access_key",
   network: "network",
+  verbose: "verbose",
 };
 
 function getHome(): string {
@@ -53,7 +55,11 @@ export function save(cfg: Config): void {
 export function get(cfg: Config, key: string): string | undefined {
   const mapped = KEY_MAP[key];
   if (!mapped) return undefined;
-  return cfg[mapped] as string | undefined;
+  const value = cfg[mapped];
+  if (value === undefined) return undefined;
+  if (typeof value === "boolean") return String(value);
+  if (typeof value === "string") return value;
+  return undefined;
 }
 
 export function set(
@@ -63,11 +69,18 @@ export function set(
 ): { ok: boolean; config: Config } {
   const mapped = KEY_MAP[key];
   if (!mapped) return { ok: false, config: cfg };
+  if (mapped === "verbose") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized !== "true" && normalized !== "false") {
+      return { ok: false, config: cfg };
+    }
+    return { ok: true, config: { ...cfg, verbose: normalized === "true" } };
+  }
   return { ok: true, config: { ...cfg, [mapped]: value } };
 }
 
 export function validKeys(): string[] {
-  return ["api-key", "access-key", "network"];
+  return ["api-key", "access-key", "network", "verbose"];
 }
 
 export function toMap(cfg: Config): Record<string, string> {
@@ -76,5 +89,6 @@ export function toMap(cfg: Config): Record<string, string> {
   if (cfg.access_key) m["access-key"] = cfg.access_key;
   if (cfg.app) m["app"] = `${cfg.app.name} (${cfg.app.id})`;
   if (cfg.network) m["network"] = cfg.network;
+  if (cfg.verbose !== undefined) m["verbose"] = String(cfg.verbose);
   return m;
 }

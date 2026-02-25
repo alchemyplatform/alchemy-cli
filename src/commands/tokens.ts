@@ -3,7 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { dim, withSpinner, printTable, printHeader, emptyState } from "../lib/ui.js";
+import { withSpinner, printTable, emptyState } from "../lib/ui.js";
 
 interface TokenResponse {
   address: string;
@@ -45,8 +45,6 @@ Examples:
             tb.tokenBalance !==
               "0x0000000000000000000000000000000000000000000000000000000000000000",
         );
-
-        printHeader(`Tokens ${dim(`— ${address}`)}`);
 
         if (nonZero.length === 0) {
           emptyState("No token balances found.");

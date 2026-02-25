@@ -1,9 +1,54 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
 import { errInvalidArgs, errNotFound } from "../lib/errors.js";
-import { isJSONMode, printJSON } from "../lib/output.js";
+import { isJSONMode, printJSON, verbose } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { bold, brand, dim, withSpinner, timeAgo, printHeader, printKeyValue } from "../lib/ui.js";
+import {
+  formatBlockTimestamp,
+  formatHexQuantity,
+} from "../lib/block-format.js";
+import {
+  bold,
+  dim,
+  withSpinner,
+  printKeyValueBox,
+  printSyntaxJSON,
+} from "../lib/ui.js";
+
+function parseHexQuantity(value: unknown): bigint | undefined {
+  if (typeof value !== "string" || !/^0x[0-9a-f]+$/i.test(value)) {
+    return undefined;
+  }
+  try {
+    return BigInt(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function formatWithCommas(value: bigint): string {
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function formatGasSummaryColored(
+  gasUsed: unknown,
+  gasLimit: unknown,
+): string | undefined {
+  const used = parseHexQuantity(gasUsed);
+  const limit = parseHexQuantity(gasLimit);
+  if (used === undefined || limit === undefined) return undefined;
+
+  const usedPart = formatWithCommas(used);
+  const limitPart = formatWithCommas(limit);
+  if (limit === 0n) return `${usedPart} / ${limitPart}`;
+
+  const bps = (used * 10_000n) / limit;
+  const percent = Number(bps) / 100;
+  const percentText = `${percent.toFixed(2)}%`;
+  const percentPart = dim(percentText);
+
+  return `${usedPart} / ${limitPart} (${percentPart})`;
+}
 
 export function registerBlock(program: Command) {
   program
@@ -46,22 +91,44 @@ Examples:
           return;
         }
 
-        printHeader("Block");
-
         const pairs: Array<[string, string]> = [];
-        if (block.number) pairs.push(["Block", bold(String(block.number))]);
-        if (block.hash) pairs.push(["Hash", brand(String(block.hash))]);
-        if (block.timestamp) {
-          const ts = String(block.timestamp);
-          pairs.push(["Timestamp", `${ts} ${dim("(" + timeAgo(ts) + ")")}`]);
+        if (block.number) {
+          const formatted = formatHexQuantity(block.number);
+          pairs.push(["Block", bold(formatted ?? String(block.number))]);
         }
-        if (Array.isArray(block.transactions))
-          pairs.push(["Transactions", String(block.transactions.length)]);
+        if (block.hash) pairs.push(["Hash", String(block.hash)]);
+        if (block.timestamp) {
+          const ts = formatBlockTimestamp(block.timestamp);
+          if (ts) pairs.push(["Timestamp", ts]);
+        }
+        if (Array.isArray(block.transactions)) {
+          const txCount = block.transactions.length.toLocaleString("en-US");
+          pairs.push(["Transactions", txCount]);
+        }
         if (block.miner) pairs.push(["Miner", String(block.miner)]);
-        if (block.gasUsed) pairs.push(["Gas Used", String(block.gasUsed)]);
-        if (block.gasLimit) pairs.push(["Gas Limit", String(block.gasLimit)]);
+        const gasSummary = formatGasSummaryColored(block.gasUsed, block.gasLimit);
+        if (gasSummary) {
+          pairs.push(["Gas", gasSummary]);
+        } else {
+          if (block.gasUsed) {
+            const formatted = formatHexQuantity(block.gasUsed);
+            pairs.push(["Gas Used", formatted ?? String(block.gasUsed)]);
+          }
+          if (block.gasLimit) {
+            const formatted = formatHexQuantity(block.gasLimit);
+            pairs.push(["Gas Limit", formatted ?? String(block.gasLimit)]);
+          }
+        }
 
-        printKeyValue(pairs);
+        printKeyValueBox(pairs);
+
+        if (verbose) {
+          console.log("");
+          printSyntaxJSON(block);
+        } else {
+          console.log("");
+          console.log(`  ${dim("Tip: use --verbose to include the raw block payload.")}`);
+        }
       } catch (err) {
         exitWithError(err);
       }

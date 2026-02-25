@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { isJSONMode, setFlags } from "./output.js";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { isJSONMode, setFlags, debug, verbose, debugMode } from "./output.js";
 
 describe("isJSONMode", () => {
   afterEach(() => {
@@ -15,5 +15,35 @@ describe("isJSONMode", () => {
     setFlags({});
     // In tests, stdout is not a terminal
     expect(isJSONMode()).toBe(true);
+  });
+});
+
+describe("output flags", () => {
+  afterEach(() => {
+    setFlags({});
+  });
+
+  it("tracks verbose and debug independently", () => {
+    setFlags({ verbose: true, debug: false });
+    expect(verbose).toBe(true);
+    expect(debugMode).toBe(false);
+
+    setFlags({ verbose: false, debug: true });
+    expect(verbose).toBe(false);
+    expect(debugMode).toBe(true);
+  });
+
+  it("only prints debug logs when debug mode is enabled", () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    setFlags({ debug: false });
+    debug("quiet");
+    expect(errSpy).not.toHaveBeenCalled();
+
+    setFlags({ debug: true });
+    debug("loud");
+    expect(errSpy).toHaveBeenCalledWith("[debug] loud");
+
+    errSpy.mockRestore();
   });
 });

@@ -6,11 +6,9 @@ import { exitWithError } from "../index.js";
 import {
   green,
   dim,
-  brand,
   withSpinner,
   printTable,
-  printHeader,
-  printKeyValue,
+  printKeyValueBox,
   emptyState,
 } from "../lib/ui.js";
 
@@ -35,8 +33,6 @@ export function registerApps(program: Command) {
           printJSON(result);
           return;
         }
-
-        printHeader("Apps");
 
         if (result.apps.length === 0) {
           emptyState("No apps found.");
@@ -77,10 +73,9 @@ export function registerApps(program: Command) {
           return;
         }
 
-        printHeader("App");
         const networks = app.chainNetworks.map((n) => n.name).join(", ");
-        printKeyValue([
-          ["ID", brand(app.id)],
+        printKeyValueBox([
+          ["ID", app.id],
           ["Name", app.name],
           ...(app.description ? [["Description", app.description] as [string, string]] : []),
           ["API Key", app.apiKey],
@@ -123,9 +118,8 @@ export function registerApps(program: Command) {
           return;
         }
 
-        printHeader("App Created");
-        printKeyValue([
-          ["ID", brand(app.id)],
+        printKeyValueBox([
+          ["ID", app.id],
           ["Name", app.name],
           ["API Key", app.apiKey],
         ]);

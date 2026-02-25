@@ -24,6 +24,8 @@ const ansi = {
   brandSecondary: rgb(139, 92, 246), // Secondary #8B5CF6
 };
 
+const stripAnsi = (s: string): string => s.replace(/\x1B\[[0-9;]*m/g, "");
+
 // ── Colors (no-op in JSON mode) ──────────────────────────────────────
 
 function wrap(fn: (s: string) => string) {
@@ -37,6 +39,12 @@ export const cyan = wrap(ansi.cyan);
 export const bold = wrap(ansi.bold);
 export const yellow = wrap(ansi.yellow);
 export const brand = wrap(ansi.brand);
+
+let suppressBrandedHelp = false;
+
+export function setBrandedHelpSuppressed(suppressed: boolean): void {
+  suppressBrandedHelp = suppressed;
+}
 
 // ── Badges ───────────────────────────────────────────────────────────
 
@@ -57,34 +65,60 @@ export async function withSpinner<T>(
 ): Promise<T> {
   if (isJSONMode()) return fn();
 
-  const yoctoSpinner = (await import("yocto-spinner")).default;
-  const spinner = yoctoSpinner({ text: label }).start();
+  const { spinner } = await import("@clack/prompts");
+  const s = spinner();
+  s.start(label);
   try {
     const result = await fn();
-    spinner.success(doneLabel);
+    s.stop(`${ansi.green("◇")} ${doneLabel}`);
     return result;
   } catch (err) {
-    spinner.error();
+    s.error();
     throw err;
   }
 }
 
-// ── Headers & Key-Value ─────────────────────────────────────────────
-
-export function printHeader(title: string): void {
-  if (isJSONMode()) return;
-  console.log(`\n  ${ansi.brand(ansi.bold(`◆ ${title}`))}`);
-  console.log(`  ${ansi.dim("────────────────────────────────────")}`);
-}
+// ── Key-Value ────────────────────────────────────────────────────────
 
 export function printKeyValue(
   pairs: Array<[string, string]>,
+  withBottomPadding = true,
 ): void {
   if (isJSONMode()) return;
   const maxLen = Math.max(...pairs.map(([k]) => k.length));
   for (const [key, value] of pairs) {
     console.log(`  ${ansi.dim(key.padEnd(maxLen))}  ${value}`);
   }
+  if (withBottomPadding) {
+    console.log("");
+  }
+}
+
+export function printKeyValueBox(
+  pairs: Array<[string, string]>,
+): void {
+  if (isJSONMode()) return;
+  if (pairs.length === 0) {
+    console.log(`  ${ansi.brand("┌──┐")}`);
+    console.log(`  ${ansi.brand("└──┘")}`);
+    return;
+  }
+
+  const keyWidth = Math.max(...pairs.map(([k]) => k.length));
+  const contentRows = pairs.map(([key, value]) => {
+    return `${ansi.dim(key.padEnd(keyWidth))}  ${value}`;
+  });
+  const contentWidth = Math.max(...contentRows.map((row) => stripAnsi(row).length));
+
+  const top = `┌${"─".repeat(contentWidth + 2)}┐`;
+  const bottom = `└${"─".repeat(contentWidth + 2)}┘`;
+  console.log(`  ${ansi.dim(top)}`);
+  for (const row of contentRows) {
+    const visibleLen = stripAnsi(row).length;
+    const padded = row + " ".repeat(Math.max(0, contentWidth - visibleLen));
+    console.log(`  ${ansi.dim("│")} ${padded} ${ansi.dim("│")}`);
+  }
+  console.log(`  ${ansi.dim(bottom)}`);
 }
 
 export function emptyState(message: string): void {
@@ -221,8 +255,9 @@ export function etherscanTxURL(
 
 // ── Branded help ─────────────────────────────────────────────────────
 
-export function brandedHelp(): string {
+export function brandedHelp(options?: { force?: boolean }): string {
   if (isJSONMode()) return "";
+  if (suppressBrandedHelp && !options?.force) return "";
 
   // Reimplemented from the official mark geometry:
   // one shared vertical gradient and three separate bars.
@@ -249,45 +284,18 @@ export function brandedHelp(): string {
     );
   };
 
-  // "." = empty cell, "#" = filled cell.
-  // Compact bitmap keeps proportions predictable across terminals.
-  const mark = [
-    "..............................",
-    "...................####.......",
-    "..................######......",
-    ".................########.....",
-    "................##########....",
-    "...............############...",
-    "..............##############..",
-    "............#####....########.",
-    "...........######.....#######.",
-    "..........#######......######.",
-    ".........########.......#####.",
-    "........########.........####.",
-    ".......########...........###.",
-    "......########..............#.",
-    ".....########..................",
-    "....########...###############",
-    "...########...################",
-    "..########...#################",
-    ".########...##################",
-    "########...###################",
+  // Block wordmark with a brand-like vertical gradient.
+  const markLines = [
+    " █████╗ ██╗      ██████╗██╗  ██╗███████╗███╗   ███╗██╗   ██╗",
+    "██╔══██╗██║     ██╔════╝██║  ██║██╔════╝████╗ ████║╚██╗ ██╔╝",
+    "███████║██║     ██║     ███████║█████╗  ██╔████╔██║ ╚████╔╝ ",
+    "██╔══██║██║     ██║     ██╔══██║██╔══╝  ██║╚██╔╝██║  ╚██╔╝  ",
+    "██║  ██║███████╗╚██████╗██║  ██║███████╗██║ ╚═╝ ██║   ██║   ",
+    "╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝   ╚═╝   ",
   ];
-
-  const logo = mark
-    .map((row, rowIdx) => {
-      const color = gradientAt(rowIdx / (mark.length - 1));
-      return row.replace(/#+/g, (run) => color("█".repeat(run.length))).replace(/\./g, " ");
-    })
+  const logo = markLines
+    .map((line, i) => gradientAt(i / (markLines.length - 1))(line))
     .join("\n");
 
-  const wordmark = ansi.brand(`
-    _    _      _
-   / \\  | | ___| |__   ___ _ __ ___  _   _
-  / _ \\ | |/ __| '_ \\ / _ \\ '_ \` _ \\| | | |
- / ___ \\| | (__| | | |  __/ | | | | | |_| |
-/_/   \\_\\_|\\___|_| |_|\\___|_| |_| |_|\\__, |
-                                      |___/`);
-
-  return "\n" + logo + wordmark + "\n";
+  return "\n" + logo + "\n";
 }

@@ -2,12 +2,12 @@ import { Command } from "commander";
 import * as config from "../lib/config.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
-import { errNotFound, errAccessKeyRequired } from "../lib/errors.js";
+import { errNotFound, errAccessKeyRequired, errInvalidArgs } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { green, dim, printHeader, printKeyValue, emptyState } from "../lib/ui.js";
+import { green, dim, printKeyValueBox, emptyState } from "../lib/ui.js";
 
-async function saveAppWithPrompt(app: App): Promise<void> {
+async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
   const updated: config.Config = {
     ...cfg,
@@ -16,23 +16,28 @@ async function saveAppWithPrompt(app: App): Promise<void> {
 
   // If user has a manually-set api-key, ask whether to replace it
   if (cfg.api_key) {
-    const { confirm } = await import("@inquirer/prompts");
+    const { confirm, isCancel, cancel } = await import("@clack/prompts");
     const replace = await confirm({
       message:
         "You already have an API key configured. Use the app's API key instead?",
-      default: true,
+      initialValue: true,
     });
+    if (isCancel(replace)) {
+      cancel("Cancelled default app update.");
+      return false;
+    }
     if (replace) {
       delete updated.api_key;
     }
   }
 
   config.save(updated);
+  return true;
 }
 
 async function selectOrCreateApp(admin: AdminClient): Promise<void> {
-  const { select, input, checkbox, confirm } = await import(
-    "@inquirer/prompts"
+  const { select, text, multiselect, confirm, isCancel, cancel } = await import(
+    "@clack/prompts"
   );
 
   let apps: Awaited<ReturnType<typeof admin.listApps>>;
@@ -47,23 +52,31 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
 
   if (apps.apps.length > 0) {
     const CREATE_NEW = "__create_new__";
-    const choices = [
+    const options = [
       ...apps.apps.map((a) => ({
-        name: `${a.name} (${a.id})`,
+        label: `${a.name} (${a.id})`,
         value: a.id,
       })),
-      { name: "Create a new app", value: CREATE_NEW },
+      { label: "Create a new app", value: CREATE_NEW },
     ];
 
     const selected = await select({
       message: "Select an app to use as default:",
-      choices,
+      options,
     });
+    if (isCancel(selected)) {
+      cancel("Cancelled app selection.");
+      return;
+    }
 
     if (selected !== CREATE_NEW) {
       const app = apps.apps.find((a) => a.id === selected)!;
-      await saveAppWithPrompt(app);
-      console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);
+      const saved = await saveAppWithPrompt(app);
+      if (saved) {
+        console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);
+      } else {
+        console.log(`  ${dim("Skipped setting default app.")}`);
+      }
       return;
     }
   } else {
@@ -71,34 +84,47 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   }
 
   // Create flow
-  const name = await input({ message: "App name:" });
+  const name = await text({ message: "App name:" });
+  if (isCancel(name)) {
+    cancel("Cancelled app creation.");
+    return;
+  }
   if (!name.trim()) {
     console.log(`  ${dim("Skipped app creation.")}`);
     return;
   }
 
   // Fetch chains for network selection
-  let chainChoices: Array<{ name: string; value: string }> = [];
+  let chainChoices: Array<{ label: string; value: string }> = [];
   try {
     const chains = await admin.listChains();
     chainChoices = chains
       .filter((c) => c.availability === "public" && !c.isTestnet)
-      .map((c) => ({ name: `${c.name} (${c.id})`, value: c.id }));
+      .map((c) => ({ label: `${c.name} (${c.id})`, value: c.id }));
   } catch {
     // Fallback to manual input if chains API fails
   }
 
   let networks: string[];
   if (chainChoices.length > 0) {
-    networks = await checkbox({
+    const selectedNetworks = await multiselect({
       message: "Select networks:",
-      choices: chainChoices,
+      options: chainChoices,
       required: true,
     });
+    if (isCancel(selectedNetworks)) {
+      cancel("Cancelled network selection.");
+      return;
+    }
+    networks = selectedNetworks;
   } else {
-    const raw = await input({
+    const raw = await text({
       message: "Network IDs (comma-separated):",
     });
+    if (isCancel(raw)) {
+      cancel("Cancelled network selection.");
+      return;
+    }
     networks = raw.split(",").map((s) => s.trim()).filter(Boolean);
   }
 
@@ -113,12 +139,20 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
 
     const setDefault = await confirm({
       message: "Set as default app?",
-      default: true,
+      initialValue: true,
     });
+    if (isCancel(setDefault)) {
+      cancel("Cancelled default app selection.");
+      return;
+    }
 
     if (setDefault) {
-      await saveAppWithPrompt(app);
-      console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);
+      const saved = await saveAppWithPrompt(app);
+      if (saved) {
+        console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);
+      } else {
+        console.log(`  ${dim("Skipped setting default app.")}`);
+      }
     }
   } catch (err) {
     exitWithError(err);
@@ -189,11 +223,28 @@ export function registerConfig(program: Command) {
       printHuman(`${green("✓")} Set network to ${network}\n`, { key: "network", value: network, status: "set" });
     });
 
+  setCmd
+    .command("verbose <enabled>")
+    .description("Set default verbose output (true|false)")
+    .action((enabled: string) => {
+      const normalized = enabled.trim().toLowerCase();
+      if (normalized !== "true" && normalized !== "false") {
+        throw errInvalidArgs("verbose must be 'true' or 'false'");
+      }
+      const verbose = normalized === "true";
+      const cfg = config.load();
+      config.save({ ...cfg, verbose });
+      printHuman(
+        `${green("✓")} Set verbose default to ${verbose}\n`,
+        { key: "verbose", value: String(verbose), status: "set" },
+      );
+    });
+
   // ── config get ─────────────────────────────────────────────────────
 
   cmd
     .command("get <key>")
-    .description("Get a config value (api-key, access-key, network)")
+    .description("Get a config value (api-key, access-key, network, verbose)")
     .action((key: string) => {
       const cfg = config.load();
       const value = config.get(cfg, key);
@@ -216,8 +267,6 @@ export function registerConfig(program: Command) {
         return;
       }
 
-      printHeader("Configuration");
-
       const pairs: Array<[string, string]> = [
         ["api-key", cfg.api_key || dim("(not set)")],
         ["access-key", cfg.access_key || dim("(not set)")],
@@ -228,8 +277,14 @@ export function registerConfig(program: Command) {
             : dim("(not set) — set automatically via 'config set access-key' or 'config set app'"),
         ],
         ["network", cfg.network || dim("(not set, defaults to eth-mainnet)")],
+        [
+          "verbose",
+          cfg.verbose !== undefined
+            ? String(cfg.verbose)
+            : dim("(not set, defaults to false)"),
+        ],
       ];
 
-      printKeyValue(pairs);
+      printKeyValueBox(pairs);
     });
 }

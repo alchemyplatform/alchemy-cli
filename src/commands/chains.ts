@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { adminClientFromFlags } from "../lib/resolve.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { dim, green, withSpinner, printTable, printHeader } from "../lib/ui.js";
+import { dim, green, withSpinner, printTable } from "../lib/ui.js";
 
 export function registerChains(program: Command) {
   const cmd = program.command("chains").description("Manage chain networks");
@@ -23,8 +23,6 @@ export function registerChains(program: Command) {
           printJSON(chains);
           return;
         }
-
-        printHeader("Chains");
 
         const rows = chains.map((c) => [
           c.id,

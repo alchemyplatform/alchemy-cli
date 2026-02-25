@@ -34,6 +34,21 @@ describe("config set/get", () => {
     expect(config.get(updated, "network")).toBe("polygon-mainnet");
   });
 
+  it("sets and gets verbose", () => {
+    const cfg: config.Config = {};
+    const { ok, config: updated } = config.set(cfg, "verbose", "true");
+    expect(ok).toBe(true);
+    expect(updated.verbose).toBe(true);
+    expect(config.get(updated, "verbose")).toBe("true");
+  });
+
+  it("rejects invalid verbose values", () => {
+    const cfg: config.Config = {};
+    const { ok, config: updated } = config.set(cfg, "verbose", "yes");
+    expect(ok).toBe(false);
+    expect(updated.verbose).toBeUndefined();
+  });
+
   it("returns false for unknown key", () => {
     const { ok } = config.set({}, "unknown", "value");
     expect(ok).toBe(false);
@@ -51,12 +66,14 @@ describe("config toMap", () => {
       access_key: "ak",
       app: { id: "app-1", name: "My App", apiKey: "ak-123" },
       network: "eth-mainnet",
+      verbose: true,
     });
     expect(m).toEqual({
       "api-key": "key1",
       "access-key": "ak",
       app: "My App (app-1)",
       network: "eth-mainnet",
+      verbose: "true",
     });
   });
 
@@ -81,12 +98,17 @@ describe("config save/load", () => {
   });
 
   it("saves and loads config", () => {
-    const cfg: config.Config = { api_key: "testkey", network: "eth-sepolia" };
+    const cfg: config.Config = {
+      api_key: "testkey",
+      network: "eth-sepolia",
+      verbose: true,
+    };
     config.save(cfg);
 
     const loaded = config.load();
     expect(loaded.api_key).toBe("testkey");
     expect(loaded.network).toBe("eth-sepolia");
+    expect(loaded.verbose).toBe(true);
   });
 
   it("saves with 0600 permissions", () => {

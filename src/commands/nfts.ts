@@ -3,7 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { dim, withSpinner, printTable, printHeader, emptyState } from "../lib/ui.js";
+import { dim, withSpinner, printTable, emptyState } from "../lib/ui.js";
 
 interface NFTResponse {
   ownedNfts: Array<{
@@ -43,8 +43,6 @@ Examples:
           printJSON(result);
           return;
         }
-
-        printHeader(`NFTs ${dim(`— ${address} (${result.totalCount} total)`)}`);
 
         if (result.ownedNfts.length === 0) {
           emptyState("No NFTs found.");

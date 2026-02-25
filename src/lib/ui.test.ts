@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { weiToEth, timeAgo, etherscanTxURL } from "./ui.js";
+import {
+  weiToEth,
+  timeAgo,
+  etherscanTxURL,
+  brandedHelp,
+  setBrandedHelpSuppressed,
+} from "./ui.js";
 
 describe("weiToEth", () => {
   it("converts zero", () => {
@@ -95,5 +101,39 @@ describe("etherscanTxURL", () => {
     expect(etherscanTxURL("0xabc", "eth-sepolia")).toBe(
       "https://sepolia.etherscan.io/tx/0xabc",
     );
+  });
+});
+
+describe("brandedHelp", () => {
+  let originalStdoutIsTTY: boolean | undefined;
+
+  beforeEach(() => {
+    originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, "isTTY", {
+      value: true,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    setBrandedHelpSuppressed(false);
+    Object.defineProperty(process.stdout, "isTTY", {
+      value: originalStdoutIsTTY,
+      configurable: true,
+    });
+  });
+
+  it("returns branded mark by default", () => {
+    expect(brandedHelp()).toContain("██");
+  });
+
+  it("suppresses branded mark when help is suppressed", () => {
+    setBrandedHelpSuppressed(true);
+    expect(brandedHelp()).toBe("");
+  });
+
+  it("forces branded mark when explicitly requested", () => {
+    setBrandedHelpSuppressed(true);
+    expect(brandedHelp({ force: true })).toContain("██");
   });
 });

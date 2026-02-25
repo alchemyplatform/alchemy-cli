@@ -5,14 +5,12 @@ import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import {
   green,
-  brand,
   successBadge,
   failBadge,
   withSpinner,
   weiToEth,
   etherscanTxURL,
-  printHeader,
-  printKeyValue,
+  printKeyValueBox,
 } from "../lib/ui.js";
 
 export function registerTx(program: Command) {
@@ -49,9 +47,7 @@ Examples:
           return;
         }
 
-        printHeader("Transaction");
-
-        const pairs: Array<[string, string]> = [["Hash", brand(hash)]];
+        const pairs: Array<[string, string]> = [["Hash", hash]];
         if (tx.from) pairs.push(["From", String(tx.from)]);
         if (tx.to) pairs.push(["To", String(tx.to)]);
         if (tx.value) {
@@ -71,10 +67,10 @@ Examples:
         const network = resolveNetwork(program);
         const explorerURL = etherscanTxURL(hash, network);
         if (explorerURL) {
-          pairs.push(["Explorer", brand(explorerURL)]);
+          pairs.push(["Explorer", explorerURL]);
         }
 
-        printKeyValue(pairs);
+        printKeyValueBox(pairs);
       } catch (err) {
         exitWithError(err);
       }

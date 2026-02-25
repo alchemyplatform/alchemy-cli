@@ -156,6 +156,7 @@ alchemy config set api-key <key>
 alchemy config set access-key <key>
 alchemy config set app              # interactive app selector
 alchemy config set network polygon-mainnet
+alchemy config set verbose true     # default verbose output for supported commands
 alchemy config get api-key
 alchemy config list
 ```
@@ -175,7 +176,8 @@ alchemy version
 | `--network, -n` | `ALCHEMY_NETWORK` | Target network (default: `eth-mainnet`) |
 | `--json` | — | Force JSON output |
 | `--quiet, -q` | — | Suppress non-essential output |
-| `--verbose, -v` | — | Debug output |
+| `--verbose, -v` | — | Verbose user-facing output (includes raw sections where supported) |
+| `--debug` | — | Internal debug diagnostics (`[debug] ...`) |
 
 ## Output Modes
 
@@ -184,6 +186,7 @@ The CLI auto-detects your environment:
 - **TTY (interactive terminal):** Human-friendly formatted output
 - **Non-TTY (piped/scripted):** JSON output for easy parsing
 - **`--json` flag:** Force JSON output regardless of environment
+- **`--verbose` flag or `config set verbose true`:** Include richer output in supported commands (for example, a raw section in `block` output)
 
 ## Error Format
 

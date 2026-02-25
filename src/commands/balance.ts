@@ -3,7 +3,7 @@ import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { green, withSpinner, weiToEth, printHeader, printKeyValue } from "../lib/ui.js";
+import { green, withSpinner, weiToEth, printKeyValueBox } from "../lib/ui.js";
 
 export function registerBalance(program: Command) {
   program
@@ -38,8 +38,7 @@ Examples:
             network,
           });
         } else {
-          printHeader("Balance");
-          printKeyValue([
+          printKeyValueBox([
             ["Address", address],
             ["Balance", green(weiToEth(wei) + " ETH")],
             ["Network", network],

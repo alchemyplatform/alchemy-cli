@@ -1,6 +1,12 @@
 import { Command, Help } from "commander";
 import { CLIError, ErrorCode } from "./lib/errors.js";
-import { setFlags, printError, isJSONMode } from "./lib/output.js";
+import {
+  setFlags,
+  printError,
+  isJSONMode,
+  formatCommanderError,
+} from "./lib/output.js";
+import { load as loadConfig } from "./lib/config.js";
 import { brandedHelp } from "./lib/ui.js";
 import { registerConfig } from "./commands/config.js";
 import { registerRPC } from "./commands/rpc.js";
@@ -21,6 +27,23 @@ const hBold = esc("1");
 const hDim = esc("2");
 
 const program = new Command();
+const argvTokens = process.argv.slice(2);
+const isHelpInvocation = argvTokens.some((token) =>
+  token === "help" || token === "--help" || token === "-h"
+);
+const findCommandByPath = (root: Command, path: string[]): Command | null => {
+  let current: Command = root;
+
+  for (const segment of path) {
+    const next = current.commands.find(
+      (cmd) => cmd.name() === segment || cmd.aliases().includes(segment),
+    );
+    if (!next) return null;
+    current = next;
+  }
+
+  return current;
+};
 
 program
   .name("alchemy")
@@ -36,32 +59,66 @@ program
   )
   .option("--json", "Force JSON output")
   .option("-q, --quiet", "Suppress non-essential output")
-  .option("-v, --verbose", "Enable debug output")
+  .option("-v, --verbose", "Enable verbose output")
+  .option("--debug", "Enable debug diagnostics")
+  .addHelpCommand(false)
+  .configureOutput({
+    outputError(str, write) {
+      write(formatCommanderError(str));
+    },
+  })
   .configureHelp({
     formatHelp(cmd, helper) {
       const defaultHelp = Help.prototype.formatHelp.call(helper, cmd, helper);
       if (isJSONMode()) return defaultHelp;
 
-      return defaultHelp
-        // Style section headers: "Commands:", "Options:", "Usage:", "Arguments:"
-        .replace(/^(Usage|Commands|Options|Arguments):/gm, (_, title) =>
-          `${hBrand("◆")} ${hBold(title)}\n  ${hDim("────────────────────────────────────")}`)
-        // Style command entries: "  commandName   description"
-        .replace(/^( {2})(\w[\w-]*)( +)(.+)$/gm, (_, indent, name, space, desc) =>
-          `${indent}${hBrand(name)}${space}${hDim(desc)}`)
-        // Style option flags
-        .replace(/^( +)(-[\w, -]+<?\w*>?)( +)(.+)$/gm, (_, indent, flags, space, desc) =>
-          `${indent}${hBrand(flags)}${space}${hDim(desc)}`);
+      const lines = defaultHelp.split("\n");
+      let section: "usage" | "options" | "commands" | "arguments" | null = null;
+
+      const out = lines.map((line) => {
+        const sectionMatch = line.match(/^(Usage|Commands|Options|Arguments):$/);
+        if (sectionMatch) {
+          const title = sectionMatch[1];
+          section = title.toLowerCase() as typeof section;
+          return `${hBrand("◆")} ${hBold(title)}\n  ${hDim("────────────────────────────────────")}`;
+        }
+
+        // Clear section after a blank line to avoid over-styling.
+        if (line.trim() === "") {
+          section = null;
+          return line;
+        }
+
+        // In options/commands tables, style only left and right columns.
+        if (section === "options" || section === "commands") {
+          const entryMatch = line.match(/^(\s+)(.+?)(\s{2,})(.+)$/);
+          if (entryMatch) {
+            const [, indent, left, gap, right] = entryMatch;
+            return `${indent}${hBrand(left)}${gap}${hDim(right)}`;
+          }
+        }
+
+        return line;
+      });
+
+      return out.join("\n") + "\n";
     },
   })
-  .addHelpText("beforeAll", brandedHelp())
+  .addHelpText("beforeAll", () => (isHelpInvocation ? brandedHelp() : ""))
   .hook("preAction", () => {
     const opts = program.opts();
+    const cfg = loadConfig();
     setFlags({
       json: opts.json,
       quiet: opts.quiet,
-      verbose: opts.verbose,
+      verbose: Boolean(opts.verbose || cfg.verbose),
+      debug: Boolean(opts.debug),
     });
+  })
+  .hook("postAction", () => {
+    if (!isJSONMode()) {
+      console.log("");
+    }
   })
   .action(async () => {
     if (process.stdin.isTTY) {
@@ -88,6 +145,23 @@ registerNetwork(program);
 registerChains(program);
 registerApps(program);
 registerVersion(program);
+program
+  .command("help [command...]")
+  .description("display help for command")
+  .action((commandPath?: string[]) => {
+    if (!commandPath || commandPath.length === 0) {
+      program.outputHelp();
+      return;
+    }
+
+    const target = findCommandByPath(program, commandPath);
+    if (!target) {
+      program.error(`unknown command '${commandPath.join(" ")}'`);
+      return;
+    }
+
+    target.outputHelp();
+  });
 
 export function exitWithError(err: unknown): never {
   if (err instanceof CLIError) {
