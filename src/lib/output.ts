@@ -5,7 +5,8 @@ export let quiet = false;
 export let verbose = false;
 export let debugMode = false;
 let reveal = false;
-const noColor = "NO_COLOR" in process.env;
+const forceColor = "FORCE_COLOR" in process.env && process.env.FORCE_COLOR !== "0";
+const noColor = !forceColor && "NO_COLOR" in process.env;
 const ansi = {
   red: (s: string) => `\x1b[31m${s}\x1b[0m`,
   boldRed: (s: string) => `\x1b[1;31m${s}\x1b[0m`,
@@ -13,7 +14,7 @@ const ansi = {
 };
 
 function supportsStderrStyling(): boolean {
-  return process.stderr.isTTY && !noColor;
+  return (process.stderr.isTTY || forceColor) && !noColor;
 }
 
 export function setFlags(opts: {

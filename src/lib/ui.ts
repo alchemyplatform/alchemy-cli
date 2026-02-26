@@ -1,9 +1,10 @@
 import Table from "cli-table3";
-import { isJSONMode, isRevealMode } from "./output.js";
+import { isJSONMode, isRevealMode, quiet } from "./output.js";
 
 // ── Raw ANSI helpers ─────────────────────────────────────────────────
 
-const noColor = "NO_COLOR" in process.env;
+const forceColor = "FORCE_COLOR" in process.env && process.env.FORCE_COLOR !== "0";
+const noColor = !forceColor && "NO_COLOR" in process.env;
 const identity = (s: string) => s;
 
 const esc = (code: string) =>
@@ -74,7 +75,7 @@ export async function withSpinner<T>(
   doneLabel: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  if (isJSONMode()) return fn();
+  if (isJSONMode() || quiet) return fn();
 
   const { spinner } = await import("@clack/prompts");
   const s = spinner();
@@ -263,7 +264,7 @@ export function etherscanTxURL(
 // ── Branded help ─────────────────────────────────────────────────────
 
 export function brandedHelp(options?: { force?: boolean }): string {
-  if (isJSONMode()) return "";
+  if (isJSONMode() || quiet) return "";
   if (suppressBrandedHelp && !options?.force) return "";
 
   // Reimplemented from the official mark geometry:

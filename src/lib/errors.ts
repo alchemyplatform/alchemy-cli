@@ -2,6 +2,7 @@ export const ErrorCode = {
   AUTH_REQUIRED: "AUTH_REQUIRED",
   INVALID_API_KEY: "INVALID_API_KEY",
   INVALID_ACCESS_KEY: "INVALID_ACCESS_KEY",
+  ACCESS_KEY_REQUIRED: "ACCESS_KEY_REQUIRED",
   APP_REQUIRED: "APP_REQUIRED",
   ADMIN_API_ERROR: "ADMIN_API_ERROR",
   NETWORK_ERROR: "NETWORK_ERROR",
@@ -13,6 +14,21 @@ export const ErrorCode = {
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+export const EXIT_CODES: Record<ErrorCodeType, number> = {
+  AUTH_REQUIRED: 3,
+  INVALID_API_KEY: 3,
+  INVALID_ACCESS_KEY: 3,
+  ACCESS_KEY_REQUIRED: 3,
+  APP_REQUIRED: 3,
+  INVALID_ARGS: 2,
+  NOT_FOUND: 4,
+  RATE_LIMITED: 5,
+  NETWORK_ERROR: 6,
+  RPC_ERROR: 7,
+  ADMIN_API_ERROR: 8,
+  INTERNAL_ERROR: 1,
+};
 
 export class CLIError extends Error {
   code: ErrorCodeType;
@@ -52,7 +68,7 @@ export function errAuthRequired(): CLIError {
 
 export function errAccessKeyRequired(): CLIError {
   return new CLIError(
-    ErrorCode.AUTH_REQUIRED,
+    ErrorCode.ACCESS_KEY_REQUIRED,
     "Access key required. Set ALCHEMY_ACCESS_KEY or run 'alchemy config set access-key <key>'.",
     "Get an access key: https://www.alchemy.com/docs/reference/admin-api/overview",
   );

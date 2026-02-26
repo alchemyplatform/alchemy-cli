@@ -1,9 +1,10 @@
 import { Command, Help } from "commander";
-import { CLIError, ErrorCode } from "./lib/errors.js";
+import { CLIError, ErrorCode, EXIT_CODES } from "./lib/errors.js";
 import {
   setFlags,
   printError,
   isJSONMode,
+  quiet,
   formatCommanderError,
 } from "./lib/output.js";
 import { load as loadConfig } from "./lib/config.js";
@@ -45,12 +46,14 @@ const findCommandByPath = (root: Command, path: string[]): Command | null => {
   return current;
 };
 
+declare const __CLI_VERSION__: string;
+
 program
   .name("alchemy")
   .description(
     "The Alchemy CLI lets you query blockchain data, call JSON-RPC methods, and manage your Alchemy configuration.",
   )
-  .version("0.1.0")
+  .version(__CLI_VERSION__)
   .option("--api-key <key>", "Alchemy API key (env: ALCHEMY_API_KEY)")
   .option("--access-key <key>", "Alchemy access key (env: ALCHEMY_ACCESS_KEY)")
   .option(
@@ -106,6 +109,24 @@ program
     },
   })
   .addHelpText("beforeAll", () => (isHelpInvocation ? brandedHelp() : ""))
+  .addHelpText("after", () => {
+    if (isJSONMode()) return "";
+    return [
+      "",
+      `${hBrand("◆")} ${hBold("Exit Codes")}`,
+      `  ${hDim("────────────────────────────────────")}`,
+      `  ${hBrand("0")}     Success`,
+      `  ${hBrand("1")}     Internal error`,
+      `  ${hBrand("2")}     Invalid arguments`,
+      `  ${hBrand("3")}     Authentication required`,
+      `  ${hBrand("4")}     Not found`,
+      `  ${hBrand("5")}     Rate limited`,
+      `  ${hBrand("6")}     Network error`,
+      `  ${hBrand("7")}     RPC error`,
+      `  ${hBrand("8")}     Admin API error`,
+      `  ${hBrand("130")}   Interrupted (SIGINT)`,
+    ].join("\n");
+  })
   .hook("preAction", () => {
     const opts = program.opts();
     const cfg = loadConfig();
@@ -118,7 +139,7 @@ program
     });
   })
   .hook("postAction", () => {
-    if (!isJSONMode()) {
+    if (!isJSONMode() && !quiet) {
       console.log("");
     }
   })
@@ -166,17 +187,21 @@ program
   });
 
 export function exitWithError(err: unknown): never {
-  if (err instanceof CLIError) {
-    printError(err);
-  } else {
-    printError(
-      new CLIError(
-        ErrorCode.INTERNAL_ERROR,
-        err instanceof Error ? err.message : String(err),
-      ),
-    );
-  }
-  process.exit(1);
+  const cliErr =
+    err instanceof CLIError
+      ? err
+      : new CLIError(
+          ErrorCode.INTERNAL_ERROR,
+          err instanceof Error ? err.message : String(err),
+        );
+  printError(cliErr);
+  process.exit(EXIT_CODES[cliErr.code]);
 }
+
+process.on("SIGTERM", () => process.exit(0));
+process.on("SIGINT", () => {
+  if (!isJSONMode()) process.stderr.write("\nInterrupted.\n");
+  process.exit(130);
+});
 
 program.parse();

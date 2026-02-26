@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   CLIError,
   ErrorCode,
+  EXIT_CODES,
   errAuthRequired,
   errAccessKeyRequired,
   errInvalidAPIKey,
@@ -52,7 +53,7 @@ describe("convenience constructors", () => {
     { name: "errInvalidArgs", fn: () => errInvalidArgs("bad"), code: ErrorCode.INVALID_ARGS },
     { name: "errNotFound", fn: () => errNotFound("tx"), code: ErrorCode.NOT_FOUND },
     { name: "errRateLimited", fn: errRateLimited, code: ErrorCode.RATE_LIMITED },
-    { name: "errAccessKeyRequired", fn: errAccessKeyRequired, code: ErrorCode.AUTH_REQUIRED },
+    { name: "errAccessKeyRequired", fn: errAccessKeyRequired, code: ErrorCode.ACCESS_KEY_REQUIRED },
     { name: "errInvalidAccessKey", fn: errInvalidAccessKey, code: ErrorCode.INVALID_ACCESS_KEY },
     { name: "errAppRequired", fn: errAppRequired, code: ErrorCode.APP_REQUIRED },
     { name: "errAdminAPI", fn: () => errAdminAPI(500, "fail"), code: ErrorCode.ADMIN_API_ERROR },
@@ -63,4 +64,13 @@ describe("convenience constructors", () => {
       expect(fn().code).toBe(code);
     });
   }
+});
+
+describe("EXIT_CODES", () => {
+  it("has a mapping for every ErrorCode", () => {
+    for (const code of Object.values(ErrorCode)) {
+      expect(EXIT_CODES).toHaveProperty(code);
+      expect(typeof EXIT_CODES[code]).toBe("number");
+    }
+  });
 });
