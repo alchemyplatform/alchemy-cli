@@ -6,7 +6,7 @@ import {
   brandedHelp,
   setBrandedHelpSuppressed,
   maskSecret,
-} from "./ui.js";
+} from "../../src/lib/ui.js";
 
 describe("maskSecret", () => {
   it("masks empty string", () => {
@@ -15,11 +15,17 @@ describe("maskSecret", () => {
 
   it("fully masks short secrets (≤8 chars)", () => {
     expect(maskSecret("abcd")).toBe("\u2022\u2022\u2022\u2022");
-    expect(maskSecret("12345678")).toBe("\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022");
+    expect(maskSecret("12345678")).toBe(
+      "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    );
   });
 
   it("shows first 4 and last 4 for longer secrets", () => {
-    expect(maskSecret("abcdefghij")).toBe("abcd\u2022\u2022efghij".slice(0, 4) + "\u2022\u2022" + "abcdefghij".slice(-4));
+    expect(maskSecret("abcdefghij")).toBe(
+      "abcd\u2022\u2022efghij".slice(0, 4) +
+        "\u2022\u2022" +
+        "abcdefghij".slice(-4),
+    );
     // 10 chars: first 4 + 2 bullets + last 4
     expect(maskSecret("1234567890")).toBe("1234\u2022\u20227890");
   });

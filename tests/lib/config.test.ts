@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
-import * as config from "./config.js";
+import * as config from "../../src/lib/config.js";
 
 describe("config set/get", () => {
   it("sets and gets api-key", () => {
@@ -157,5 +157,40 @@ describe("config save/load", () => {
   it("returns empty config for missing file", () => {
     const loaded = config.load();
     expect(loaded).toEqual({});
+  });
+
+  it("sanitizes invalid persisted fields", () => {
+    const unsafe: config.Config = {
+      api_key: "ok-api-key",
+      access_key: "ok-access-key",
+      network: "../etc/passwd",
+      verbose: true,
+      app: {
+        id: "app-123",
+        name: "My App",
+        apiKey: "app-api-key\nwith-newline",
+      },
+    };
+    config.save(unsafe);
+
+    const loaded = config.load();
+    expect(loaded).toEqual({
+      api_key: "ok-api-key",
+      access_key: "ok-access-key",
+      verbose: true,
+    });
+  });
+
+  it("persists app when fields are valid", () => {
+    config.save({
+      app: { id: "app-1", name: "My App", apiKey: "app-key-123" },
+    });
+
+    const loaded = config.load();
+    expect(loaded.app).toEqual({
+      id: "app-1",
+      name: "My App",
+      apiKey: "app-key-123",
+    });
   });
 });

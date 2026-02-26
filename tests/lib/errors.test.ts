@@ -14,11 +14,15 @@ import {
   errInvalidArgs,
   errNotFound,
   errRateLimited,
-} from "./errors.js";
+} from "../../src/lib/errors.js";
 
 describe("CLIError", () => {
   it("formats with hint", () => {
-    const err = new CLIError(ErrorCode.AUTH_REQUIRED, "not authenticated", "run config set");
+    const err = new CLIError(
+      ErrorCode.AUTH_REQUIRED,
+      "not authenticated",
+      "run config set",
+    );
     expect(err.format()).toContain("AUTH_REQUIRED");
     expect(err.format()).toContain("not authenticated");
     expect(err.format()).toContain("run config set");
@@ -70,17 +74,53 @@ describe("CLIError", () => {
 
 describe("convenience constructors", () => {
   const cases = [
-    { name: "errAuthRequired", fn: errAuthRequired, code: ErrorCode.AUTH_REQUIRED },
-    { name: "errInvalidAPIKey", fn: errInvalidAPIKey, code: ErrorCode.INVALID_API_KEY },
-    { name: "errNetwork", fn: () => errNetwork("timeout"), code: ErrorCode.NETWORK_ERROR },
-    { name: "errRPC", fn: () => errRPC(-32600, "invalid"), code: ErrorCode.RPC_ERROR },
-    { name: "errInvalidArgs", fn: () => errInvalidArgs("bad"), code: ErrorCode.INVALID_ARGS },
-    { name: "errNotFound", fn: () => errNotFound("tx"), code: ErrorCode.NOT_FOUND },
+    {
+      name: "errAuthRequired",
+      fn: errAuthRequired,
+      code: ErrorCode.AUTH_REQUIRED,
+    },
+    {
+      name: "errInvalidAPIKey",
+      fn: errInvalidAPIKey,
+      code: ErrorCode.INVALID_API_KEY,
+    },
+    {
+      name: "errNetwork",
+      fn: () => errNetwork("timeout"),
+      code: ErrorCode.NETWORK_ERROR,
+    },
+    {
+      name: "errRPC",
+      fn: () => errRPC(-32600, "invalid"),
+      code: ErrorCode.RPC_ERROR,
+    },
+    {
+      name: "errInvalidArgs",
+      fn: () => errInvalidArgs("bad"),
+      code: ErrorCode.INVALID_ARGS,
+    },
+    {
+      name: "errNotFound",
+      fn: () => errNotFound("tx"),
+      code: ErrorCode.NOT_FOUND,
+    },
     { name: "errRateLimited", fn: errRateLimited, code: ErrorCode.RATE_LIMITED },
-    { name: "errAccessKeyRequired", fn: errAccessKeyRequired, code: ErrorCode.ACCESS_KEY_REQUIRED },
-    { name: "errInvalidAccessKey", fn: errInvalidAccessKey, code: ErrorCode.INVALID_ACCESS_KEY },
+    {
+      name: "errAccessKeyRequired",
+      fn: errAccessKeyRequired,
+      code: ErrorCode.ACCESS_KEY_REQUIRED,
+    },
+    {
+      name: "errInvalidAccessKey",
+      fn: errInvalidAccessKey,
+      code: ErrorCode.INVALID_ACCESS_KEY,
+    },
     { name: "errAppRequired", fn: errAppRequired, code: ErrorCode.APP_REQUIRED },
-    { name: "errAdminAPI", fn: () => errAdminAPI(500, "fail"), code: ErrorCode.ADMIN_API_ERROR },
+    {
+      name: "errAdminAPI",
+      fn: () => errAdminAPI(500, "fail"),
+      code: ErrorCode.ADMIN_API_ERROR,
+    },
   ];
 
   for (const { name, fn, code } of cases) {

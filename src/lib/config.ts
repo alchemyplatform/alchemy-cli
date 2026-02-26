@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
+import { z } from "zod";
 import { maskIf } from "./ui.js";
 
 export interface AppConfig {
@@ -26,6 +27,46 @@ const KEY_MAP: Record<string, keyof Config> = {
   verbose: "verbose",
 };
 
+const SAFE_ID_RE = /^[A-Za-z0-9:_-]{1,128}$/;
+const SAFE_NETWORK_RE = /^[A-Za-z0-9:_-]{1,128}$/;
+const MAX_SECRET_LEN = 512;
+const MAX_APP_NAME_LEN = 128;
+const CONTROL_CHAR_RE = /[\u0000-\u001f\u007f]/;
+
+const safeTextSchema = (maxLen: number) =>
+  z
+    .string()
+    .min(1)
+    .max(maxLen)
+    // Reject control characters to avoid writing unexpected multi-line/binary-like values.
+    .refine((value) => !CONTROL_CHAR_RE.test(value));
+
+const appConfigSchema = z
+  .object({
+    id: z.string().regex(SAFE_ID_RE),
+    name: safeTextSchema(MAX_APP_NAME_LEN),
+    apiKey: safeTextSchema(MAX_SECRET_LEN),
+  })
+  .strip();
+
+const configSchema = z
+  .object({
+    api_key: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    access_key: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    app: appConfigSchema.optional().catch(undefined),
+    network: z.string().regex(SAFE_NETWORK_RE).optional().catch(undefined),
+    verbose: z.boolean().optional().catch(undefined),
+  })
+  .strip();
+
+function sanitizeConfig(input: unknown): Config {
+  const parsed = configSchema.safeParse(input);
+  if (!parsed.success) {
+    return {};
+  }
+  return parsed.data;
+}
+
 function getHome(): string {
   return process.env.HOME || homedir();
 }
@@ -40,7 +81,7 @@ export function load(): Config {
   if (!existsSync(p)) return {};
   try {
     const data = readFileSync(p, "utf-8");
-    return JSON.parse(data) as Config;
+    return sanitizeConfig(JSON.parse(data));
   } catch {
     console.error(`warning: could not parse config file at ${p} — using defaults`);
     return {};
@@ -49,8 +90,9 @@ export function load(): Config {
 
 export function save(cfg: Config): void {
   const p = configPath();
+  const sanitized = sanitizeConfig(cfg);
   mkdirSync(dirname(p), { recursive: true, mode: 0o755 });
-  writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n", {
+  writeFileSync(p, JSON.stringify(sanitized, null, 2) + "\n", {
     mode: 0o600,
   });
 }

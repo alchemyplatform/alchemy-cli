@@ -1,5 +1,11 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { isJSONMode, setFlags, debug, verbose, debugMode } from "./output.js";
+import {
+  isJSONMode,
+  setFlags,
+  debug,
+  verbose,
+  debugMode,
+} from "../../src/lib/output.js";
 
 describe("isJSONMode", () => {
   afterEach(() => {

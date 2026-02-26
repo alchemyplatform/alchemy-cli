@@ -5,8 +5,12 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { AdminClient, type App, type ChainNetwork } from "./admin-client.js";
-import { CLIError, ErrorCode } from "./errors.js";
+import {
+  AdminClient,
+  type App,
+  type ChainNetwork,
+} from "../../src/lib/admin-client.js";
+import { CLIError, ErrorCode } from "../../src/lib/errors.js";
 
 let server: Server;
 
@@ -60,7 +64,11 @@ const MOCK_APP: App = {
   apiKey: "test-api-key",
   webhookApiKey: "test-webhook-key",
   chainNetworks: [
-    { name: "ETH_MAINNET", id: "ETH_MAINNET", rpcUrl: "https://eth-mainnet.g.alchemy.com/v2/test" },
+    {
+      name: "ETH_MAINNET",
+      id: "ETH_MAINNET",
+      rpcUrl: "https://eth-mainnet.g.alchemy.com/v2/test",
+    },
   ],
   createdAt: "2025-01-01T00:00:00Z",
 };

@@ -5,8 +5,8 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { Client } from "./client.js";
-import { CLIError, ErrorCode } from "./errors.js";
+import { Client } from "../../src/lib/client.js";
+import { CLIError, ErrorCode } from "../../src/lib/errors.js";
 
 let server: Server;
 

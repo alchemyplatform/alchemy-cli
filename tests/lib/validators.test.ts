@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { validateAddress, validateTxHash } from "./validators.js";
+import {
+  validateAddress,
+  validateTxHash,
+} from "../../src/lib/validators.js";
 
 describe("validateAddress", () => {
   it("accepts a valid address", () => {

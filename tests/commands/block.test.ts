@@ -3,7 +3,7 @@ import {
   formatHexQuantity,
   formatBlockTimestamp,
   formatGasSummary,
-} from "../lib/block-format.js";
+} from "../../src/lib/block-format.js";
 
 describe("block formatting helpers", () => {
   it("formats hex quantities with separators", () => {
