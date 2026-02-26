@@ -8,6 +8,7 @@ import {
   setBrandedHelpSuppressed,
 } from "../lib/ui.js";
 import { isJSONMode } from "../lib/output.js";
+import { setReplMode } from "../index.js";
 
 const COMMAND_NAMES = [
   "apps",
@@ -59,6 +60,7 @@ const NETWORK_NAMES = [
 
 export async function startREPL(program: Command): Promise<void> {
   if (!stdin.isTTY) return;
+  setReplMode(true);
   setBrandedHelpSuppressed(true);
 
   const applyExitOverride = (cmd: Command): void => {
@@ -354,6 +356,7 @@ export async function startREPL(program: Command): Promise<void> {
   return new Promise<void>((resolve) => {
     rl.on("line", (line) => void onLine(line));
     rl.on("close", () => {
+      setReplMode(false);
       setBrandedHelpSuppressed(false);
       stdin.off("keypress", onKeypress);
       resolve();

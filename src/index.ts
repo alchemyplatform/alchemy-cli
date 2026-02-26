@@ -227,6 +227,12 @@ program
     target.outputHelp();
   });
 
+let replMode = false;
+
+export function setReplMode(enabled: boolean): void {
+  replMode = enabled;
+}
+
 export function exitWithError(err: unknown): never {
   const cliErr =
     err instanceof CLIError
@@ -236,9 +242,17 @@ export function exitWithError(err: unknown): never {
           err instanceof Error ? err.message : String(err),
         );
   printError(cliErr);
+
+  if (replMode) {
+    // In REPL mode, throw instead of exiting so the REPL can catch and continue
+    throw cliErr;
+  }
+
   process.exit(EXIT_CODES[cliErr.code]);
 }
 
+process.on("unhandledRejection", (err) => exitWithError(err));
+process.on("uncaughtException", (err) => exitWithError(err));
 process.on("SIGTERM", () => process.exit(0));
 process.on("SIGINT", () => {
   if (!isJSONMode()) process.stderr.write("\nInterrupted.\n");

@@ -19,6 +19,17 @@
     "ethereum",
     "cli"
   ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alchemyplatform/alchemy-cli.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=18"

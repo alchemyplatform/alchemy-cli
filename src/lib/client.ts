@@ -1,6 +1,7 @@
 import {
   CLIError,
   errInvalidAPIKey,
+  errInvalidArgs,
   errNetwork,
   errRPC,
   errRateLimited,
@@ -28,6 +29,22 @@ export class Client {
   constructor(apiKey: string, network: string) {
     this.apiKey = apiKey;
     this.network = network;
+    this.validateNetwork(network);
+  }
+
+  private validateNetwork(network: string): void {
+    // Ensure the network value cannot redirect requests to an arbitrary host.
+    // A valid Alchemy network slug produces a hostname like "eth-mainnet.g.alchemy.com".
+    const hostname = `${network}.g.alchemy.com`;
+    let parsed: URL;
+    try {
+      parsed = new URL(`https://${hostname}`);
+    } catch {
+      throw errInvalidArgs(`Invalid network: ${network}`);
+    }
+    if (!parsed.hostname.endsWith(".g.alchemy.com")) {
+      throw errInvalidArgs(`Invalid network: ${network} — hostname must end with .g.alchemy.com`);
+    }
   }
 
   rpcURL(): string {

@@ -42,6 +42,7 @@ export function load(): Config {
     const data = readFileSync(p, "utf-8");
     return JSON.parse(data) as Config;
   } catch {
+    console.error(`warning: could not parse config file at ${p} — using defaults`);
     return {};
   }
 }

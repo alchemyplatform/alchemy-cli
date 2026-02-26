@@ -177,7 +177,12 @@ alchemy version
 | `--json` | — | Force JSON output |
 | `--quiet, -q` | — | Suppress non-essential output |
 | `--verbose, -v` | — | Verbose user-facing output (includes raw sections where supported) |
+| `--reveal` | — | Show secrets in plain text (TTY only) |
+| `--timeout <ms>` | — | Request timeout in milliseconds |
 | `--debug` | — | Internal debug diagnostics (`[debug] ...`) |
+| `--no-color` | `NO_COLOR` | Disable color output |
+| — | `ALCHEMY_CONFIG` | Custom path to the config file |
+| — | `ALCHEMY_NETWORK` | Default network (same as `--network`) |
 
 ## Output Modes
 

@@ -170,22 +170,30 @@ export function registerConfig(program: Command) {
     .command("api-key <key>")
     .description("Set the Alchemy API key for RPC requests")
     .action((key: string) => {
-      const cfg = config.load();
-      config.save({ ...cfg, api_key: key });
-      printHuman(`${green("✓")} Set api-key\n`, { key: "api-key", status: "set" });
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, api_key: key });
+        printHuman(`${green("✓")} Set api-key\n`, { key: "api-key", status: "set" });
+      } catch (err) {
+        exitWithError(err);
+      }
     });
 
   setCmd
     .command("access-key <key>")
     .description("Set the Alchemy access key for Admin API operations")
     .action(async (key: string) => {
-      const cfg = config.load();
-      config.save({ ...cfg, access_key: key });
-      printHuman(`${green("✓")} Set access-key\n`, { key: "access-key", status: "set" });
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, access_key: key });
+        printHuman(`${green("✓")} Set access-key\n`, { key: "access-key", status: "set" });
 
-      // Trigger onboarding in TTY mode
-      if (process.stdin.isTTY && !isJSONMode()) {
-        await selectOrCreateApp(new AdminClient(key));
+        // Trigger onboarding in TTY mode
+        if (process.stdin.isTTY && !isJSONMode()) {
+          await selectOrCreateApp(new AdminClient(key));
+        }
+      } catch (err) {
+        exitWithError(err);
       }
     });
 
@@ -235,26 +243,34 @@ export function registerConfig(program: Command) {
     .command("network <network>")
     .description("Set the default network (e.g. eth-mainnet, polygon-mainnet)")
     .action((network: string) => {
-      const cfg = config.load();
-      config.save({ ...cfg, network });
-      printHuman(`${green("✓")} Set network to ${network}\n`, { key: "network", value: network, status: "set" });
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, network });
+        printHuman(`${green("✓")} Set network to ${network}\n`, { key: "network", value: network, status: "set" });
+      } catch (err) {
+        exitWithError(err);
+      }
     });
 
   setCmd
     .command("verbose <enabled>")
     .description("Set default verbose output (true|false)")
     .action((enabled: string) => {
-      const normalized = enabled.trim().toLowerCase();
-      if (normalized !== "true" && normalized !== "false") {
-        throw errInvalidArgs("verbose must be 'true' or 'false'");
+      try {
+        const normalized = enabled.trim().toLowerCase();
+        if (normalized !== "true" && normalized !== "false") {
+          throw errInvalidArgs("verbose must be 'true' or 'false'");
+        }
+        const verbose = normalized === "true";
+        const cfg = config.load();
+        config.save({ ...cfg, verbose });
+        printHuman(
+          `${green("✓")} Set verbose default to ${verbose}\n`,
+          { key: "verbose", value: String(verbose), status: "set" },
+        );
+      } catch (err) {
+        exitWithError(err);
       }
-      const verbose = normalized === "true";
-      const cfg = config.load();
-      config.save({ ...cfg, verbose });
-      printHuman(
-        `${green("✓")} Set verbose default to ${verbose}\n`,
-        { key: "verbose", value: String(verbose), status: "set" },
-      );
     });
 
   // ── config get ─────────────────────────────────────────────────────
