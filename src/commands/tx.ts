@@ -27,7 +27,7 @@ Examples:
     )
     .action(async (hashArg?: string) => {
       try {
-        const hash = hashArg ?? readStdinArg("hash");
+        const hash = hashArg ?? (await readStdinArg("hash"));
         validateTxHash(hash);
 
         const client = clientFromFlags(program);

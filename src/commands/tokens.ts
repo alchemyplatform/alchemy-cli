@@ -28,7 +28,7 @@ Examples:
     )
     .action(async (addressArg: string | undefined, opts: { pageKey?: string }) => {
       try {
-        const address = addressArg ?? readStdinArg("address");
+        const address = addressArg ?? (await readStdinArg("address"));
         validateAddress(address);
 
         const params: unknown[] = [address];

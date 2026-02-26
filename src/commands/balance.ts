@@ -19,7 +19,7 @@ Examples:
     )
     .action(async (addressArg?: string) => {
       try {
-        const address = addressArg ?? readStdinArg("address");
+        const address = addressArg ?? (await readStdinArg("address"));
         validateAddress(address);
 
         const client = clientFromFlags(program);

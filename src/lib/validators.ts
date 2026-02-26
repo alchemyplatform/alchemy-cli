@@ -1,14 +1,20 @@
-import { readFileSync } from "node:fs";
 import { errInvalidArgs } from "./errors.js";
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 
-export function readStdinArg(name: string): string {
+export async function readStdinArg(name: string): Promise<string> {
   if (process.stdin.isTTY) {
     throw errInvalidArgs(`Missing <${name}>. Provide it as an argument or pipe via stdin.`);
   }
-  const data = readFileSync(0, "utf-8").trim().split("\n")[0].trim();
+
+  process.stdin.setEncoding("utf-8");
+  let input = "";
+  for await (const chunk of process.stdin) {
+    input += chunk;
+  }
+
+  const data = input.trim().split("\n")[0]?.trim() ?? "";
   if (!data) {
     throw errInvalidArgs(`No <${name}> received on stdin.`);
   }
