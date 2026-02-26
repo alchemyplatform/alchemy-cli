@@ -25,3 +25,9 @@ coverage/
 # Env
 .env
 .env.local
+
+# Plans
+plans/
+
+# Claude Code
+.claude/
