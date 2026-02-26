@@ -9,6 +9,7 @@ import {
 } from "./lib/output.js";
 import { load as loadConfig } from "./lib/config.js";
 import { brandedHelp } from "./lib/ui.js";
+import { noColor } from "./lib/colors.js";
 import { registerConfig } from "./commands/config.js";
 import { registerRPC } from "./commands/rpc.js";
 import { registerBalance } from "./commands/balance.js";
@@ -22,8 +23,12 @@ import { registerChains } from "./commands/chains.js";
 import { registerApps } from "./commands/apps.js";
 
 // ── ANSI helpers for help formatting ────────────────────────────────
-const esc = (code: string) => (s: string) => `\x1b[${code}m${s}\x1b[0m`;
-const hBrand = (s: string) => `\x1b[38;2;54;63;249m${s}\x1b[39m`;
+const identity = (s: string) => s;
+const esc = (code: string) =>
+  noColor ? identity : (s: string) => `\x1b[${code}m${s}\x1b[0m`;
+const hBrand = noColor
+  ? identity
+  : (s: string) => `\x1b[38;2;54;63;249m${s}\x1b[39m`;
 const hBold = esc("1");
 const hDim = esc("2");
 
@@ -65,6 +70,8 @@ program
   .option("-v, --verbose", "Enable verbose output")
   .option("--debug", "Enable debug diagnostics")
   .option("--reveal", "Show secrets in plain text (TTY only)")
+  .option("--no-color", "Disable color output")
+  .option("--timeout <ms>", "Request timeout in milliseconds", parseInt)
   .addHelpCommand(false)
   .configureOutput({
     outputError(str, write) {
@@ -74,7 +81,40 @@ program
   .configureHelp({
     formatHelp(cmd, helper) {
       const defaultHelp = Help.prototype.formatHelp.call(helper, cmd, helper);
-      if (isJSONMode()) return defaultHelp;
+
+      if (isJSONMode()) {
+        const schema: Record<string, unknown> = {
+          name: cmd.name(),
+          description: cmd.description(),
+        };
+
+        const args = cmd.registeredArguments;
+        if (args.length > 0) {
+          schema.arguments = args.map((a) => ({
+            name: a.name(),
+            description: a.description,
+            required: a.required,
+          }));
+        }
+
+        const opts = cmd.options;
+        if (opts.length > 0) {
+          schema.options = opts.map((o) => ({
+            flags: o.flags,
+            description: o.description,
+          }));
+        }
+
+        const subs = cmd.commands;
+        if (subs.length > 0) {
+          schema.subcommands = subs.map((s) => ({
+            name: s.name(),
+            description: s.description(),
+          }));
+        }
+
+        return JSON.stringify(schema, null, 2) + "\n";
+      }
 
       const lines = defaultHelp.split("\n");
       let section: "usage" | "options" | "commands" | "arguments" | null = null;
@@ -136,6 +176,7 @@ program
       verbose: Boolean(opts.verbose || cfg.verbose),
       debug: Boolean(opts.debug),
       reveal: Boolean(opts.reveal),
+      timeout: opts.timeout,
     });
   })
   .hook("postAction", () => {

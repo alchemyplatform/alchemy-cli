@@ -1,12 +1,12 @@
 import { CLIError } from "./errors.js";
+import { forceColor, noColor } from "./colors.js";
 
 export let forceJSON = false;
 export let quiet = false;
 export let verbose = false;
 export let debugMode = false;
+export let timeout: number | undefined;
 let reveal = false;
-const forceColor = "FORCE_COLOR" in process.env && process.env.FORCE_COLOR !== "0";
-const noColor = !forceColor && "NO_COLOR" in process.env;
 const ansi = {
   red: (s: string) => `\x1b[31m${s}\x1b[0m`,
   boldRed: (s: string) => `\x1b[1;31m${s}\x1b[0m`,
@@ -23,12 +23,14 @@ export function setFlags(opts: {
   verbose?: boolean;
   debug?: boolean;
   reveal?: boolean;
+  timeout?: number;
 }) {
   forceJSON = opts.json ?? false;
   quiet = opts.quiet ?? false;
   verbose = opts.verbose ?? false;
   debugMode = opts.debug ?? false;
   reveal = opts.reveal ?? false;
+  timeout = opts.timeout;
 }
 
 export function isRevealMode(): boolean {

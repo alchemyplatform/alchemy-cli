@@ -1,8 +1,9 @@
 import { Command } from "commander";
 import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
-import { errInvalidArgs, errNotFound } from "../lib/errors.js";
+import { errNotFound } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
+import { validateTxHash, readStdinArg } from "../lib/validators.js";
 import {
   green,
   successBadge,
@@ -15,19 +16,19 @@ import {
 
 export function registerTx(program: Command) {
   program
-    .command("tx <hash>")
+    .command("tx [hash]")
     .description("Get transaction details by hash")
     .addHelpText(
       "after",
       `
 Examples:
-  alchemy tx 0xabc123...`,
+  alchemy tx 0xabc123...
+  echo 0xabc123... | alchemy tx`,
     )
-    .action(async (hash: string) => {
+    .action(async (hashArg?: string) => {
       try {
-        if (!hash.startsWith("0x")) {
-          throw errInvalidArgs("transaction hash must start with 0x");
-        }
+        const hash = hashArg ?? readStdinArg("hash");
+        validateTxHash(hash);
 
         const client = clientFromFlags(program);
 

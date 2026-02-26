@@ -1,17 +1,6 @@
 import Table from "cli-table3";
 import { isJSONMode, isRevealMode, quiet } from "./output.js";
-
-// ── Raw ANSI helpers ─────────────────────────────────────────────────
-
-const forceColor = "FORCE_COLOR" in process.env && process.env.FORCE_COLOR !== "0";
-const noColor = !forceColor && "NO_COLOR" in process.env;
-const identity = (s: string) => s;
-
-const esc = (code: string) =>
-  noColor ? identity : (s: string) => `\x1b[${code}m${s}\x1b[0m`;
-
-const rgb = (r: number, g: number, b: number) =>
-  noColor ? identity : (s: string) => `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m`;
+import { esc, rgb } from "./colors.js";
 
 const ansi = {
   green: esc("32"),

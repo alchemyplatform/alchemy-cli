@@ -6,6 +6,7 @@ import {
   errNetwork,
   errInvalidArgs,
 } from "./errors.js";
+import { timeout as globalTimeout } from "./output.js";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -117,8 +118,12 @@ export class AdminClient {
           Accept: "application/json",
         },
         ...(body !== undefined && { body: JSON.stringify(body) }),
+        ...(globalTimeout && { signal: AbortSignal.timeout(globalTimeout) }),
       });
     } catch (err) {
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        throw errNetwork(`Request timed out after ${globalTimeout}ms`);
+      }
       throw errNetwork((err as Error).message);
     }
 

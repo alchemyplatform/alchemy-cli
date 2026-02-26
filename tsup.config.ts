@@ -9,7 +9,10 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   banner: {
-    js: "#!/usr/bin/env node",
+    js: [
+      "#!/usr/bin/env node",
+      'if(process.argv.includes("--no-color"))process.env.NO_COLOR="1";',
+    ].join("\n"),
   },
   define: {
     __CLI_VERSION__: JSON.stringify(pkg.version),

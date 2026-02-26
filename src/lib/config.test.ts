@@ -85,6 +85,32 @@ describe("config toMap", () => {
   });
 });
 
+describe("configPath", () => {
+  let origAlchemyConfig: string | undefined;
+
+  beforeEach(() => {
+    origAlchemyConfig = process.env.ALCHEMY_CONFIG;
+  });
+
+  afterEach(() => {
+    if (origAlchemyConfig === undefined) {
+      delete process.env.ALCHEMY_CONFIG;
+    } else {
+      process.env.ALCHEMY_CONFIG = origAlchemyConfig;
+    }
+  });
+
+  it("uses ALCHEMY_CONFIG env var when set", () => {
+    process.env.ALCHEMY_CONFIG = "/tmp/custom-config.json";
+    expect(config.configPath()).toBe("/tmp/custom-config.json");
+  });
+
+  it("falls back to default path when ALCHEMY_CONFIG is not set", () => {
+    delete process.env.ALCHEMY_CONFIG;
+    expect(config.configPath()).toContain(".config/alchemy/config.json");
+  });
+});
+
 describe("config save/load", () => {
   let origHome: string | undefined;
   let tmpDir: string;

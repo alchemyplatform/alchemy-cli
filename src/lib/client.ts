@@ -5,6 +5,7 @@ import {
   errRPC,
   errRateLimited,
 } from "./errors.js";
+import { timeout as globalTimeout } from "./output.js";
 
 export interface RPCRequest {
   jsonrpc: string;
@@ -54,8 +55,12 @@ export class Client {
           Accept: "application/json",
         },
         body: JSON.stringify(body),
+        ...(globalTimeout && { signal: AbortSignal.timeout(globalTimeout) }),
       });
     } catch (err) {
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        throw errNetwork(`Request timed out after ${globalTimeout}ms`);
+      }
       throw errNetwork((err as Error).message);
     }
 
@@ -89,8 +94,12 @@ export class Client {
     try {
       resp = await fetch(url.toString(), {
         headers: { Accept: "application/json" },
+        ...(globalTimeout && { signal: AbortSignal.timeout(globalTimeout) }),
       });
     } catch (err) {
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        throw errNetwork(`Request timed out after ${globalTimeout}ms`);
+      }
       throw errNetwork((err as Error).message);
     }
 

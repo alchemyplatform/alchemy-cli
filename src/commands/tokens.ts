@@ -1,9 +1,9 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
-import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import { withSpinner, printTable, emptyState } from "../lib/ui.js";
+import { validateAddress, readStdinArg } from "../lib/validators.js";
 
 interface TokenResponse {
   address: string;
@@ -15,19 +15,19 @@ interface TokenResponse {
 
 export function registerTokens(program: Command) {
   program
-    .command("tokens <address>")
+    .command("tokens [address]")
     .description("List ERC-20 token balances for an address")
     .addHelpText(
       "after",
       `
 Examples:
-  alchemy tokens 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045`,
+  alchemy tokens 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy tokens`,
     )
-    .action(async (address: string) => {
+    .action(async (addressArg?: string) => {
       try {
-        if (!address.startsWith("0x")) {
-          throw errInvalidArgs("address must start with 0x");
-        }
+        const address = addressArg ?? readStdinArg("address");
+        validateAddress(address);
 
         const client = clientFromFlags(program);
         const result = await withSpinner("Fetching token balances…", "Token balances fetched", () =>

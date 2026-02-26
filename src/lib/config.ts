@@ -31,6 +31,7 @@ function getHome(): string {
 }
 
 export function configPath(): string {
+  if (process.env.ALCHEMY_CONFIG) return process.env.ALCHEMY_CONFIG;
   return join(getHome(), ".config", "alchemy", "config.json");
 }
 

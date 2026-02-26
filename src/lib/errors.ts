@@ -15,6 +15,11 @@ export const ErrorCode = {
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
 
+const RETRYABLE_CODES: ReadonlySet<ErrorCodeType> = new Set([
+  ErrorCode.RATE_LIMITED,
+  ErrorCode.NETWORK_ERROR,
+]);
+
 export const EXIT_CODES: Record<ErrorCodeType, number> = {
   AUTH_REQUIRED: 3,
   INVALID_API_KEY: 3,
@@ -47,6 +52,7 @@ export class CLIError extends Error {
         code: this.code,
         message: this.message,
         ...(this.hint && { hint: this.hint }),
+        retryable: RETRYABLE_CODES.has(this.code),
       },
     };
   }

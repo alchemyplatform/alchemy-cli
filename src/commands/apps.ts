@@ -105,14 +105,31 @@ export function registerApps(program: Command) {
     .requiredOption("--networks <networks>", "Comma-separated network IDs")
     .option("--description <desc>", "App description")
     .option("--products <products>", "Comma-separated product IDs")
+    .option("--dry-run", "Preview without executing")
     .action(async (opts) => {
       try {
-        const admin = adminClientFromFlags(program);
         const networks = opts.networks.split(",").map((s: string) => s.trim());
         const products = opts.products
           ? opts.products.split(",").map((s: string) => s.trim())
           : undefined;
 
+        const payload = {
+          name: opts.name,
+          networks,
+          ...(opts.description && { description: opts.description }),
+          ...(products && { products }),
+        };
+
+        if (opts.dryRun) {
+          if (isJSONMode()) {
+            printJSON({ dryRun: true, action: "create", payload });
+          } else {
+            console.log(`  ${dim("Dry run:")} Would create app "${opts.name}" on networks: ${networks.join(", ")}`);
+          }
+          return;
+        }
+
+        const admin = adminClientFromFlags(program);
         const app = await withSpinner("Creating app…", "App created", () =>
           admin.createApp({
             name: opts.name,
@@ -142,8 +159,18 @@ export function registerApps(program: Command) {
   cmd
     .command("delete <id>")
     .description("Delete an app")
-    .action(async (id: string) => {
+    .option("--dry-run", "Preview without executing")
+    .action(async (id: string, opts) => {
       try {
+        if (opts.dryRun) {
+          if (isJSONMode()) {
+            printJSON({ dryRun: true, action: "delete", payload: { id } });
+          } else {
+            console.log(`  ${dim("Dry run:")} Would delete app ${id}`);
+          }
+          return;
+        }
+
         const admin = adminClientFromFlags(program);
         await withSpinner("Deleting app…", "App deleted", () =>
           admin.deleteApp(id),
@@ -167,10 +194,26 @@ export function registerApps(program: Command) {
     .description("Update an app")
     .option("--name <name>", "New app name")
     .option("--description <desc>", "New app description")
+    .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
         if (!opts.name && !opts.description) {
           throw errInvalidArgs("Provide at least --name or --description");
+        }
+
+        const payload = {
+          id,
+          ...(opts.name && { name: opts.name }),
+          ...(opts.description && { description: opts.description }),
+        };
+
+        if (opts.dryRun) {
+          if (isJSONMode()) {
+            printJSON({ dryRun: true, action: "update", payload });
+          } else {
+            console.log(`  ${dim("Dry run:")} Would update app ${id}`);
+          }
+          return;
         }
 
         const admin = adminClientFromFlags(program);
@@ -198,11 +241,21 @@ export function registerApps(program: Command) {
     .command("networks <id>")
     .description("Update app network allowlist")
     .requiredOption("--networks <networks>", "Comma-separated network IDs")
+    .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        const admin = adminClientFromFlags(program);
         const networks = opts.networks.split(",").map((s: string) => s.trim());
 
+        if (opts.dryRun) {
+          if (isJSONMode()) {
+            printJSON({ dryRun: true, action: "networks", payload: { id, networks } });
+          } else {
+            console.log(`  ${dim("Dry run:")} Would update networks for app ${id}: ${networks.join(", ")}`);
+          }
+          return;
+        }
+
+        const admin = adminClientFromFlags(program);
         const app = await withSpinner(
           "Updating networks…",
           "Networks updated",
@@ -228,13 +281,23 @@ export function registerApps(program: Command) {
     .command("address-allowlist <id>")
     .description("Update app address allowlist")
     .requiredOption("--addresses <addrs>", "Comma-separated addresses")
+    .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        const admin = adminClientFromFlags(program);
         const entries = opts.addresses
           .split(",")
           .map((s: string) => ({ value: s.trim() }));
 
+        if (opts.dryRun) {
+          if (isJSONMode()) {
+            printJSON({ dryRun: true, action: "address-allowlist", payload: { id, addresses: entries } });
+          } else {
+            console.log(`  ${dim("Dry run:")} Would update address allowlist for app ${id}`);
+          }
+          return;
+        }
+
+        const admin = adminClientFromFlags(program);
         const app = await withSpinner(
           "Updating address allowlist…",
           "Address allowlist updated",
@@ -260,13 +323,23 @@ export function registerApps(program: Command) {
     .command("origin-allowlist <id>")
     .description("Update app origin allowlist")
     .requiredOption("--origins <origins>", "Comma-separated origins")
+    .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        const admin = adminClientFromFlags(program);
         const entries = opts.origins
           .split(",")
           .map((s: string) => ({ value: s.trim() }));
 
+        if (opts.dryRun) {
+          if (isJSONMode()) {
+            printJSON({ dryRun: true, action: "origin-allowlist", payload: { id, origins: entries } });
+          } else {
+            console.log(`  ${dim("Dry run:")} Would update origin allowlist for app ${id}`);
+          }
+          return;
+        }
+
+        const admin = adminClientFromFlags(program);
         const app = await withSpinner(
           "Updating origin allowlist…",
           "Origin allowlist updated",
@@ -292,13 +365,23 @@ export function registerApps(program: Command) {
     .command("ip-allowlist <id>")
     .description("Update app IP allowlist")
     .requiredOption("--ips <ips>", "Comma-separated IP addresses")
+    .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        const admin = adminClientFromFlags(program);
         const entries = opts.ips
           .split(",")
           .map((s: string) => ({ value: s.trim() }));
 
+        if (opts.dryRun) {
+          if (isJSONMode()) {
+            printJSON({ dryRun: true, action: "ip-allowlist", payload: { id, ips: entries } });
+          } else {
+            console.log(`  ${dim("Dry run:")} Would update IP allowlist for app ${id}`);
+          }
+          return;
+        }
+
+        const admin = adminClientFromFlags(program);
         const app = await withSpinner(
           "Updating IP allowlist…",
           "IP allowlist updated",

@@ -42,6 +42,30 @@ describe("CLIError", () => {
     const json = err.toJSON();
     expect(json.error).not.toHaveProperty("hint");
   });
+
+  it("marks RATE_LIMITED as retryable", () => {
+    const err = errRateLimited();
+    expect(err.toJSON().error.retryable).toBe(true);
+  });
+
+  it("marks NETWORK_ERROR as retryable", () => {
+    const err = errNetwork("timeout");
+    expect(err.toJSON().error.retryable).toBe(true);
+  });
+
+  it("marks other errors as not retryable", () => {
+    const cases = [
+      errAuthRequired(),
+      errInvalidAPIKey(),
+      errInvalidArgs("bad"),
+      errNotFound("tx"),
+      errRPC(-32600, "invalid"),
+      errAdminAPI(500, "fail"),
+    ];
+    for (const err of cases) {
+      expect(err.toJSON().error.retryable).toBe(false);
+    }
+  });
 });
 
 describe("convenience constructors", () => {
