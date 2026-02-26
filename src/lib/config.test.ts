@@ -60,17 +60,20 @@ describe("config set/get", () => {
 });
 
 describe("config toMap", () => {
-  it("returns populated map", () => {
+  it("returns populated map with masked secrets", () => {
     const m = config.toMap({
-      api_key: "key1",
+      api_key: "test-api-key-1234",
       access_key: "ak",
       app: { id: "app-1", name: "My App", apiKey: "ak-123" },
       network: "eth-mainnet",
       verbose: true,
     });
-    expect(m).toEqual({
-      "api-key": "key1",
-      "access-key": "ak",
+    // api_key is > 8 chars so first 4 + bullets + last 4
+    expect(m["api-key"]).toMatch(/^test.*1234$/);
+    expect(m["api-key"]).toContain("\u2022");
+    // access_key is ≤ 8 chars so fully masked
+    expect(m["access-key"]).toBe("\u2022\u2022");
+    expect(m).toMatchObject({
       app: "My App (app-1)",
       network: "eth-mainnet",
       verbose: "true",

@@ -5,7 +5,7 @@ import type { App } from "../lib/admin-client.js";
 import { errNotFound, errAccessKeyRequired, errInvalidArgs } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { green, dim, printKeyValueBox, emptyState } from "../lib/ui.js";
+import { green, dim, printKeyValueBox, emptyState, maskIf } from "../lib/ui.js";
 
 async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
@@ -251,7 +251,9 @@ export function registerConfig(program: Command) {
       if (value === undefined) {
         exitWithError(errNotFound(`config key '${key}'`));
       }
-      printHuman(value + "\n", { key, value });
+      const isSecret = key === "api-key" || key === "api_key" || key === "access-key" || key === "access_key";
+      const display = isSecret ? maskIf(value!) : value!;
+      printHuman(display + "\n", { key, value: display });
     });
 
   // ── config list ────────────────────────────────────────────────────
@@ -268,8 +270,8 @@ export function registerConfig(program: Command) {
       }
 
       const pairs: Array<[string, string]> = [
-        ["api-key", cfg.api_key || dim("(not set)")],
-        ["access-key", cfg.access_key || dim("(not set)")],
+        ["api-key", cfg.api_key ? maskIf(cfg.api_key) : dim("(not set)")],
+        ["access-key", cfg.access_key ? maskIf(cfg.access_key) : dim("(not set)")],
         [
           "app",
           cfg.app

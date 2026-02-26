@@ -4,6 +4,7 @@ export let forceJSON = false;
 export let quiet = false;
 export let verbose = false;
 export let debugMode = false;
+let reveal = false;
 const noColor = "NO_COLOR" in process.env;
 const ansi = {
   red: (s: string) => `\x1b[31m${s}\x1b[0m`,
@@ -20,11 +21,17 @@ export function setFlags(opts: {
   quiet?: boolean;
   verbose?: boolean;
   debug?: boolean;
+  reveal?: boolean;
 }) {
   forceJSON = opts.json ?? false;
   quiet = opts.quiet ?? false;
   verbose = opts.verbose ?? false;
   debugMode = opts.debug ?? false;
+  reveal = opts.reveal ?? false;
+}
+
+export function isRevealMode(): boolean {
+  return reveal && Boolean(process.stdout.isTTY);
 }
 
 export function isJSONMode(): boolean {
@@ -33,14 +40,14 @@ export function isJSONMode(): boolean {
 }
 
 export function printJSON(value: unknown): void {
-  console.log(JSON.stringify(value, null, 2)); // lgtm[js/clear-text-logging]
+  console.log(JSON.stringify(value, null, 2));
 }
 
 export function printHuman(humanText: string, jsonValue: unknown): void {
   if (isJSONMode()) {
     printJSON(jsonValue);
   } else {
-    process.stdout.write(humanText); // lgtm[js/clear-text-logging]
+    process.stdout.write(humanText);
   }
 }
 

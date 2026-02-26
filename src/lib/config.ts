@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
+import { maskIf } from "./ui.js";
 
 export interface AppConfig {
   id: string;
@@ -85,8 +86,8 @@ export function validKeys(): string[] {
 
 export function toMap(cfg: Config): Record<string, string> {
   const m: Record<string, string> = {};
-  if (cfg.api_key) m["api-key"] = cfg.api_key;
-  if (cfg.access_key) m["access-key"] = cfg.access_key;
+  if (cfg.api_key) m["api-key"] = maskIf(cfg.api_key);
+  if (cfg.access_key) m["access-key"] = maskIf(cfg.access_key);
   if (cfg.app) m["app"] = `${cfg.app.name} (${cfg.app.id})`;
   if (cfg.network) m["network"] = cfg.network;
   if (cfg.verbose !== undefined) m["verbose"] = String(cfg.verbose);

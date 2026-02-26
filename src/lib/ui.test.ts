@@ -5,7 +5,33 @@ import {
   etherscanTxURL,
   brandedHelp,
   setBrandedHelpSuppressed,
+  maskSecret,
 } from "./ui.js";
+
+describe("maskSecret", () => {
+  it("masks empty string", () => {
+    expect(maskSecret("")).toBe("");
+  });
+
+  it("fully masks short secrets (≤8 chars)", () => {
+    expect(maskSecret("abcd")).toBe("\u2022\u2022\u2022\u2022");
+    expect(maskSecret("12345678")).toBe("\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022");
+  });
+
+  it("shows first 4 and last 4 for longer secrets", () => {
+    expect(maskSecret("abcdefghij")).toBe("abcd\u2022\u2022efghij".slice(0, 4) + "\u2022\u2022" + "abcdefghij".slice(-4));
+    // 10 chars: first 4 + 2 bullets + last 4
+    expect(maskSecret("1234567890")).toBe("1234\u2022\u20227890");
+  });
+
+  it("handles typical API key length", () => {
+    const key = "abc1xxxxxxxxxxef23"; // 18 chars
+    const masked = maskSecret(key);
+    expect(masked.startsWith("abc1")).toBe(true);
+    expect(masked.endsWith("ef23")).toBe(true);
+    expect(masked.length).toBe(18);
+  });
+});
 
 describe("weiToEth", () => {
   it("converts zero", () => {

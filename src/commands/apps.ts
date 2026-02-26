@@ -10,7 +10,16 @@ import {
   printTable,
   printKeyValueBox,
   emptyState,
+  maskIf,
 } from "../lib/ui.js";
+
+function maskAppSecrets<T extends { apiKey?: string; webhookApiKey?: string }>(app: T): T {
+  return {
+    ...app,
+    ...(app.apiKey !== undefined && { apiKey: maskIf(app.apiKey) }),
+    ...(app.webhookApiKey !== undefined && { webhookApiKey: maskIf(app.webhookApiKey) }),
+  };
+}
 
 export function registerApps(program: Command) {
   const cmd = program.command("apps").description("Manage Alchemy apps");
@@ -30,7 +39,7 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON(result);
+          printJSON({ ...result, apps: result.apps.map(maskAppSecrets) });
           return;
         }
 
@@ -69,7 +78,7 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON(app);
+          printJSON(maskAppSecrets(app));
           return;
         }
 
@@ -78,7 +87,7 @@ export function registerApps(program: Command) {
           ["ID", app.id],
           ["Name", app.name],
           ...(app.description ? [["Description", app.description] as [string, string]] : []),
-          ["API Key", app.apiKey],
+          ["API Key", maskIf(app.apiKey)],
           ["Networks", networks || dim("none")],
           ["Created", app.createdAt],
         ]);
@@ -114,14 +123,14 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON(app);
+          printJSON(maskAppSecrets(app));
           return;
         }
 
         printKeyValueBox([
           ["ID", app.id],
           ["Name", app.name],
-          ["API Key", app.apiKey],
+          ["API Key", maskIf(app.apiKey)],
         ]);
       } catch (err) {
         exitWithError(err);
@@ -173,7 +182,7 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON(app);
+          printJSON(maskAppSecrets(app));
           return;
         }
 
@@ -201,7 +210,7 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON(app);
+          printJSON(maskAppSecrets(app));
           return;
         }
 
@@ -233,7 +242,7 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON(app);
+          printJSON(maskAppSecrets(app));
           return;
         }
 
@@ -265,7 +274,7 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON(app);
+          printJSON(maskAppSecrets(app));
           return;
         }
 
@@ -297,7 +306,7 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON(app);
+          printJSON(maskAppSecrets(app));
           return;
         }
 

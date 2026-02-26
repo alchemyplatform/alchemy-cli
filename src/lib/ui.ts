@@ -1,5 +1,5 @@
 import Table from "cli-table3";
-import { isJSONMode } from "./output.js";
+import { isJSONMode, isRevealMode } from "./output.js";
 
 // ── Raw ANSI helpers ─────────────────────────────────────────────────
 
@@ -39,6 +39,17 @@ export const cyan = wrap(ansi.cyan);
 export const bold = wrap(ansi.bold);
 export const yellow = wrap(ansi.yellow);
 export const brand = wrap(ansi.brand);
+
+// ── Secret masking ──────────────────────────────────────────────────
+
+export function maskSecret(value: string): string {
+  if (value.length <= 8) return "\u2022".repeat(value.length);
+  return value.slice(0, 4) + "\u2022".repeat(value.length - 8) + value.slice(-4);
+}
+
+export function maskIf(value: string): string {
+  return isRevealMode() ? value : maskSecret(value);
+}
 
 let suppressBrandedHelp = false;
 
@@ -87,7 +98,7 @@ export function printKeyValue(
   if (isJSONMode()) return;
   const maxLen = Math.max(...pairs.map(([k]) => k.length));
   for (const [key, value] of pairs) {
-    console.log(`  ${ansi.dim(key.padEnd(maxLen))}  ${value}`); // lgtm[js/clear-text-logging]
+    console.log(`  ${ansi.dim(key.padEnd(maxLen))}  ${value}`);
   }
   if (withBottomPadding) {
     console.log("");
@@ -116,7 +127,7 @@ export function printKeyValueBox(
   for (const row of contentRows) {
     const visibleLen = stripAnsi(row).length;
     const padded = row + " ".repeat(Math.max(0, contentWidth - visibleLen));
-    console.log(`  ${ansi.dim("│")} ${padded} ${ansi.dim("│")}`); // lgtm[js/clear-text-logging]
+    console.log(`  ${ansi.dim("│")} ${padded} ${ansi.dim("│")}`);
   }
   console.log(`  ${ansi.dim(bottom)}`);
 }

@@ -61,6 +61,7 @@ program
   .option("-q, --quiet", "Suppress non-essential output")
   .option("-v, --verbose", "Enable verbose output")
   .option("--debug", "Enable debug diagnostics")
+  .option("--reveal", "Show secrets in plain text (TTY only)")
   .addHelpCommand(false)
   .configureOutput({
     outputError(str, write) {
@@ -113,6 +114,7 @@ program
       quiet: opts.quiet,
       verbose: Boolean(opts.verbose || cfg.verbose),
       debug: Boolean(opts.debug),
+      reveal: Boolean(opts.reveal),
     });
   })
   .hook("postAction", () => {
