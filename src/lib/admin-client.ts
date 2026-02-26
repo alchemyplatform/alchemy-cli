@@ -4,6 +4,7 @@ import {
   errRateLimited,
   errAdminAPI,
   errNetwork,
+  errInvalidArgs,
 } from "./errors.js";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -55,14 +56,47 @@ interface ListAppsResponse {
 // ── Client ───────────────────────────────────────────────────────────
 
 export class AdminClient {
+  private static readonly ADMIN_API_HOST = "admin-api.alchemy.com";
   private accessKey: string;
 
   constructor(accessKey: string) {
+    this.validateAccessKey(accessKey);
     this.accessKey = accessKey;
   }
 
   protected baseURL(): string {
     return "https://admin-api.alchemy.com";
+  }
+
+  protected allowedHosts(): Set<string> {
+    return new Set([AdminClient.ADMIN_API_HOST]);
+  }
+
+  protected allowInsecureTransport(_hostname: string): boolean {
+    return false;
+  }
+
+  private validateAccessKey(accessKey: string): void {
+    if (!accessKey.trim() || /\s/.test(accessKey)) {
+      throw errInvalidAccessKey();
+    }
+  }
+
+  private assertSafeRequestTarget(url: string): void {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw errInvalidArgs("Invalid admin API URL.");
+    }
+
+    if (!this.allowedHosts().has(parsed.hostname)) {
+      throw errInvalidArgs(`Refusing to send credentials to unexpected host: ${parsed.hostname}`);
+    }
+
+    if (parsed.protocol !== "https:" && !this.allowInsecureTransport(parsed.hostname)) {
+      throw errInvalidArgs("Refusing to send credentials over non-HTTPS connection.");
+    }
   }
 
   private async request<T>(
@@ -71,10 +105,12 @@ export class AdminClient {
     body?: unknown,
   ): Promise<T> {
     const url = `${this.baseURL()}${path}`;
+    this.assertSafeRequestTarget(url);
     let resp: Response;
     try {
       resp = await fetch(url, {
         method,
+        redirect: "error",
         headers: {
           Authorization: `Bearer ${this.accessKey}`,
           "Content-Type": "application/json",

@@ -33,14 +33,24 @@ function closeServer(): Promise<void> {
 
 class TestAdminClient extends AdminClient {
   private testURL: string;
+  private testHost: string;
 
   constructor(url: string) {
     super("test-access-key");
     this.testURL = url;
+    this.testHost = new URL(url).hostname;
   }
 
   protected override baseURL(): string {
     return this.testURL;
+  }
+
+  protected override allowedHosts(): Set<string> {
+    return new Set([this.testHost]);
+  }
+
+  protected override allowInsecureTransport(hostname: string): boolean {
+    return hostname === this.testHost;
   }
 }
 
@@ -82,6 +92,64 @@ describe("AdminClient", () => {
     const client = new TestAdminClient(url);
     await client.listChains();
     expect(authHeader).toBe("Bearer test-access-key");
+  });
+
+  it("rejects empty access key in constructor", () => {
+    try {
+      new AdminClient("   ");
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
+    }
+  });
+
+  it("rejects access key containing whitespace", () => {
+    try {
+      new AdminClient("test access key");
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
+    }
+  });
+
+  it("rejects unexpected request host before fetch", async () => {
+    class UnexpectedHostClient extends AdminClient {
+      protected override baseURL(): string {
+        return "https://example.com";
+      }
+    }
+
+    const client = new UnexpectedHostClient("test-access-key");
+    try {
+      await client.listChains();
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ARGS);
+    }
+  });
+
+  it("rejects non-HTTPS transport unless explicitly allowed", async () => {
+    class InsecureHostClient extends AdminClient {
+      protected override baseURL(): string {
+        return "http://admin-api.alchemy.com";
+      }
+
+      protected override allowedHosts(): Set<string> {
+        return new Set(["admin-api.alchemy.com"]);
+      }
+    }
+
+    const client = new InsecureHostClient("test-access-key");
+    try {
+      await client.listChains();
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ARGS);
+    }
   });
 
   it("listChains returns networks", async () => {
