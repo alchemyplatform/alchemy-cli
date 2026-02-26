@@ -190,9 +190,9 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
-    .command("app")
-    .description("Select the default app (requires access key)")
-    .action(async () => {
+    .command("app [app-id]")
+    .description("Select the default app (interactive) or set by ID")
+    .action(async (appId?: string) => {
       try {
         const cfg = config.load();
         const accessKey =
@@ -202,9 +202,26 @@ export function registerConfig(program: Command) {
 
         if (!accessKey) throw errAccessKeyRequired();
 
+        if (appId) {
+          // Non-interactive: look up the app by ID and save it
+          const admin = new AdminClient(accessKey);
+          const app = await admin.getApp(appId);
+          const updated: config.Config = {
+            ...cfg,
+            app: { id: app.id, name: app.name, apiKey: app.apiKey },
+          };
+          config.save(updated);
+          printHuman(
+            `${green("✓")} Default app set to ${app.name} (${app.id})\n`,
+            { app: { id: app.id, name: app.name }, status: "set" },
+          );
+          return;
+        }
+
+        // Interactive mode
         if (!process.stdin.isTTY || isJSONMode()) {
           exitWithError(
-            new Error("Interactive app selection requires a TTY. Use 'alchemy apps list' and set the app via the Admin API."),
+            new Error("Interactive app selection requires a TTY. Use 'config set app <app-id>' or 'alchemy apps list' to find app IDs."),
           );
         }
 

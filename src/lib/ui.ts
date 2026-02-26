@@ -168,14 +168,10 @@ export function printTable(
   rows: string[][],
 ): void {
   if (isJSONMode()) {
-    const table = new Table({
-      head: headers,
-      style: { head: [], border: [] },
-    });
-    for (const row of rows) {
-      table.push(row);
-    }
-    console.log(table.toString());
+    const objects = rows.map((row) =>
+      Object.fromEntries(headers.map((h, i) => [h, row[i] ?? null]))
+    );
+    console.log(JSON.stringify(objects, null, 2));
     return;
   }
 

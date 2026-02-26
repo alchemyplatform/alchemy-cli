@@ -73,7 +73,9 @@ export function printError(err: CLIError): void {
 }
 
 export function formatCommanderError(message: string): string {
-  if (!supportsStderrStyling()) return message;
+  // Commander errors fire before preAction, so forceJSON isn't set yet.
+  // Check non-TTY and --json directly.
+  const jsonMode = !process.stdout.isTTY || process.argv.includes("--json");
 
   const lines = message
     .trimEnd()
@@ -82,7 +84,21 @@ export function formatCommanderError(message: string): string {
   if (lines.length === 0) return message;
 
   const [first, ...rest] = lines;
-  const detail = first.replace(/^error:\s*/i, "");
+  const detail = first.replace(/^error:\s*/i, "").trim();
+
+  if (jsonMode) {
+    const err: Record<string, unknown> = {
+      error: {
+        code: "INVALID_ARGS",
+        message: detail,
+        ...(rest.length > 0 && { hint: rest.map((l) => l.trim()).join(" ") }),
+      },
+    };
+    return JSON.stringify(err, null, 2) + "\n";
+  }
+
+  if (!supportsStderrStyling()) return message;
+
   const styled = [
     `  ${ansi.red("✗")} ${ansi.boldRed("Error")}`,
     `  ${ansi.red(detail)}`,
