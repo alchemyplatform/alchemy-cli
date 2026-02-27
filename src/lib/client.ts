@@ -1,8 +1,10 @@
 import {
   CLIError,
   errInvalidAPIKey,
+  errInvalidAPIKeyWithDetails,
   errInvalidArgs,
   errNetwork,
+  errNetworkNotEnabled,
   errRPC,
   errRateLimited,
 } from "./errors.js";
@@ -103,6 +105,20 @@ export class Client {
     return new URL(`/nft/v3/${this.apiKey}`, this.rpcBaseURL()).toString();
   }
 
+  private parseNetworkNotEnabledError(detail: string): CLIError | null {
+    const match = detail.match(
+      /([A-Z0-9_]+)\s+is not enabled for this app\.\s+Visit this page to enable the network:\s+(https?:\/\/\S+)/i,
+    );
+    if (!match) return null;
+    return errNetworkNotEnabled(match[1], detail);
+  }
+
+  private authErrorFromResponseBody(detail: string): CLIError {
+    const networkNotEnabled = this.parseNetworkNotEnabledError(detail);
+    if (networkNotEnabled) return networkNotEnabled;
+    return detail ? errInvalidAPIKeyWithDetails(detail) : errInvalidAPIKey();
+  }
+
   async call(method: string, params: unknown[] = []): Promise<unknown> {
     const body: RPCRequest = {
       jsonrpc: "2.0",
@@ -130,7 +146,10 @@ export class Client {
     }
 
     if (resp.status === 429) throw errRateLimited();
-    if (resp.status === 401 || resp.status === 403) throw errInvalidAPIKey();
+    if (resp.status === 401 || resp.status === 403) {
+      const detail = await resp.text().catch(() => "");
+      throw this.authErrorFromResponseBody(detail);
+    }
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
@@ -169,7 +188,10 @@ export class Client {
     }
 
     if (resp.status === 429) throw errRateLimited();
-    if (resp.status === 401 || resp.status === 403) throw errInvalidAPIKey();
+    if (resp.status === 401 || resp.status === 403) {
+      const detail = await resp.text().catch(() => "");
+      throw this.authErrorFromResponseBody(detail);
+    }
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");

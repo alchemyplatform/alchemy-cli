@@ -1,6 +1,7 @@
 export const ErrorCode = {
   AUTH_REQUIRED: "AUTH_REQUIRED",
   INVALID_API_KEY: "INVALID_API_KEY",
+  NETWORK_NOT_ENABLED: "NETWORK_NOT_ENABLED",
   INVALID_ACCESS_KEY: "INVALID_ACCESS_KEY",
   ACCESS_KEY_REQUIRED: "ACCESS_KEY_REQUIRED",
   APP_REQUIRED: "APP_REQUIRED",
@@ -23,6 +24,7 @@ const RETRYABLE_CODES: ReadonlySet<ErrorCodeType> = new Set([
 export const EXIT_CODES: Record<ErrorCodeType, number> = {
   AUTH_REQUIRED: 3,
   INVALID_API_KEY: 3,
+  NETWORK_NOT_ENABLED: 3,
   INVALID_ACCESS_KEY: 3,
   ACCESS_KEY_REQUIRED: 3,
   APP_REQUIRED: 3,
@@ -38,12 +40,14 @@ export const EXIT_CODES: Record<ErrorCodeType, number> = {
 export class CLIError extends Error {
   code: ErrorCodeType;
   hint?: string;
+  details?: string;
 
-  constructor(code: ErrorCodeType, message: string, hint?: string) {
+  constructor(code: ErrorCodeType, message: string, hint?: string, details?: string) {
     super(message);
     this.name = "CLIError";
     this.code = code;
     this.hint = hint;
+    this.details = details;
   }
 
   toJSON() {
@@ -52,6 +56,7 @@ export class CLIError extends Error {
         code: this.code,
         message: this.message,
         ...(this.hint && { hint: this.hint }),
+        ...(this.details && { details: this.details }),
         retryable: RETRYABLE_CODES.has(this.code),
       },
     };
@@ -85,6 +90,28 @@ export function errInvalidAPIKey(): CLIError {
     ErrorCode.INVALID_API_KEY,
     "Invalid API key. Check your key and try again.",
     "alchemy config set api-key <your-key>",
+  );
+}
+
+export function errInvalidAPIKeyWithDetails(details: string): CLIError {
+  return new CLIError(
+    ErrorCode.INVALID_API_KEY,
+    "Invalid API key. Check your key and try again.",
+    "alchemy config set api-key <your-key>",
+    details,
+  );
+}
+
+export function errNetworkNotEnabled(
+  network: string,
+  details?: string,
+): CLIError {
+  const networkLabel = network.toLowerCase().replace(/_/g, "-");
+  return new CLIError(
+    ErrorCode.NETWORK_NOT_ENABLED,
+    `API key is valid, but ${networkLabel} is not enabled for this app.`,
+    undefined,
+    details,
   );
 }
 

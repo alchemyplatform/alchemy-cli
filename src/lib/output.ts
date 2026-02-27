@@ -13,6 +13,34 @@ const ansi = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
 };
 
+function wrapWithPrefix(text: string, prefix: string, width: number): string[] {
+  const safeWidth = Math.max(20, width - prefix.length);
+  const words = text.trim().split(/\s+/);
+  if (words.length === 0 || (words.length === 1 && words[0] === "")) return [prefix];
+
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (current.length === 0) {
+      current = word;
+      continue;
+    }
+    if (current.length + 1 + word.length <= safeWidth) {
+      current += ` ${word}`;
+    } else {
+      lines.push(`${prefix}${current}`);
+      current = word;
+    }
+  }
+
+  if (current.length > 0) {
+    lines.push(`${prefix}${current}`);
+  }
+
+  return lines;
+}
+
 function supportsStderrStyling(): boolean {
   return (process.stderr.isTTY || forceColor) && !noColor;
 }
@@ -58,15 +86,44 @@ export function printError(err: CLIError): void {
   if (isJSONMode()) {
     console.error(JSON.stringify(err.toJSON(), null, 2));
   } else {
-    const lines = [`  ✗ ${err.code}`, `  ${err.message}`];
-    if (err.hint) lines.push(`  Hint: ${err.hint}`);
+    const width = process.stderr.columns ?? 100;
+    const detailLines = err.details
+      ? err.details
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+      : [];
+    const lines: string[] = [`  ✗ ${err.code}`, `  ${"─".repeat(40)}`];
+    lines.push(...wrapWithPrefix(err.message, "  - ", width));
+    if (detailLines.length > 0) {
+      lines.push("");
+      lines.push("  - Provider:");
+      for (const line of detailLines) {
+        lines.push(...wrapWithPrefix(line, "    - ", width));
+      }
+    }
+    if (err.hint) {
+      lines.push("");
+      lines.push(...wrapWithPrefix(`Hint: ${err.hint}`, "  - ", width));
+    }
 
     if (supportsStderrStyling()) {
       const styled = [
         `  ${ansi.red("✗")} ${ansi.boldRed(err.code)}`,
-        `  ${ansi.red(err.message)}`,
+        `  ${ansi.dim("─".repeat(40))}`,
+        ...wrapWithPrefix(err.message, "  - ", width).map((line) => ansi.red(line)),
       ];
-      if (err.hint) styled.push(`  ${ansi.dim(`Hint: ${err.hint}`)}`);
+      if (detailLines.length > 0) {
+        styled.push("");
+        styled.push(`  ${ansi.dim("- Provider:")}`);
+        for (const line of detailLines) {
+          styled.push(...wrapWithPrefix(line, "    - ", width).map((ln) => ansi.dim(ln)));
+        }
+      }
+      if (err.hint) {
+        styled.push("");
+        styled.push(...wrapWithPrefix(`Hint: ${err.hint}`, "  - ", width).map((line) => ansi.dim(line)));
+      }
       console.error(`\n${styled.join("\n")}\n`);
       return;
     }
