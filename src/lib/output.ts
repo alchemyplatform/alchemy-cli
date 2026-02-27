@@ -20,12 +20,54 @@ const SENSITIVE_ERROR_CODES = new Set([
   "ACCESS_KEY_REQUIRED",
 ]);
 
-function redactSensitiveText(value: string): string {
-  return value.replace(
-    /(https?:\/\/[^\s"'`]*alchemy\.com\/(?:v2|nft\/v3)\/)([^\/\s"'`?]+)([^\s"'`]*)/gi,
-    (_match, prefix: string, _secret: string, suffix: string) =>
-      `${prefix}[REDACTED]${suffix}`,
+const ALCHEMY_KEY_PATH_MARKERS = ["alchemy.com/v2/", "alchemy.com/nft/v3/"] as const;
+
+function isSecretBoundaryChar(char: string): boolean {
+  return (
+    char === "/" ||
+    char === "?" ||
+    char === " " ||
+    char === "\t" ||
+    char === "\n" ||
+    char === "\r" ||
+    char === '"' ||
+    char === "'" ||
+    char === "`"
   );
+}
+
+function redactAfterMarker(input: string, marker: string): string {
+  const lower = input.toLowerCase();
+  let index = 0;
+  let cursor = 0;
+  let out = "";
+
+  while (index < input.length) {
+    const markerIndex = lower.indexOf(marker, index);
+    if (markerIndex === -1) break;
+
+    const secretStart = markerIndex + marker.length;
+    let secretEnd = secretStart;
+    while (secretEnd < input.length && !isSecretBoundaryChar(input[secretEnd])) {
+      secretEnd += 1;
+    }
+
+    out += input.slice(cursor, secretStart);
+    out += "[REDACTED]";
+    cursor = secretEnd;
+    index = secretEnd;
+  }
+
+  if (!out) return input;
+  return out + input.slice(cursor);
+}
+
+function redactSensitiveText(value: string): string {
+  let redacted = value;
+  for (const marker of ALCHEMY_KEY_PATH_MARKERS) {
+    redacted = redactAfterMarker(redacted, marker);
+  }
+  return redacted;
 }
 
 function toSafeErrorJSON(err: CLIError): Record<string, unknown> {

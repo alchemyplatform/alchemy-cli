@@ -83,4 +83,28 @@ describe("printError", () => {
 
     errSpy.mockRestore();
   });
+
+  it("redacts key-like path segments for non-auth json errors", () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    setFlags({ json: true });
+
+    const err = new CLIError(
+      ErrorCode.NETWORK_ERROR,
+      "Network error: upstream failed",
+      undefined,
+      "Try https://eth-mainnet.g.alchemy.com/v2/abcd1234secret?x=1",
+    );
+
+    printError(err);
+
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(errSpy.mock.calls[0][0])) as {
+      error: { details?: string };
+    };
+    expect(payload.error.details).toBe(
+      "Try https://eth-mainnet.g.alchemy.com/v2/[REDACTED]?x=1",
+    );
+
+    errSpy.mockRestore();
+  });
 });
