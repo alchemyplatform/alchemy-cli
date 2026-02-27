@@ -58,6 +58,8 @@ interface ListAppsResponse {
 
 export class AdminClient {
   private static readonly ADMIN_API_HOST = "admin-api.alchemy.com";
+  // Test/debug only: used by mock E2E to route admin requests locally.
+  private static readonly ADMIN_API_BASE_URL_ENV = "ALCHEMY_ADMIN_API_BASE_URL";
   private accessKey: string;
 
   constructor(accessKey: string) {
@@ -66,15 +68,56 @@ export class AdminClient {
   }
 
   protected baseURL(): string {
+    const override = this.baseURLOverride();
+    if (override) return override.toString().replace(/\/$/, "");
     return "https://admin-api.alchemy.com";
   }
 
   protected allowedHosts(): Set<string> {
-    return new Set([AdminClient.ADMIN_API_HOST]);
+    const hosts = new Set([AdminClient.ADMIN_API_HOST]);
+    const override = this.baseURLOverride();
+    if (override) hosts.add(override.hostname);
+    return hosts;
   }
 
-  protected allowInsecureTransport(_hostname: string): boolean {
-    return false;
+  protected allowInsecureTransport(hostname: string): boolean {
+    return this.isLocalhost(hostname);
+  }
+
+  private isLocalhost(hostname: string): boolean {
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  }
+
+  private baseURLOverride(): URL | null {
+    const raw = process.env[AdminClient.ADMIN_API_BASE_URL_ENV];
+    if (!raw) return null;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      throw errInvalidArgs(`Invalid ${AdminClient.ADMIN_API_BASE_URL_ENV} value.`);
+    }
+
+    if (!this.isLocalhost(parsed.hostname)) {
+      throw errInvalidArgs(
+        `${AdminClient.ADMIN_API_BASE_URL_ENV} must target localhost or 127.0.0.1.`,
+      );
+    }
+
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw errInvalidArgs(
+        `${AdminClient.ADMIN_API_BASE_URL_ENV} must use http:// or https://.`,
+      );
+    }
+
+    if (parsed.protocol === "http:" && !this.isLocalhost(parsed.hostname)) {
+      throw errInvalidArgs(
+        `${AdminClient.ADMIN_API_BASE_URL_ENV} can only use non-HTTPS for localhost targets.`,
+      );
+    }
+
+    return parsed;
   }
 
   private validateAccessKey(accessKey: string): void {
