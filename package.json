@@ -10,6 +10,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "pnpm build && vitest run --config vitest.e2e.config.ts",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"
   },
@@ -41,6 +43,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
     "@types/node": "^25.3.0",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",

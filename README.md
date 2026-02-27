@@ -236,6 +236,19 @@ pnpm build
 pnpm test
 ```
 
+### Test/debug endpoint overrides
+
+The following env vars are intended for local testing/debugging (for example, mock E2E servers). They are **not** normal production configuration:
+
+- `ALCHEMY_RPC_BASE_URL`
+- `ALCHEMY_ADMIN_API_BASE_URL`
+
+Safety constraints:
+
+- Only localhost targets are accepted (`localhost`, `127.0.0.1`, `::1`)
+- Non-HTTPS transport is only allowed for localhost targets
+- Default production behavior is unchanged when these vars are unset
+
 ### Type check
 
 ```bash

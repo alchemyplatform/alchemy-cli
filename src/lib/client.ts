@@ -25,6 +25,8 @@ export interface RPCResponse {
 export class Client {
   apiKey: string;
   network: string;
+  // Test/debug only: used by mock E2E to route CLI requests locally.
+  private static readonly RPC_BASE_URL_ENV = "ALCHEMY_RPC_BASE_URL";
 
   constructor(apiKey: string, network: string) {
     this.apiKey = apiKey;
@@ -33,6 +35,10 @@ export class Client {
   }
 
   private validateNetwork(network: string): void {
+    if (this.rpcBaseURLOverride()) {
+      return;
+    }
+
     // Ensure the network value cannot redirect requests to an arbitrary host.
     // A valid Alchemy network slug produces a hostname like "eth-mainnet.g.alchemy.com".
     const hostname = `${network}.g.alchemy.com`;
@@ -47,12 +53,54 @@ export class Client {
     }
   }
 
+  private isLocalhost(hostname: string): boolean {
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  }
+
+  private rpcBaseURLOverride(): URL | null {
+    const raw = process.env[Client.RPC_BASE_URL_ENV];
+    if (!raw) return null;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      throw errInvalidArgs(`Invalid ${Client.RPC_BASE_URL_ENV} value.`);
+    }
+
+    if (!this.isLocalhost(parsed.hostname)) {
+      throw errInvalidArgs(
+        `${Client.RPC_BASE_URL_ENV} must target localhost or 127.0.0.1.`,
+      );
+    }
+
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw errInvalidArgs(
+        `${Client.RPC_BASE_URL_ENV} must use http:// or https://.`,
+      );
+    }
+
+    if (parsed.protocol === "http:" && !this.isLocalhost(parsed.hostname)) {
+      throw errInvalidArgs(
+        `${Client.RPC_BASE_URL_ENV} can only use non-HTTPS for localhost targets.`,
+      );
+    }
+
+    return parsed;
+  }
+
+  private rpcBaseURL(): URL {
+    const override = this.rpcBaseURLOverride();
+    if (override) return override;
+    return new URL(`https://${this.network}.g.alchemy.com`);
+  }
+
   rpcURL(): string {
-    return `https://${this.network}.g.alchemy.com/v2/${this.apiKey}`;
+    return new URL(`/v2/${this.apiKey}`, this.rpcBaseURL()).toString();
   }
 
   enhancedURL(): string {
-    return `https://${this.network}.g.alchemy.com/nft/v3/${this.apiKey}`;
+    return new URL(`/nft/v3/${this.apiKey}`, this.rpcBaseURL()).toString();
   }
 
   async call(method: string, params: unknown[] = []): Promise<unknown> {
