@@ -186,11 +186,24 @@ export class AdminClient {
   }
 
   async listChains(): Promise<ChainNetwork[]> {
-    const result = await this.request<{ data: { networks: ChainNetwork[] } }>(
-      "GET",
-      "/v1/chains",
-    );
-    return result.data.networks;
+    const result = await this.request<{
+      data?: ChainNetwork[] | { networks?: ChainNetwork[]; chains?: ChainNetwork[] };
+      networks?: ChainNetwork[];
+      chains?: ChainNetwork[];
+    }>("GET", "/v1/chains");
+
+    const chains =
+      (Array.isArray(result.data) ? result.data : undefined) ??
+      (!Array.isArray(result.data) ? result.data?.networks : undefined) ??
+      (!Array.isArray(result.data) ? result.data?.chains : undefined) ??
+      result.networks ??
+      result.chains;
+
+    if (!Array.isArray(chains)) {
+      throw errAdminAPI(200, "Unexpected response shape for /v1/chains.");
+    }
+
+    return chains;
   }
 
   async listApps(opts?: {

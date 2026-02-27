@@ -5,7 +5,9 @@ import {
   debug,
   verbose,
   debugMode,
+  printError,
 } from "../../src/lib/output.js";
+import { CLIError, ErrorCode } from "../../src/lib/errors.js";
 
 describe("isJSONMode", () => {
   afterEach(() => {
@@ -49,6 +51,59 @@ describe("output flags", () => {
     setFlags({ debug: true });
     debug("loud");
     expect(errSpy).toHaveBeenCalledWith("[debug] loud");
+
+    errSpy.mockRestore();
+  });
+});
+
+describe("printError", () => {
+  afterEach(() => {
+    setFlags({});
+  });
+
+  it("redacts provider details in json mode for auth errors", () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    setFlags({ json: true });
+
+    const err = new CLIError(
+      ErrorCode.INVALID_API_KEY,
+      "Invalid API key. Check your key and try again.",
+      "alchemy config set api-key <your-key>",
+      "Unauthorized request to https://eth-mainnet.g.alchemy.com/v2/abcd1234secret",
+    );
+
+    printError(err);
+
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(errSpy.mock.calls[0][0])) as {
+      error: { code: string; details?: string };
+    };
+    expect(payload.error.code).toBe(ErrorCode.INVALID_API_KEY);
+    expect(payload.error.details).toBeUndefined();
+
+    errSpy.mockRestore();
+  });
+
+  it("redacts key-like path segments for non-auth json errors", () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    setFlags({ json: true });
+
+    const err = new CLIError(
+      ErrorCode.NETWORK_ERROR,
+      "Network error: upstream failed",
+      undefined,
+      "Try https://eth-mainnet.g.alchemy.com/v2/abcd1234secret?x=1",
+    );
+
+    printError(err);
+
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(errSpy.mock.calls[0][0])) as {
+      error: { details?: string };
+    };
+    expect(payload.error.details).toBe(
+      "Try https://eth-mainnet.g.alchemy.com/v2/[REDACTED]?x=1",
+    );
 
     errSpy.mockRestore();
   });

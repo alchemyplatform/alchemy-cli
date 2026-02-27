@@ -122,6 +122,34 @@ describe("Client.call", () => {
     }
   });
 
+  it("returns specific auth error when network is not enabled for app", async () => {
+    const url = await createTestServer((_req, res) => {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(
+        "ROOTSTOCK_MAINNET is not enabled for this app. Visit this page to enable the network: https://dashboard.alchemy.com/apps/test/networks",
+      );
+    });
+
+    const client = new TestClient(url);
+    try {
+      await client.call("eth_blockNumber");
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      expect((err as CLIError).code).toBe(ErrorCode.NETWORK_NOT_ENABLED);
+      expect((err as CLIError).message).toContain(
+        "rootstock-mainnet is not enabled for this app",
+      );
+      expect((err as CLIError).details).toContain(
+        "ROOTSTOCK_MAINNET is not enabled for this app",
+      );
+      expect((err as CLIError).details).toContain(
+        "https://dashboard.alchemy.com/apps/test/networks",
+      );
+      expect((err as CLIError).hint).toBeUndefined();
+    }
+  });
+
   it("throws on 429", async () => {
     const url = await createTestServer((_req, res) => {
       res.writeHead(429);

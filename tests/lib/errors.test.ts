@@ -6,6 +6,8 @@ import {
   errAuthRequired,
   errAccessKeyRequired,
   errInvalidAPIKey,
+  errInvalidAPIKeyWithDetails,
+  errNetworkNotEnabled,
   errInvalidAccessKey,
   errAppRequired,
   errAdminAPI,
@@ -47,6 +49,17 @@ describe("CLIError", () => {
     expect(json.error).not.toHaveProperty("hint");
   });
 
+  it("includes details in JSON when set", () => {
+    const err = new CLIError(
+      ErrorCode.INVALID_API_KEY,
+      "bad key",
+      "check your key",
+      "upstream auth failed",
+    );
+    const json = err.toJSON();
+    expect(json.error.details).toBe("upstream auth failed");
+  });
+
   it("marks RATE_LIMITED as retryable", () => {
     const err = errRateLimited();
     expect(err.toJSON().error.retryable).toBe(true);
@@ -61,6 +74,7 @@ describe("CLIError", () => {
     const cases = [
       errAuthRequired(),
       errInvalidAPIKey(),
+      errNetworkNotEnabled("ROOTSTOCK_MAINNET"),
       errInvalidArgs("bad"),
       errNotFound("tx"),
       errRPC(-32600, "invalid"),
@@ -83,6 +97,16 @@ describe("convenience constructors", () => {
       name: "errInvalidAPIKey",
       fn: errInvalidAPIKey,
       code: ErrorCode.INVALID_API_KEY,
+    },
+    {
+      name: "errInvalidAPIKeyWithDetails",
+      fn: () => errInvalidAPIKeyWithDetails("upstream auth failed"),
+      code: ErrorCode.INVALID_API_KEY,
+    },
+    {
+      name: "errNetworkNotEnabled",
+      fn: () => errNetworkNotEnabled("ROOTSTOCK_MAINNET"),
+      code: ErrorCode.NETWORK_NOT_ENABLED,
     },
     {
       name: "errNetwork",

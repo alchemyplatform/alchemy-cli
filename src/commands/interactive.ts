@@ -1,5 +1,8 @@
 import * as readline from "node:readline";
 import { stdin, stdout } from "node:process";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 import type { Command } from "commander";
 import {
   brandedHelp,
@@ -57,6 +60,39 @@ const NETWORK_NAMES = [
   "base-mainnet",
   "base-sepolia",
 ];
+
+const REPL_HISTORY_MAX = 100;
+
+function replHistoryPath(): string {
+  const configPath = process.env.ALCHEMY_CONFIG;
+  if (configPath) {
+    return join(dirname(configPath), "repl-history");
+  }
+  return join(process.env.HOME || homedir(), ".config", "alchemy", "repl-history");
+}
+
+function loadReplHistory(): string[] {
+  const historyFilePath = replHistoryPath();
+  if (!existsSync(historyFilePath)) return [];
+  try {
+    return readFileSync(historyFilePath, "utf-8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(-REPL_HISTORY_MAX);
+  } catch {
+    return [];
+  }
+}
+
+function saveReplHistory(lines: string[]): void {
+  const historyFilePath = replHistoryPath();
+  const normalized = Array.from(
+    new Set(lines.map((line) => line.trim()).filter(Boolean)),
+  ).slice(-REPL_HISTORY_MAX);
+  mkdirSync(dirname(historyFilePath), { recursive: true, mode: 0o755 });
+  writeFileSync(historyFilePath, normalized.join("\n") + "\n", { mode: 0o600 });
+}
 
 export async function startREPL(program: Command): Promise<void> {
   if (!stdin.isTTY) return;
@@ -174,7 +210,15 @@ export async function startREPL(program: Command): Promise<void> {
     input: stdin,
     output: stdout,
     prompt: "alchemy \x1b[38;2;54;63;249m◆\x1b[39m ",
+    historySize: REPL_HISTORY_MAX,
+    removeHistoryDuplicates: true,
   });
+
+  const initialHistory = loadReplHistory();
+  const rlWithHistory = rl as readline.Interface & { history?: string[] };
+  if (Array.isArray(rlWithHistory.history) && initialHistory.length > 0) {
+    rlWithHistory.history = [...initialHistory].reverse();
+  }
 
   const renderInlineSuggestion = (): void => {
     if (!stdout.isTTY) return;
@@ -200,55 +244,7 @@ export async function startREPL(program: Command): Promise<void> {
     };
   }
 
-  type CompletionCycle = {
-    candidates: string[];
-    index: number;
-    leadingWhitespace: string;
-  };
-  let completionCycle: CompletionCycle | null = null;
-
-  const resetCompletionCycle = (): void => {
-    completionCycle = null;
-  };
-
-  const setLine = (value: string): void => {
-    const rlMutable = rl as readline.Interface & {
-      line: string;
-      cursor: number;
-      _refreshLine?: () => void;
-    };
-    rlMutable.line = value;
-    rlMutable.cursor = value.length;
-    rlMutable._refreshLine?.();
-  };
-
-  const cycleCompletion = (direction: 1 | -1): boolean => {
-    if (!completionCycle) {
-      const line = rl.line;
-      const input = line.trimStart();
-      if (!input) return false;
-
-      const matches = getCompletionMatches(input);
-      if (matches.length < 2) return false;
-
-      completionCycle = {
-        candidates: matches,
-        index: direction > 0 ? 0 : matches.length - 1,
-        leadingWhitespace: line.slice(0, line.length - input.length),
-      };
-    } else {
-      const { candidates } = completionCycle;
-      completionCycle.index =
-        (completionCycle.index + direction + candidates.length) % candidates.length;
-    }
-
-    const candidate = completionCycle.candidates[completionCycle.index];
-    setLine(`${completionCycle.leadingWhitespace}${candidate}`);
-    return true;
-  };
-
   const acceptInlineCompletion = (): void => {
-    resetCompletionCycle();
     const line = rl.line;
     const cursor = typeof rl.cursor === "number" ? rl.cursor : line.length;
     if (cursor !== line.length) return;
@@ -279,19 +275,12 @@ export async function startREPL(program: Command): Promise<void> {
         acceptInlineCompletion();
         return;
       }
-      if (key?.name === "down" && cycleCompletion(1)) {
-        return;
-      }
-      if (key?.name === "up" && cycleCompletion(-1)) {
-        return;
-      }
       originalTTYWrite(s, key);
     };
   }
 
   const onKeypress = (_char: string, key?: readline.Key): void => {
-    if (key?.name === "tab" || key?.name === "up" || key?.name === "down") return;
-    resetCompletionCycle();
+    if (key?.name === "tab") return;
 
     // Some readline paths do not invoke refresh hooks on character insert.
     setImmediate(() => {
@@ -302,14 +291,17 @@ export async function startREPL(program: Command): Promise<void> {
 
   const prompt = (): void => {
     // Some command handlers (or their dependencies) may pause/unref stdin.
-    // Ensure the REPL keeps the TTY stream alive between commands.
+    // Ensure the REPL keeps the TTY stream alive between commands and
+    // restore raw mode so arrow keys are interpreted by readline.
     stdin.resume();
     (stdin as NodeJS.ReadStream & { ref?: () => void }).ref?.();
+    if (stdin.isTTY && typeof stdin.setRawMode === "function") {
+      stdin.setRawMode(true);
+    }
     rl.prompt();
   };
 
   const onLine = async (line: string): Promise<void> => {
-    resetCompletionCycle();
     const trimmed = line.trim();
     if (!trimmed) {
       prompt();
@@ -356,6 +348,9 @@ export async function startREPL(program: Command): Promise<void> {
   return new Promise<void>((resolve) => {
     rl.on("line", (line) => void onLine(line));
     rl.on("close", () => {
+      if (Array.isArray(rlWithHistory.history)) {
+        saveReplHistory([...rlWithHistory.history].reverse());
+      }
       setReplMode(false);
       setBrandedHelpSuppressed(false);
       stdin.off("keypress", onKeypress);

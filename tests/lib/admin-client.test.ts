@@ -173,6 +173,55 @@ describe("AdminClient", () => {
     expect(chains[0].isTestnet).toBe(false);
   });
 
+  it("listChains supports data array shape", async () => {
+    const url = await createTestServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: [MOCK_CHAIN] }));
+    });
+
+    const client = new TestAdminClient(url);
+    const chains = await client.listChains();
+    expect(chains).toHaveLength(1);
+    expect(chains[0].id).toBe("ETH_MAINNET");
+  });
+
+  it("listChains supports data.chains shape", async () => {
+    const url = await createTestServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: { chains: [MOCK_CHAIN] } }));
+    });
+
+    const client = new TestAdminClient(url);
+    const chains = await client.listChains();
+    expect(chains).toHaveLength(1);
+    expect(chains[0].id).toBe("ETH_MAINNET");
+  });
+
+  it("listChains supports top-level chains shape", async () => {
+    const url = await createTestServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ chains: [MOCK_CHAIN] }));
+    });
+
+    const client = new TestAdminClient(url);
+    const chains = await client.listChains();
+    expect(chains).toHaveLength(1);
+    expect(chains[0].id).toBe("ETH_MAINNET");
+  });
+
+  it("listChains throws on unexpected response shape", async () => {
+    const url = await createTestServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: { unexpected: true } }));
+    });
+
+    const client = new TestAdminClient(url);
+    await expect(client.listChains()).rejects.toBeInstanceOf(CLIError);
+    await expect(client.listChains()).rejects.toMatchObject({
+      code: ErrorCode.ADMIN_API_ERROR,
+    });
+  });
+
   it("listApps returns apps", async () => {
     const url = await createTestServer((_req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
