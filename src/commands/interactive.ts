@@ -1,5 +1,8 @@
 import * as readline from "node:readline";
 import { stdin, stdout } from "node:process";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 import type { Command } from "commander";
 import {
   brandedHelp,
@@ -57,6 +60,39 @@ const NETWORK_NAMES = [
   "base-mainnet",
   "base-sepolia",
 ];
+
+const REPL_HISTORY_MAX = 100;
+
+function replHistoryPath(): string {
+  const configPath = process.env.ALCHEMY_CONFIG;
+  if (configPath) {
+    return join(dirname(configPath), "repl-history");
+  }
+  return join(process.env.HOME || homedir(), ".config", "alchemy", "repl-history");
+}
+
+function loadReplHistory(): string[] {
+  const historyFilePath = replHistoryPath();
+  if (!existsSync(historyFilePath)) return [];
+  try {
+    return readFileSync(historyFilePath, "utf-8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(-REPL_HISTORY_MAX);
+  } catch {
+    return [];
+  }
+}
+
+function saveReplHistory(lines: string[]): void {
+  const historyFilePath = replHistoryPath();
+  const normalized = Array.from(
+    new Set(lines.map((line) => line.trim()).filter(Boolean)),
+  ).slice(-REPL_HISTORY_MAX);
+  mkdirSync(dirname(historyFilePath), { recursive: true, mode: 0o755 });
+  writeFileSync(historyFilePath, normalized.join("\n") + "\n", { mode: 0o600 });
+}
 
 export async function startREPL(program: Command): Promise<void> {
   if (!stdin.isTTY) return;
@@ -174,7 +210,15 @@ export async function startREPL(program: Command): Promise<void> {
     input: stdin,
     output: stdout,
     prompt: "alchemy \x1b[38;2;54;63;249m◆\x1b[39m ",
+    historySize: REPL_HISTORY_MAX,
+    removeHistoryDuplicates: true,
   });
+
+  const initialHistory = loadReplHistory();
+  const rlWithHistory = rl as readline.Interface & { history?: string[] };
+  if (Array.isArray(rlWithHistory.history) && initialHistory.length > 0) {
+    rlWithHistory.history = [...initialHistory].reverse();
+  }
 
   const renderInlineSuggestion = (): void => {
     if (!stdout.isTTY) return;
@@ -304,6 +348,9 @@ export async function startREPL(program: Command): Promise<void> {
   return new Promise<void>((resolve) => {
     rl.on("line", (line) => void onLine(line));
     rl.on("close", () => {
+      if (Array.isArray(rlWithHistory.history)) {
+        saveReplHistory([...rlWithHistory.history].reverse());
+      }
       setReplMode(false);
       setBrandedHelpSuppressed(false);
       stdin.off("keypress", onKeypress);
