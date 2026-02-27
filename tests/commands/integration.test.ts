@@ -282,6 +282,219 @@ describe("command integration coverage", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("config reset --yes clears all values without prompting", async () => {
+    const load = vi.fn().mockReturnValue({
+      api_key: "k",
+      access_key: "ak",
+      network: "eth-mainnet",
+      verbose: true,
+    });
+    const save = vi.fn();
+    const printHuman = vi.fn();
+    const confirm = vi.fn();
+    const exitWithError = vi.fn();
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+
+    vi.doMock("../../src/lib/config.js", () => ({
+      load,
+      save,
+      get: vi.fn(),
+      toMap: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/admin-client.js", () => ({
+      AdminClient: vi.fn(),
+    }));
+    vi.doMock("@clack/prompts", () => ({
+      confirm,
+      isCancel: () => false,
+      cancel: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printHuman,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    const program = new Command();
+    registerConfig(program);
+
+    await program.parseAsync(["node", "test", "config", "reset", "--yes"], {
+      from: "node",
+    });
+
+    expect(load).not.toHaveBeenCalled();
+    expect(save).toHaveBeenCalledWith({});
+    expect(confirm).not.toHaveBeenCalled();
+    expect(printHuman).toHaveBeenCalledWith("✓ Reset all config values\n", {
+      status: "reset",
+      scope: "all",
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("config reset <key> removes only the selected key", async () => {
+    const load = vi.fn().mockReturnValue({
+      api_key: "k",
+      access_key: "ak",
+      network: "polygon-mainnet",
+      verbose: true,
+    });
+    const save = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/config.js", () => ({
+      load,
+      save,
+      get: vi.fn(),
+      toMap: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/admin-client.js", () => ({
+      AdminClient: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printHuman: vi.fn(),
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    const program = new Command();
+    registerConfig(program);
+
+    await program.parseAsync(["node", "test", "config", "reset", "network"], {
+      from: "node",
+    });
+
+    expect(load).toHaveBeenCalled();
+    expect(save).toHaveBeenCalledWith({
+      api_key: "k",
+      access_key: "ak",
+      verbose: true,
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("config reset rejects unknown keys", async () => {
+    const load = vi.fn();
+    const save = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/config.js", () => ({
+      load,
+      save,
+      get: vi.fn(),
+      toMap: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/admin-client.js", () => ({
+      AdminClient: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printHuman: vi.fn(),
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    const program = new Command();
+    registerConfig(program);
+
+    await program.parseAsync(["node", "test", "config", "reset", "unknown"], {
+      from: "node",
+    });
+
+    expect(load).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(exitWithError).toHaveBeenCalledTimes(1);
+  });
+
+  it("config reset in non-tty mode does not prompt", async () => {
+    const save = vi.fn();
+    const confirm = vi.fn();
+    const exitWithError = vi.fn();
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
+
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: vi.fn(),
+      save,
+      get: vi.fn(),
+      toMap: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/admin-client.js", () => ({
+      AdminClient: vi.fn(),
+    }));
+    vi.doMock("@clack/prompts", () => ({
+      confirm,
+      isCancel: () => false,
+      cancel: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printHuman: vi.fn(),
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    const program = new Command();
+    registerConfig(program);
+
+    await program.parseAsync(["node", "test", "config", "reset"], {
+      from: "node",
+    });
+
+    expect(save).toHaveBeenCalledWith({});
+    expect(confirm).not.toHaveBeenCalled();
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
   it("tx emits combined JSON transaction + receipt payload", async () => {
     const call = vi
       .fn()

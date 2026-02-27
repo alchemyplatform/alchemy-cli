@@ -157,6 +157,9 @@ alchemy config set access-key <key>
 alchemy config set app              # interactive app selector
 alchemy config set network polygon-mainnet
 alchemy config set verbose true     # default verbose output for supported commands
+alchemy config reset                # reset all saved config values
+alchemy config reset network        # reset only one key
+alchemy config reset --yes          # skip reset confirmation in TTY
 alchemy config get api-key
 alchemy config list
 ```

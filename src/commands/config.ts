@@ -7,6 +7,16 @@ import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import { green, dim, printKeyValueBox, emptyState, maskIf } from "../lib/ui.js";
 
+const RESET_KEY_MAP: Record<string, keyof config.Config> = {
+  "api-key": "api_key",
+  api_key: "api_key",
+  "access-key": "access_key",
+  access_key: "access_key",
+  app: "app",
+  network: "network",
+  verbose: "verbose",
+};
+
 async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
   const updated: config.Config = {
@@ -321,5 +331,58 @@ export function registerConfig(program: Command) {
       ];
 
       printKeyValueBox(pairs);
+    });
+
+  // ── config reset ───────────────────────────────────────────────────
+
+  cmd
+    .command("reset [key]")
+    .description("Reset config values (all or a specific key)")
+    .option("-y, --yes", "Skip confirmation prompt for full reset")
+    .action(async (key: string | undefined, options: { yes?: boolean }) => {
+      try {
+        if (key) {
+          const mapped = RESET_KEY_MAP[key];
+          if (!mapped) {
+            throw errInvalidArgs(
+              `invalid reset key '${key}' (valid: api-key, access-key, app, network, verbose)`,
+            );
+          }
+
+          const cfg = config.load();
+          const updated = { ...cfg };
+          delete updated[mapped];
+          config.save(updated);
+          printHuman(`${green("✓")} Reset ${key}\n`, {
+            status: "reset",
+            key,
+          });
+          return;
+        }
+
+        if (!options.yes && process.stdin.isTTY && !isJSONMode()) {
+          const { confirm, isCancel, cancel } = await import("@clack/prompts");
+          const proceed = await confirm({
+            message: "Reset all saved config values?",
+            initialValue: false,
+          });
+          if (isCancel(proceed)) {
+            cancel("Cancelled config reset.");
+            return;
+          }
+          if (!proceed) {
+            console.log(`  ${dim("Skipped config reset.")}`);
+            return;
+          }
+        }
+
+        config.save({});
+        printHuman(`${green("✓")} Reset all config values\n`, {
+          status: "reset",
+          scope: "all",
+        });
+      } catch (err) {
+        exitWithError(err);
+      }
     });
 }
