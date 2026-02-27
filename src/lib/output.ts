@@ -13,6 +13,47 @@ const ansi = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
 };
 
+const SENSITIVE_ERROR_CODES = new Set([
+  "AUTH_REQUIRED",
+  "INVALID_API_KEY",
+  "INVALID_ACCESS_KEY",
+  "ACCESS_KEY_REQUIRED",
+]);
+
+function redactSensitiveText(value: string): string {
+  return value.replace(
+    /(https?:\/\/[^\s"'`]*alchemy\.com\/(?:v2|nft\/v3)\/)([^\/\s"'`?]+)([^\s"'`]*)/gi,
+    (_match, prefix: string, _secret: string, suffix: string) =>
+      `${prefix}[REDACTED]${suffix}`,
+  );
+}
+
+function toSafeErrorJSON(err: CLIError): Record<string, unknown> {
+  const payload = err.toJSON() as {
+    error?: {
+      code?: string;
+      message?: string;
+      hint?: string;
+      details?: string;
+      retryable?: boolean;
+    };
+  };
+  const error = payload.error ?? {};
+  const code = error.code ?? err.code;
+  const safeError: Record<string, unknown> = {
+    ...(code && { code }),
+    ...(typeof error.message === "string" && { message: redactSensitiveText(error.message) }),
+    ...(typeof error.hint === "string" && { hint: redactSensitiveText(error.hint) }),
+    ...(typeof error.retryable === "boolean" && { retryable: error.retryable }),
+  };
+  if (typeof error.details === "string" && !SENSITIVE_ERROR_CODES.has(code)) {
+    safeError.details = redactSensitiveText(error.details);
+  }
+  return {
+    error: safeError,
+  };
+}
+
 function wrapWithPrefix(text: string, prefix: string, width: number): string[] {
   const safeWidth = Math.max(20, width - prefix.length);
   const words = text.trim().split(/\s+/);
@@ -84,17 +125,20 @@ export function printHuman(humanText: string, jsonValue: unknown): void {
 
 export function printError(err: CLIError): void {
   if (isJSONMode()) {
-    console.error(JSON.stringify(err.toJSON(), null, 2));
+    console.error(JSON.stringify(toSafeErrorJSON(err), null, 2));
   } else {
     const width = process.stderr.columns ?? 100;
-    const detailLines = err.details
-      ? err.details
+    const safeMessage = redactSensitiveText(err.message);
+    const safeHint = err.hint ? redactSensitiveText(err.hint) : undefined;
+    const safeDetails = err.details ? redactSensitiveText(err.details) : undefined;
+    const detailLines = safeDetails
+      ? safeDetails
           .split(/\r?\n/)
           .map((line) => line.trim())
           .filter((line) => line.length > 0)
       : [];
     const lines: string[] = [`  ✗ ${err.code}`, `  ${"─".repeat(40)}`];
-    lines.push(...wrapWithPrefix(err.message, "  - ", width));
+    lines.push(...wrapWithPrefix(safeMessage, "  - ", width));
     if (detailLines.length > 0) {
       lines.push("");
       lines.push("  - Provider:");
@@ -102,16 +146,16 @@ export function printError(err: CLIError): void {
         lines.push(...wrapWithPrefix(line, "    - ", width));
       }
     }
-    if (err.hint) {
+    if (safeHint) {
       lines.push("");
-      lines.push(...wrapWithPrefix(`Hint: ${err.hint}`, "  - ", width));
+      lines.push(...wrapWithPrefix(`Hint: ${safeHint}`, "  - ", width));
     }
 
     if (supportsStderrStyling()) {
       const styled = [
         `  ${ansi.red("✗")} ${ansi.boldRed(err.code)}`,
         `  ${ansi.dim("─".repeat(40))}`,
-        ...wrapWithPrefix(err.message, "  - ", width).map((line) => ansi.red(line)),
+        ...wrapWithPrefix(safeMessage, "  - ", width).map((line) => ansi.red(line)),
       ];
       if (detailLines.length > 0) {
         styled.push("");
@@ -120,9 +164,11 @@ export function printError(err: CLIError): void {
           styled.push(...wrapWithPrefix(line, "    - ", width).map((ln) => ansi.dim(ln)));
         }
       }
-      if (err.hint) {
+      if (safeHint) {
         styled.push("");
-        styled.push(...wrapWithPrefix(`Hint: ${err.hint}`, "  - ", width).map((line) => ansi.dim(line)));
+        styled.push(
+          ...wrapWithPrefix(`Hint: ${safeHint}`, "  - ", width).map((line) => ansi.dim(line)),
+        );
       }
       console.error(`\n${styled.join("\n")}\n`);
       return;
