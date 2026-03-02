@@ -45,14 +45,31 @@ async function saveAppWithPrompt(app: App): Promise<boolean> {
   return true;
 }
 
+async function listAllApps(admin: AdminClient): Promise<App[]> {
+  const apps: App[] = [];
+  let cursor: string | undefined;
+  const seenCursors = new Set<string>();
+
+  // Follow admin API cursors so interactive selection can show all apps.
+  do {
+    const page = await admin.listApps(cursor ? { cursor } : undefined);
+    apps.push(...page.apps);
+    cursor = page.cursor;
+    if (cursor && seenCursors.has(cursor)) break;
+    if (cursor) seenCursors.add(cursor);
+  } while (cursor);
+
+  return apps;
+}
+
 async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   const { select, text, multiselect, confirm, isCancel, cancel } = await import(
     "@clack/prompts"
   );
 
-  let apps: Awaited<ReturnType<typeof admin.listApps>>;
+  let apps: App[];
   try {
-    apps = await admin.listApps();
+    apps = await listAllApps(admin);
   } catch {
     console.log(
       `  ${dim("Could not fetch apps. Skipping app selection.")}`,
@@ -60,10 +77,10 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
     return;
   }
 
-  if (apps.apps.length > 0) {
+  if (apps.length > 0) {
     const CREATE_NEW = "__create_new__";
     const options = [
-      ...apps.apps.map((a) => ({
+      ...apps.map((a) => ({
         label: `${a.name} (${a.id})`,
         value: a.id,
       })),
@@ -80,7 +97,7 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
     }
 
     if (selected !== CREATE_NEW) {
-      const app = apps.apps.find((a) => a.id === selected)!;
+      const app = apps.find((a) => a.id === selected)!;
       const saved = await saveAppWithPrompt(app);
       if (saved) {
         console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);

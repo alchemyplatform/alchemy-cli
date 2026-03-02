@@ -1,46 +1,80 @@
 import { Command } from "commander";
-import { resolveNetwork } from "../lib/resolve.js";
+import {
+  resolveAppId,
+  resolveConfiguredNetworkSlugs,
+  resolveNetwork,
+} from "../lib/resolve.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
-import { green, printTable } from "../lib/ui.js";
-
-const SUPPORTED_NETWORKS = [
-  { id: "eth-mainnet", name: "Ethereum Mainnet", chain: "Ethereum" },
-  { id: "eth-sepolia", name: "Ethereum Sepolia", chain: "Ethereum" },
-  { id: "eth-holesky", name: "Ethereum Holesky", chain: "Ethereum" },
-  { id: "polygon-mainnet", name: "Polygon Mainnet", chain: "Polygon" },
-  { id: "polygon-amoy", name: "Polygon Amoy", chain: "Polygon" },
-  { id: "arb-mainnet", name: "Arbitrum One", chain: "Arbitrum" },
-  { id: "arb-sepolia", name: "Arbitrum Sepolia", chain: "Arbitrum" },
-  { id: "opt-mainnet", name: "Optimism Mainnet", chain: "Optimism" },
-  { id: "opt-sepolia", name: "Optimism Sepolia", chain: "Optimism" },
-  { id: "base-mainnet", name: "Base Mainnet", chain: "Base" },
-  { id: "base-sepolia", name: "Base Sepolia", chain: "Base" },
-];
+import { dim, green, printTable } from "../lib/ui.js";
+import { getRPCNetworks } from "../lib/networks.js";
+import { exitWithError } from "../index.js";
 
 export function registerNetwork(program: Command) {
   const cmd = program.command("network").description("Manage networks");
 
   cmd
     .command("list")
-    .description("List supported networks")
-    .action(() => {
-      if (isJSONMode()) {
-        printJSON(SUPPORTED_NETWORKS);
-        return;
+    .description("List supported RPC network slugs")
+    .option(
+      "--configured",
+      "List only configured app RPC networks (requires access key and app context)",
+    )
+    .option(
+      "--app-id <id>",
+      "App ID for configured network lookups (overrides saved app)",
+    )
+    .action(async (opts: { configured?: boolean; appId?: string }) => {
+      try {
+        const supported = getRPCNetworks();
+        const current = resolveNetwork(program);
+        const configured = opts.configured
+          ? await resolveConfiguredNetworkSlugs(program, opts.appId)
+          : null;
+        const configuredSet = new Set(configured ?? []);
+        const appId = opts.configured
+          ? opts.appId || resolveAppId(program)
+          : undefined;
+
+        const display = configured
+          ? supported.filter((network) => configuredSet.has(network.id))
+          : supported;
+
+        if (isJSONMode()) {
+          if (configured) {
+            printJSON({
+              mode: "configured",
+              appId,
+              configuredNetworkIds: configured,
+              networks: display,
+            });
+            return;
+          }
+
+          printJSON(display);
+          return;
+        }
+
+        const rows = display.map((network) => {
+          const isCurrent = network.id === current;
+          const idCell = isCurrent ? green(network.id) : network.id;
+          const nameCell = isCurrent ? green(network.name) : network.name;
+          const testnetCell = network.isTestnet ? dim("yes") : "no";
+          return [idCell, nameCell, network.family, testnetCell];
+        });
+
+        printTable(["Network ID", "Name", "Family", "Testnet"], rows);
+
+        if (configured) {
+          console.log(
+            `\n  ${dim(`Configured networks for app ${appId}: ${display.length}`)}`,
+          );
+        }
+        console.log(`\n  Current: ${green(current)}`);
+        console.log(
+          `  ${dim("Need Admin API chain enums instead? Run: alchemy chains list")}`,
+        );
+      } catch (err) {
+        exitWithError(err);
       }
-
-      const current = resolveNetwork(program);
-
-      const rows = SUPPORTED_NETWORKS.map((n) => {
-        const isCurrent = n.id === current;
-        return [
-          isCurrent ? green(n.id) : n.id,
-          isCurrent ? green(n.name) : n.name,
-          n.chain,
-        ];
-      });
-
-      printTable(["Network ID", "Name", "Chain"], rows);
-      console.log(`\n  Current: ${green(current)}`);
     });
 }
