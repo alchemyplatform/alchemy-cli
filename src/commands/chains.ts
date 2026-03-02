@@ -5,11 +5,13 @@ import { exitWithError } from "../index.js";
 import { dim, green, withSpinner, printTable, emptyState } from "../lib/ui.js";
 
 export function registerChains(program: Command) {
-  const cmd = program.command("chains").description("Manage chain networks");
+  const cmd = program
+    .command("chains")
+    .description("Manage Admin API chain enums");
 
   cmd
     .command("list")
-    .description("List available chain networks")
+    .description("List available Admin API chain enums")
     .action(async () => {
       try {
         const admin = adminClientFromFlags(program);

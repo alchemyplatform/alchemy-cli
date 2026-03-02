@@ -126,6 +126,92 @@ describe("command integration coverage", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("network list returns full catalog in JSON mode", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveNetwork: () => "eth-mainnet",
+      resolveConfiguredNetworkSlugs: vi.fn(),
+      resolveAppId: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      dim: (s: string) => s,
+      green: (s: string) => s,
+      printTable: vi.fn(),
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerNetwork } = await import("../../src/commands/network.js");
+    const program = new Command();
+    registerNetwork(program);
+
+    await program.parseAsync(["node", "test", "network", "list"], {
+      from: "node",
+    });
+
+    expect(exitWithError).not.toHaveBeenCalled();
+    expect(printJSON).toHaveBeenCalledTimes(1);
+    const payload = printJSON.mock.calls[0][0] as Array<{ id: string }>;
+    expect(Array.isArray(payload)).toBe(true);
+    expect(payload.length).toBeGreaterThan(100);
+    expect(payload.some((network) => network.id === "eth-mainnet")).toBe(true);
+    expect(payload.some((network) => network.id === "base-mainnet")).toBe(true);
+  });
+
+  it("network list --configured returns configured app slugs", async () => {
+    const printJSON = vi.fn();
+    const resolveConfiguredNetworkSlugs = vi
+      .fn()
+      .mockResolvedValue(["eth-mainnet", "base-sepolia"]);
+    const resolveAppId = vi.fn().mockReturnValue("app_123");
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveNetwork: () => "eth-mainnet",
+      resolveConfiguredNetworkSlugs,
+      resolveAppId,
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      dim: (s: string) => s,
+      green: (s: string) => s,
+      printTable: vi.fn(),
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerNetwork } = await import("../../src/commands/network.js");
+    const program = new Command();
+    registerNetwork(program);
+
+    await program.parseAsync(
+      ["node", "test", "network", "list", "--configured"],
+      {
+        from: "node",
+      },
+    );
+
+    expect(resolveConfiguredNetworkSlugs).toHaveBeenCalledTimes(1);
+    expect(resolveAppId).toHaveBeenCalledTimes(1);
+    expect(exitWithError).not.toHaveBeenCalled();
+
+    expect(printJSON).toHaveBeenCalledTimes(1);
+    expect(printJSON).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "configured",
+        appId: "app_123",
+        configuredNetworkIds: ["eth-mainnet", "base-sepolia"],
+      }),
+    );
+  });
+
   it("tokens filters zero balances and prints table rows", async () => {
     const call = vi.fn().mockResolvedValue({
       address: ADDRESS,
@@ -176,6 +262,487 @@ describe("command integration coverage", () => {
       ["Contract", "Balance"],
       [["0xnonzero", "0x1234"]],
     );
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("apps list is single-page in JSON mode by default", async () => {
+    const listApps = vi
+      .fn()
+      .mockResolvedValue({
+        apps: [
+          {
+            id: "app_1",
+            name: "First App",
+            apiKey: "api_1",
+            webhookApiKey: "wh_1",
+            chainNetworks: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+        cursor: "cursor_2",
+      });
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printTable: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    const program = new Command();
+    registerApps(program);
+
+    await program.parseAsync(["node", "test", "apps", "list"], { from: "node" });
+
+    expect(listApps).toHaveBeenCalledTimes(1);
+    expect(listApps).toHaveBeenCalledWith({ cursor: undefined, limit: undefined });
+    expect(printJSON).toHaveBeenCalledWith({
+      apps: [
+        {
+          id: "app_1",
+          name: "First App",
+          apiKey: "api_1",
+          webhookApiKey: "wh_1",
+          chainNetworks: [],
+          createdAt: "2025-01-01T00:00:00.000Z",
+        },
+      ],
+      cursor: "cursor_2",
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("apps list with --cursor remains single-page in JSON mode", async () => {
+    const listApps = vi.fn().mockResolvedValue({
+      apps: [
+        {
+          id: "app_1",
+          name: "Cursor App",
+          apiKey: "api_1",
+          webhookApiKey: "wh_1",
+          chainNetworks: [],
+          createdAt: "2025-01-01T00:00:00.000Z",
+        },
+      ],
+      cursor: "cursor_2",
+    });
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printTable: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    const program = new Command();
+    registerApps(program);
+
+    await program.parseAsync(
+      ["node", "test", "apps", "list", "--cursor", "abc"],
+      { from: "node" },
+    );
+
+    expect(listApps).toHaveBeenCalledTimes(1);
+    expect(listApps).toHaveBeenCalledWith({ cursor: "abc", limit: undefined });
+    expect(printJSON).toHaveBeenCalledWith({
+      apps: [
+        {
+          id: "app_1",
+          name: "Cursor App",
+          apiKey: "api_1",
+          webhookApiKey: "wh_1",
+          chainNetworks: [],
+          createdAt: "2025-01-01T00:00:00.000Z",
+        },
+      ],
+      cursor: "cursor_2",
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("apps list with --all paginates in JSON mode", async () => {
+    const listApps = vi
+      .fn()
+      .mockResolvedValueOnce({
+        apps: [
+          {
+            id: "app_1",
+            name: "First App",
+            apiKey: "api_1",
+            webhookApiKey: "wh_1",
+            chainNetworks: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+        cursor: "cursor_2",
+      })
+      .mockResolvedValueOnce({
+        apps: [
+          {
+            id: "app_2",
+            name: "Second App",
+            apiKey: "api_2",
+            webhookApiKey: "wh_2",
+            chainNetworks: [],
+            createdAt: "2025-01-02T00:00:00.000Z",
+          },
+        ],
+      });
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printTable: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    const program = new Command();
+    registerApps(program);
+
+    await program.parseAsync(["node", "test", "apps", "list", "--all"], {
+      from: "node",
+    });
+
+    expect(listApps).toHaveBeenCalledTimes(2);
+    expect(listApps).toHaveBeenNthCalledWith(1, {});
+    expect(listApps).toHaveBeenNthCalledWith(2, { cursor: "cursor_2" });
+    expect(printJSON).toHaveBeenCalledWith({
+      apps: [
+        {
+          id: "app_1",
+          name: "First App",
+          apiKey: "api_1",
+          webhookApiKey: "wh_1",
+          chainNetworks: [],
+          createdAt: "2025-01-01T00:00:00.000Z",
+        },
+        {
+          id: "app_2",
+          name: "Second App",
+          apiKey: "api_2",
+          webhookApiKey: "wh_2",
+          chainNetworks: [],
+          createdAt: "2025-01-02T00:00:00.000Z",
+        },
+      ],
+      pageInfo: { mode: "all", pages: 2, scannedApps: 2 },
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("apps list --search filters by name or id in JSON mode", async () => {
+    const listApps = vi
+      .fn()
+      .mockResolvedValueOnce({
+        apps: [
+          {
+            id: "app_1",
+            name: "First App",
+            apiKey: "api_1",
+            webhookApiKey: "wh_1",
+            chainNetworks: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+        cursor: "cursor_2",
+      })
+      .mockResolvedValueOnce({
+        apps: [
+          {
+            id: "target_2",
+            name: "Second Target",
+            apiKey: "api_2",
+            webhookApiKey: "wh_2",
+            chainNetworks: [],
+            createdAt: "2025-01-02T00:00:00.000Z",
+          },
+        ],
+      });
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printTable: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    const program = new Command();
+    registerApps(program);
+
+    await program.parseAsync(["node", "test", "apps", "list", "--search", "target"], {
+      from: "node",
+    });
+
+    expect(listApps).toHaveBeenCalledTimes(2);
+    expect(printJSON).toHaveBeenCalledWith({
+      apps: [
+        {
+          id: "target_2",
+          name: "Second Target",
+          apiKey: "api_2",
+          webhookApiKey: "wh_2",
+          chainNetworks: [],
+          createdAt: "2025-01-02T00:00:00.000Z",
+        },
+      ],
+      pageInfo: {
+        mode: "search",
+        pages: 2,
+        scannedApps: 2,
+        search: "target",
+      },
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("apps list --id returns exact app match in JSON mode", async () => {
+    const listApps = vi.fn().mockResolvedValue({
+      apps: [
+        {
+          id: "app_1",
+          name: "First App",
+          apiKey: "api_1",
+          webhookApiKey: "wh_1",
+          chainNetworks: [],
+          createdAt: "2025-01-01T00:00:00.000Z",
+        },
+        {
+          id: "app_2",
+          name: "Second App",
+          apiKey: "api_2",
+          webhookApiKey: "wh_2",
+          chainNetworks: [],
+          createdAt: "2025-01-02T00:00:00.000Z",
+        },
+      ],
+    });
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printTable: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    const program = new Command();
+    registerApps(program);
+
+    await program.parseAsync(["node", "test", "apps", "list", "--id", "app_2"], {
+      from: "node",
+    });
+
+    expect(printJSON).toHaveBeenCalledWith({
+      apps: [
+        {
+          id: "app_2",
+          name: "Second App",
+          apiKey: "api_2",
+          webhookApiKey: "wh_2",
+          chainNetworks: [],
+          createdAt: "2025-01-02T00:00:00.000Z",
+        },
+      ],
+      pageInfo: {
+        mode: "search",
+        pages: 1,
+        scannedApps: 2,
+        id: "app_2",
+      },
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("apps list prompts to load next page in TTY mode", async () => {
+    const listApps = vi
+      .fn()
+      .mockResolvedValueOnce({
+        apps: [
+          {
+            id: "app_1",
+            name: "First App",
+            apiKey: "api_1",
+            webhookApiKey: "wh_1",
+            chainNetworks: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+        cursor: "cursor_2",
+      })
+      .mockResolvedValueOnce({
+        apps: [
+          {
+            id: "app_2",
+            name: "Second App",
+            apiKey: "api_2",
+            webhookApiKey: "wh_2",
+            chainNetworks: [],
+            createdAt: "2025-01-02T00:00:00.000Z",
+          },
+        ],
+      });
+    const printTable = vi.fn();
+    const emptyState = vi.fn();
+    const exitWithError = vi.fn();
+    const select = vi.fn().mockResolvedValue("next");
+    const isCancel = vi.fn().mockReturnValue(false);
+    const cancel = vi.fn();
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+    vi.doMock("@clack/prompts", () => ({
+      select,
+      isCancel,
+      cancel,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printTable,
+      printKeyValueBox: vi.fn(),
+      emptyState,
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    const program = new Command();
+    registerApps(program);
+
+    await program.parseAsync(["node", "test", "apps", "list"], {
+      from: "node",
+    });
+
+    expect(listApps).toHaveBeenCalledTimes(2);
+    expect(listApps).toHaveBeenNthCalledWith(1, { cursor: undefined, limit: undefined });
+    expect(listApps).toHaveBeenNthCalledWith(2, { cursor: "cursor_2", limit: undefined });
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(printTable).toHaveBeenCalledTimes(2);
+    expect(emptyState).not.toHaveBeenCalled();
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
@@ -279,6 +846,115 @@ describe("command integration coverage", () => {
 
     expect(load).toHaveBeenCalled();
     expect(save).toHaveBeenCalledWith({ api_key: "k", verbose: true });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("config set access-key app selector includes paginated apps", async () => {
+    const load = vi
+      .fn()
+      .mockReturnValueOnce({})
+      .mockReturnValueOnce({ access_key: "ak_test" });
+    const save = vi.fn();
+    const printHuman = vi.fn();
+    const select = vi.fn().mockResolvedValue("app_2");
+    const isCancel = vi.fn().mockReturnValue(false);
+    const cancel = vi.fn();
+    const listApps = vi
+      .fn()
+      .mockResolvedValueOnce({
+        apps: [
+          {
+            id: "app_1",
+            name: "First App",
+            apiKey: "api_1",
+            webhookApiKey: "wh_1",
+            chainNetworks: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+        cursor: "cursor_2",
+      })
+      .mockResolvedValueOnce({
+        apps: [
+          {
+            id: "app_2",
+            name: "Second App",
+            apiKey: "api_2",
+            webhookApiKey: "wh_2",
+            chainNetworks: [],
+            createdAt: "2025-01-02T00:00:00.000Z",
+          },
+        ],
+      });
+    class MockAdminClient {
+      constructor(_accessKey: string) {}
+      listApps = listApps;
+      listChains = vi.fn();
+      createApp = vi.fn();
+    }
+    const exitWithError = vi.fn();
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+
+    vi.doMock("../../src/lib/config.js", () => ({
+      load,
+      save,
+      get: vi.fn(),
+      toMap: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/admin-client.js", () => ({
+      AdminClient: MockAdminClient,
+    }));
+    vi.doMock("@clack/prompts", () => ({
+      select,
+      text: vi.fn(),
+      multiselect: vi.fn(),
+      confirm: vi.fn(),
+      isCancel,
+      cancel,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printHuman,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    const program = new Command();
+    registerConfig(program);
+
+    await program.parseAsync(["node", "test", "config", "set", "access-key", "ak_test"], {
+      from: "node",
+    });
+
+    expect(listApps).toHaveBeenCalledTimes(2);
+    expect(listApps).toHaveBeenNthCalledWith(1, undefined);
+    expect(listApps).toHaveBeenNthCalledWith(2, { cursor: "cursor_2" });
+    expect(select).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Select an app to use as default:",
+        options: expect.arrayContaining([
+          { label: "First App (app_1)", value: "app_1" },
+          { label: "Second App (app_2)", value: "app_2" },
+        ]),
+      }),
+    );
+    expect(save).toHaveBeenNthCalledWith(1, { access_key: "ak_test" });
+    expect(save).toHaveBeenNthCalledWith(2, {
+      access_key: "ak_test",
+      app: { id: "app_2", name: "Second App", apiKey: "api_2" },
+    });
     expect(exitWithError).not.toHaveBeenCalled();
   });
 

@@ -12,6 +12,7 @@ import {
 } from "../lib/ui.js";
 import { isJSONMode } from "../lib/output.js";
 import { setReplMode } from "../index.js";
+import { getRPCNetworkIds } from "../lib/networks.js";
 
 const COMMAND_NAMES = [
   "apps",
@@ -47,19 +48,7 @@ const COMMAND_NAMES = [
   "version",
 ];
 
-const NETWORK_NAMES = [
-  "eth-mainnet",
-  "eth-sepolia",
-  "eth-holesky",
-  "polygon-mainnet",
-  "polygon-amoy",
-  "arb-mainnet",
-  "arb-sepolia",
-  "opt-mainnet",
-  "opt-sepolia",
-  "base-mainnet",
-  "base-sepolia",
-];
+const NETWORK_NAMES = getRPCNetworkIds();
 
 const REPL_HISTORY_MAX = 100;
 

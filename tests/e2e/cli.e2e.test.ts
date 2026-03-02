@@ -134,6 +134,138 @@ describe("CLI mock E2E", () => {
     );
   });
 
+  it("apps list --all paginates in JSON mode for complete results", async () => {
+    server = await startMockServer((request) => {
+      if (request.path === "/v1/apps" && !request.query.get("cursor")) {
+        return {
+          status: 200,
+          json: {
+            data: {
+              apps: [
+                {
+                  id: "app-1",
+                  name: "Page One",
+                  apiKey: "api-key-1",
+                  webhookApiKey: "webhook-key-1",
+                  chainNetworks: [],
+                  createdAt: "2026-01-01T00:00:00Z",
+                },
+              ],
+              cursor: "cursor_2",
+            },
+          },
+        };
+      }
+      if (request.path === "/v1/apps" && request.query.get("cursor") === "cursor_2") {
+        return {
+          status: 200,
+          json: {
+            data: {
+              apps: [
+                {
+                  id: "app-2",
+                  name: "Page Two",
+                  apiKey: "api-key-2",
+                  webhookApiKey: "webhook-key-2",
+                  chainNetworks: [],
+                  createdAt: "2026-01-02T00:00:00Z",
+                },
+              ],
+            },
+          },
+        };
+      }
+      return { status: 404, text: "unknown path" };
+    });
+
+    const result = await runCLI(
+      ["--json", "--access-key", "test-access-key", "apps", "list", "--all"],
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(parseJSON(result.stdout)).toMatchObject({
+      apps: [
+        { id: "app-1", name: "Page One" },
+        { id: "app-2", name: "Page Two" },
+      ],
+      pageInfo: {
+        mode: "all",
+        pages: 2,
+        scannedApps: 2,
+      },
+    });
+    expect(server.requests).toHaveLength(2);
+    expect(server.requests[0].headers.authorization).toBe(
+      "Bearer test-access-key",
+    );
+    expect(server.requests[1].query.get("cursor")).toBe("cursor_2");
+  });
+
+  it("apps list --search scans pages and returns matches", async () => {
+    server = await startMockServer((request) => {
+      if (request.path === "/v1/apps" && !request.query.get("cursor")) {
+        return {
+          status: 200,
+          json: {
+            data: {
+              apps: [
+                {
+                  id: "app-1",
+                  name: "Page One",
+                  apiKey: "api-key-1",
+                  webhookApiKey: "webhook-key-1",
+                  chainNetworks: [],
+                  createdAt: "2026-01-01T00:00:00Z",
+                },
+              ],
+              cursor: "cursor_2",
+            },
+          },
+        };
+      }
+      if (request.path === "/v1/apps" && request.query.get("cursor") === "cursor_2") {
+        return {
+          status: 200,
+          json: {
+            data: {
+              apps: [
+                {
+                  id: "target-2",
+                  name: "Target App",
+                  apiKey: "api-key-2",
+                  webhookApiKey: "webhook-key-2",
+                  chainNetworks: [],
+                  createdAt: "2026-01-02T00:00:00Z",
+                },
+              ],
+            },
+          },
+        };
+      }
+      return { status: 404, text: "unknown path" };
+    });
+
+    const result = await runCLI(
+      ["--json", "--access-key", "test-access-key", "apps", "list", "--search", "target"],
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(parseJSON(result.stdout)).toMatchObject({
+      apps: [{ id: "target-2", name: "Target App" }],
+      pageInfo: {
+        mode: "search",
+        pages: 2,
+        scannedApps: 2,
+        search: "target",
+      },
+    });
+    expect(server.requests).toHaveLength(2);
+  });
+
   it("returns INVALID_ACCESS_KEY contract on admin auth failures", async () => {
     server = await startMockServer((request) => {
       if (request.path === "/v1/apps") {
@@ -153,5 +285,76 @@ describe("CLI mock E2E", () => {
         code: "INVALID_ACCESS_KEY",
       },
     });
+  });
+
+  it("lists full RPC network catalog without auth", async () => {
+    const result = await runCLI(["--json", "network", "list"]);
+
+    expect(result.exitCode).toBe(0);
+    const payload = parseJSON(result.stdout) as Array<{ id: string }>;
+    expect(Array.isArray(payload)).toBe(true);
+    expect(payload.length).toBeGreaterThan(100);
+    expect(payload.some((network) => network.id === "eth-mainnet")).toBe(true);
+    expect(payload.some((network) => network.id === "base-mainnet")).toBe(true);
+  });
+
+  it("lists configured app network slugs with access key mode", async () => {
+    server = await startMockServer((request) => {
+      if (request.path === "/v1/apps/app-123") {
+        return {
+          status: 200,
+          json: {
+            data: {
+              id: "app-123",
+              name: "Configured App",
+              description: "test",
+              apiKey: "api_key",
+              webhookApiKey: "wh_key",
+              chainNetworks: [
+                {
+                  id: "ETH_MAINNET",
+                  name: "Ethereum Mainnet",
+                  rpcUrl: "https://eth-mainnet.g.alchemy.com/v2/api_key",
+                },
+                {
+                  id: "BASE_SEPOLIA",
+                  name: "Base Sepolia",
+                  rpcUrl: "https://base-sepolia.g.alchemy.com/v2/api_key",
+                },
+              ],
+              products: [],
+              createdAt: "2025-01-01T00:00:00.000Z",
+            },
+          },
+        };
+      }
+      return { status: 404, text: "unknown path" };
+    });
+
+    const result = await runCLI(
+      [
+        "--json",
+        "--access-key",
+        "test-access-key",
+        "network",
+        "list",
+        "--configured",
+        "--app-id",
+        "app-123",
+      ],
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(parseJSON(result.stdout)).toMatchObject({
+      mode: "configured",
+      appId: "app-123",
+      configuredNetworkIds: ["base-sepolia", "eth-mainnet"],
+    });
+    expect(server.requests).toHaveLength(1);
+    expect(server.requests[0].headers.authorization).toBe(
+      "Bearer test-access-key",
+    );
   });
 });

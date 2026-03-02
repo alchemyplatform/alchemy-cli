@@ -31,3 +31,7 @@ plans/
 
 # Claude Code
 .claude/
+
+# Agent artifacts
+.agents/
+skills-lock.json

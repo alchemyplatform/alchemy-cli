@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { adminClientFromFlags } from "../lib/resolve.js";
+import type { App } from "../lib/admin-client.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
@@ -21,6 +22,69 @@ function maskAppSecrets<T extends { apiKey?: string; webhookApiKey?: string }>(a
   };
 }
 
+function printFetchSummary(
+  appsCount: number,
+  pagesCount: number,
+  opts?: { suffix?: string },
+): void {
+  const suffix = opts?.suffix ? ` ${opts.suffix}` : "";
+  console.log(`\n  ${dim(`Fetched ${appsCount} apps across ${pagesCount} pages${suffix}`)}`);
+}
+
+type PaginationAction = "next" | "all" | "stop";
+
+async function promptPaginationAction(): Promise<PaginationAction> {
+  const { select, isCancel, cancel } = await import("@clack/prompts");
+  const action = await select({
+    message: "More apps are available. What do you want to do?",
+    options: [
+      { label: "Load next page", value: "next" },
+      { label: "Load all remaining pages", value: "all" },
+      { label: "Stop here", value: "stop" },
+    ],
+    initialValue: "next",
+  });
+
+  if (isCancel(action)) {
+    cancel("Stopped pagination.");
+    return "stop";
+  }
+
+  if (action === "next" || action === "all" || action === "stop") {
+    return action;
+  }
+  return "stop";
+}
+
+async function listAllApps(
+  listApps: (opts?: { cursor?: string; limit?: number }) => Promise<{ apps: App[]; cursor?: string }>,
+  opts?: { limit?: number },
+): Promise<{ apps: Awaited<ReturnType<typeof listApps>>["apps"]; pages: number }> {
+  const apps: Awaited<ReturnType<typeof listApps>>["apps"] = [];
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+  let pages = 0;
+
+  do {
+    const page = await listApps({
+      ...(cursor && { cursor }),
+      ...(opts?.limit !== undefined && { limit: opts.limit }),
+    });
+    pages += 1;
+    apps.push(...page.apps);
+    cursor = page.cursor;
+    if (cursor && seenCursors.has(cursor)) break;
+    if (cursor) seenCursors.add(cursor);
+  } while (cursor);
+
+  return { apps, pages };
+}
+
+function matchesSearch(app: App, query: string): boolean {
+  const q = query.toLowerCase();
+  return app.name.toLowerCase().includes(q) || app.id.toLowerCase().includes(q);
+}
+
 export function registerApps(program: Command) {
   const cmd = program.command("apps").description("Manage Alchemy apps");
 
@@ -31,9 +95,87 @@ export function registerApps(program: Command) {
     .description("List all apps")
     .option("--cursor <cursor>", "Pagination cursor")
     .option("--limit <n>", "Max results per page", parseInt)
+    .option("--all", "Fetch all pages")
+    .option("--search <query>", "Search apps by name or id (client-side)")
+    .option("--id <appId>", "Filter by exact app id (client-side)")
     .action(async (opts) => {
       try {
         const admin = adminClientFromFlags(program);
+        const fetchAll = Boolean(opts.all);
+        const hasSearch = typeof opts.search === "string";
+        const hasId = typeof opts.id === "string";
+        const searchQuery = hasSearch ? opts.search.trim() : "";
+        const idQuery = hasId ? opts.id.trim() : "";
+
+        if (opts.all && opts.cursor) {
+          throw errInvalidArgs("Cannot combine --all with --cursor");
+        }
+        if (hasSearch && hasId) {
+          throw errInvalidArgs("Cannot combine --search with --id");
+        }
+        if (opts.cursor && (hasSearch || hasId)) {
+          throw errInvalidArgs("Cannot combine --cursor with --search or --id");
+        }
+        if (hasSearch && !searchQuery) {
+          throw errInvalidArgs("--search cannot be empty");
+        }
+        if (hasId && !idQuery) {
+          throw errInvalidArgs("--id cannot be empty");
+        }
+
+        const isFilteredList = hasSearch || hasId;
+        if (fetchAll || isFilteredList) {
+          const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
+            listAllApps(admin.listApps.bind(admin), { limit: opts.limit }),
+          );
+          const filteredApps = hasId
+            ? result.apps.filter((a) => a.id === idQuery)
+            : hasSearch
+              ? result.apps.filter((a) => matchesSearch(a, searchQuery))
+              : result.apps;
+
+          if (isJSONMode()) {
+            printJSON({
+              apps: filteredApps.map(maskAppSecrets),
+              pageInfo: {
+                mode: fetchAll ? "all" : "search",
+                pages: result.pages,
+                scannedApps: result.apps.length,
+                ...(hasSearch && { search: searchQuery }),
+                ...(hasId && { id: idQuery }),
+              },
+            });
+            return;
+          }
+
+          if (filteredApps.length === 0) {
+            emptyState(
+              hasId
+                ? `No apps found with id "${idQuery}".`
+                : hasSearch
+                  ? `No apps found matching "${searchQuery}".`
+                  : "No apps found.",
+            );
+            printFetchSummary(result.apps.length, result.pages);
+            return;
+          }
+
+          const rows = filteredApps.map((a) => [
+            a.id,
+            a.name,
+            String(a.chainNetworks.length),
+            a.createdAt,
+          ]);
+
+          printTable(["ID", "Name", "Networks", "Created"], rows);
+          if (isFilteredList) {
+            const filterLabel = hasId ? `id "${idQuery}"` : `"${searchQuery}"`;
+            console.log(`\n  ${dim(`Matched ${filteredApps.length} apps for ${filterLabel}`)}`);
+          }
+          printFetchSummary(result.apps.length, result.pages);
+          return;
+        }
+
         const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
           admin.listApps({ cursor: opts.cursor, limit: opts.limit }),
         );
@@ -41,6 +183,53 @@ export function registerApps(program: Command) {
         if (isJSONMode()) {
           printJSON({ ...result, apps: result.apps.map(maskAppSecrets) });
           return;
+        }
+
+        const interactivePagination = process.stdin.isTTY && !opts.all;
+        if (interactivePagination) {
+          let page = result;
+          let autoFetchRemaining = false;
+          let pagesFetched = 0;
+          let appsFetched = 0;
+
+          while (true) {
+            if (page.apps.length > 0) {
+              pagesFetched += 1;
+              appsFetched += page.apps.length;
+              const rows = page.apps.map((a) => [
+                a.id,
+                a.name,
+                String(a.chainNetworks.length),
+                a.createdAt,
+              ]);
+              printTable(["ID", "Name", "Networks", "Created"], rows);
+            } else {
+              emptyState("No apps found.");
+              return;
+            }
+
+            if (!page.cursor) {
+              printFetchSummary(appsFetched, pagesFetched);
+              return;
+            }
+
+            if (!autoFetchRemaining) {
+              printFetchSummary(appsFetched, pagesFetched, { suffix: "so far" });
+              const action = await promptPaginationAction();
+              if (action === "stop") {
+                console.log(`\n  ${dim(`Next cursor: ${page.cursor}`)}`);
+                printFetchSummary(appsFetched, pagesFetched);
+                return;
+              }
+              if (action === "all") {
+                autoFetchRemaining = true;
+              }
+            }
+
+            page = await withSpinner("Fetching next page…", "Page fetched", () =>
+              admin.listApps({ cursor: page.cursor, limit: opts.limit }),
+            );
+          }
         }
 
         if (result.apps.length === 0) {
@@ -56,6 +245,7 @@ export function registerApps(program: Command) {
         ]);
 
         printTable(["ID", "Name", "Networks", "Created"], rows);
+        printFetchSummary(result.apps.length, 1);
 
         if (result.cursor) {
           console.log(`\n  ${dim(`Next cursor: ${result.cursor}`)}`);
