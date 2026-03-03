@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
-import * as output from "../lib/output.js";
+import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import { dim, withSpinner, printTable, emptyState, printKeyValueBox } from "../lib/ui.js";
 import { validateAddress, readStdinArg } from "../lib/validators.js";
@@ -12,14 +12,6 @@ interface TokenResponse {
     tokenBalance: string;
   }>;
   pageKey?: string;
-}
-
-function isVerboseEnabled(): boolean {
-  try {
-    return Boolean((output as { verbose?: boolean }).verbose);
-  } catch {
-    return false;
-  }
 }
 
 export function registerTokens(program: Command) {
@@ -50,8 +42,8 @@ Examples:
           client.call("alchemy_getTokenBalances", params),
         ) as TokenResponse;
 
-        if (output.isJSONMode()) {
-          output.printJSON(result);
+        if (isJSONMode()) {
+          printJSON(result);
           return;
         }
 
@@ -85,9 +77,9 @@ Examples:
         printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
         console.log(`\n  ${dim(`Showing ${nonZero.length} of ${result.tokenBalances.length} contracts (non-zero only).`)}`);
 
-        if (isVerboseEnabled()) {
+        if (verbose) {
           console.log("");
-          output.printJSON(result);
+          printJSON(result);
         }
 
         if (result.pageKey) {

@@ -9,7 +9,7 @@ import {
 } from "./lib/output.js";
 import { load as loadConfig } from "./lib/config.js";
 import { brandedHelp } from "./lib/ui.js";
-import { noColor } from "./lib/colors.js";
+import { noColor, identity, esc } from "./lib/colors.js";
 import { registerConfig } from "./commands/config.js";
 import { registerRPC } from "./commands/rpc.js";
 import { registerBalance } from "./commands/balance.js";
@@ -24,9 +24,6 @@ import { registerApps } from "./commands/apps.js";
 import { registerWallet } from "./commands/wallet.js";
 
 // ── ANSI helpers for help formatting ────────────────────────────────
-const identity = (s: string) => s;
-const esc = (code: string) =>
-  noColor ? identity : (s: string) => `\x1b[${code}m${s}\x1b[0m`;
 const hBrand = noColor
   ? identity
   : (s: string) => `\x1b[38;2;54;63;249m${s}\x1b[39m`;

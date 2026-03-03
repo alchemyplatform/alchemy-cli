@@ -1,17 +1,9 @@
 import { Command } from "commander";
 import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
-import * as output from "../lib/output.js";
+import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import { green, withSpinner, weiToEth, printKeyValueBox } from "../lib/ui.js";
 import { validateAddress, readStdinArg } from "../lib/validators.js";
-
-function isVerboseEnabled(): boolean {
-  try {
-    return Boolean((output as { verbose?: boolean }).verbose);
-  } catch {
-    return false;
-  }
-}
 
 export function registerBalance(program: Command) {
   program
@@ -38,8 +30,8 @@ Examples:
         const wei = BigInt(result);
         const network = resolveNetwork(program);
 
-        if (output.isJSONMode()) {
-          output.printJSON({
+        if (isJSONMode()) {
+          printJSON({
             address,
             wei: wei.toString(),
             eth: weiToEth(wei),
@@ -52,9 +44,9 @@ Examples:
             ["Network", network],
           ]);
 
-          if (isVerboseEnabled()) {
+          if (verbose) {
             console.log("");
-            output.printJSON({
+            printJSON({
               rpcMethod: "eth_getBalance",
               rpcParams: [address, "latest"],
               rpcResult: result,

@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { homedir } from "node:os";
 import { Command } from "commander";
 import { generateWallet, getWalletAddress } from "@alchemy/x402";
 import * as config from "../lib/config.js";
@@ -11,8 +10,7 @@ import { green, printKeyValueBox } from "../lib/ui.js";
 import { errInvalidArgs, errWalletKeyRequired } from "../lib/errors.js";
 
 function walletKeyPath(): string {
-  const home = process.env.HOME || homedir();
-  return join(home, ".config", "alchemy", "wallet-key.txt");
+  return join(config.configDir(), "wallet-key.txt");
 }
 
 export function registerWallet(program: Command) {

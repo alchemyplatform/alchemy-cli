@@ -1,16 +1,8 @@
 import { Command } from "commander";
 import { adminClientFromFlags } from "../lib/resolve.js";
-import * as output from "../lib/output.js";
+import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import { dim, green, withSpinner, printTable, emptyState } from "../lib/ui.js";
-
-function isVerboseEnabled(): boolean {
-  try {
-    return Boolean((output as { verbose?: boolean }).verbose);
-  } catch {
-    return false;
-  }
-}
 
 export function registerChains(program: Command) {
   const cmd = program
@@ -29,8 +21,8 @@ export function registerChains(program: Command) {
           () => admin.listChains(),
         );
 
-        if (output.isJSONMode()) {
-          output.printJSON(chains);
+        if (isJSONMode()) {
+          printJSON(chains);
           return;
         }
 
@@ -51,9 +43,9 @@ export function registerChains(program: Command) {
 
         printTable(["ID", "Name", "Testnet", "Availability", "Currency"], rows);
 
-        if (isVerboseEnabled()) {
+        if (verbose) {
           console.log("");
-          output.printJSON(chains);
+          printJSON(chains);
         }
       } catch (err) {
         exitWithError(err);

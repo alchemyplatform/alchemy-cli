@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { errNotFound } from "../lib/errors.js";
-import * as output from "../lib/output.js";
+import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import { validateTxHash, readStdinArg } from "../lib/validators.js";
 import {
@@ -13,14 +13,6 @@ import {
   etherscanTxURL,
   printKeyValueBox,
 } from "../lib/ui.js";
-
-function isVerboseEnabled(): boolean {
-  try {
-    return Boolean((output as { verbose?: boolean }).verbose);
-  } catch {
-    return false;
-  }
-}
 
 export function registerTx(program: Command) {
   program
@@ -51,8 +43,8 @@ Examples:
           return [t, r] as const;
         });
 
-        if (output.isJSONMode()) {
-          output.printJSON({ transaction: tx, receipt });
+        if (isJSONMode()) {
+          printJSON({ transaction: tx, receipt });
           return;
         }
 
@@ -81,9 +73,9 @@ Examples:
 
         printKeyValueBox(pairs);
 
-        if (isVerboseEnabled()) {
+        if (verbose) {
           console.log("");
-          output.printJSON({ transaction: tx, receipt });
+          printJSON({ transaction: tx, receipt });
         }
       } catch (err) {
         exitWithError(err);

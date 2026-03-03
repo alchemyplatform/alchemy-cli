@@ -2,14 +2,13 @@ import type { AlchemyClient } from "./client-interface.js";
 import {
   CLIError,
   errInvalidAPIKey,
-  errInvalidAPIKeyWithDetails,
   errInvalidArgs,
   errNetwork,
   errNetworkNotEnabled,
   errRPC,
   errRateLimited,
 } from "./errors.js";
-import { timeout as globalTimeout } from "./output.js";
+import { parseBaseURLOverride, fetchWithTimeout } from "./client-utils.js";
 
 export interface RPCRequest {
   jsonrpc: string;
@@ -56,40 +55,8 @@ export class Client implements AlchemyClient {
     }
   }
 
-  private isLocalhost(hostname: string): boolean {
-    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  }
-
   private rpcBaseURLOverride(): URL | null {
-    const raw = process.env[Client.RPC_BASE_URL_ENV];
-    if (!raw) return null;
-
-    let parsed: URL;
-    try {
-      parsed = new URL(raw);
-    } catch {
-      throw errInvalidArgs(`Invalid ${Client.RPC_BASE_URL_ENV} value.`);
-    }
-
-    if (!this.isLocalhost(parsed.hostname)) {
-      throw errInvalidArgs(
-        `${Client.RPC_BASE_URL_ENV} must target localhost or 127.0.0.1.`,
-      );
-    }
-
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw errInvalidArgs(
-        `${Client.RPC_BASE_URL_ENV} must use http:// or https://.`,
-      );
-    }
-
-    if (parsed.protocol === "http:" && !this.isLocalhost(parsed.hostname)) {
-      throw errInvalidArgs(
-        `${Client.RPC_BASE_URL_ENV} can only use non-HTTPS for localhost targets.`,
-      );
-    }
-
-    return parsed;
+    return parseBaseURLOverride(Client.RPC_BASE_URL_ENV);
   }
 
   private rpcBaseURL(): URL {
@@ -117,7 +84,11 @@ export class Client implements AlchemyClient {
   private authErrorFromResponseBody(detail: string): CLIError {
     const networkNotEnabled = this.parseNetworkNotEnabledError(detail);
     if (networkNotEnabled) return networkNotEnabled;
-    return detail ? errInvalidAPIKeyWithDetails(detail) : errInvalidAPIKey();
+    return errInvalidAPIKey(detail || undefined);
+  }
+
+  private async doFetch(url: string, init: RequestInit): Promise<Response> {
+    return fetchWithTimeout(url, init);
   }
 
   async call(method: string, params: unknown[] = []): Promise<unknown> {
@@ -128,23 +99,14 @@ export class Client implements AlchemyClient {
       id: 1,
     };
 
-    let resp: Response;
-    try {
-      resp = await fetch(this.rpcURL(), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(body),
-        ...(globalTimeout && { signal: AbortSignal.timeout(globalTimeout) }),
-      });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "TimeoutError") {
-        throw errNetwork(`Request timed out after ${globalTimeout}ms`);
-      }
-      throw errNetwork((err as Error).message);
-    }
+    const resp = await this.doFetch(this.rpcURL(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
     if (resp.status === 429) throw errRateLimited();
     if (resp.status === 401 || resp.status === 403) {
@@ -175,18 +137,9 @@ export class Client implements AlchemyClient {
       url.searchParams.set(k, v);
     }
 
-    let resp: Response;
-    try {
-      resp = await fetch(url.toString(), {
-        headers: { Accept: "application/json" },
-        ...(globalTimeout && { signal: AbortSignal.timeout(globalTimeout) }),
-      });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "TimeoutError") {
-        throw errNetwork(`Request timed out after ${globalTimeout}ms`);
-      }
-      throw errNetwork((err as Error).message);
-    }
+    const resp = await this.doFetch(url.toString(), {
+      headers: { Accept: "application/json" },
+    });
 
     if (resp.status === 429) throw errRateLimited();
     if (resp.status === 401 || resp.status === 403) {

@@ -9,7 +9,7 @@ import {
   CLIError,
   ErrorCode,
 } from "./errors.js";
-import { timeout as globalTimeout } from "./output.js";
+import { parseBaseURLOverride, fetchWithTimeout } from "./client-utils.js";
 
 export class X402Client implements AlchemyClient {
   readonly network: string;
@@ -32,40 +32,8 @@ export class X402Client implements AlchemyClient {
     }
   }
 
-  private isLocalhost(hostname: string): boolean {
-    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  }
-
   private baseURLOverride(): URL | null {
-    const raw = process.env[X402Client.X402_BASE_URL_ENV];
-    if (!raw) return null;
-
-    let parsed: URL;
-    try {
-      parsed = new URL(raw);
-    } catch {
-      throw errInvalidArgs(`Invalid ${X402Client.X402_BASE_URL_ENV} value.`);
-    }
-
-    if (!this.isLocalhost(parsed.hostname)) {
-      throw errInvalidArgs(
-        `${X402Client.X402_BASE_URL_ENV} must target localhost or 127.0.0.1.`,
-      );
-    }
-
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw errInvalidArgs(
-        `${X402Client.X402_BASE_URL_ENV} must use http:// or https://.`,
-      );
-    }
-
-    if (parsed.protocol === "http:" && !this.isLocalhost(parsed.hostname)) {
-      throw errInvalidArgs(
-        `${X402Client.X402_BASE_URL_ENV} can only use non-HTTPS for localhost targets.`,
-      );
-    }
-
-    return parsed;
+    return parseBaseURLOverride(X402Client.X402_BASE_URL_ENV);
   }
 
   private baseURL(): URL {
@@ -179,17 +147,7 @@ export class X402Client implements AlchemyClient {
   }
 
   private async doFetch(url: string, init: RequestInit): Promise<Response> {
-    try {
-      return await fetch(url, {
-        ...init,
-        ...(globalTimeout && { signal: AbortSignal.timeout(globalTimeout) }),
-      });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "TimeoutError") {
-        throw errNetwork(`Request timed out after ${globalTimeout}ms`);
-      }
-      throw errNetwork((err as Error).message);
-    }
+    return fetchWithTimeout(url, init);
   }
 
   private async parsePaymentError(resp: Response): Promise<CLIError> {

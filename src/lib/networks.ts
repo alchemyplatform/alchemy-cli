@@ -242,7 +242,3 @@ export function getRPCNetworks(): RPCNetwork[] {
 export function getRPCNetworkIds(): string[] {
   return [...RPC_NETWORK_IDS];
 }
-
-export function getRPCNetworkById(id: string): RPCNetwork | undefined {
-  return getRPCNetworks().find((network) => network.id === id);
-}

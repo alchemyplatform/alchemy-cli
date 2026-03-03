@@ -1,6 +1,6 @@
 import { dim, timeAgo } from "./ui.js";
 
-function parseHexQuantity(value: unknown): bigint | undefined {
+export function parseHexQuantity(value: unknown): bigint | undefined {
   if (typeof value !== "string" || !/^0x[0-9a-f]+$/i.test(value)) {
     return undefined;
   }
@@ -11,7 +11,7 @@ function parseHexQuantity(value: unknown): bigint | undefined {
   }
 }
 
-function formatWithCommas(value: bigint): string {
+export function formatWithCommas(value: bigint): string {
   return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 

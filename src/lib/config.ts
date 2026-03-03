@@ -21,7 +21,7 @@ export interface Config {
   x402?: boolean;
 }
 
-const KEY_MAP: Record<string, keyof Config> = {
+export const KEY_MAP: Record<string, keyof Config> = {
   "api-key": "api_key",
   api_key: "api_key",
   "access-key": "access_key",
@@ -87,6 +87,10 @@ function getHome(): string {
 export function configPath(): string {
   if (process.env.ALCHEMY_CONFIG) return process.env.ALCHEMY_CONFIG;
   return join(getHome(), ".config", "alchemy", "config.json");
+}
+
+export function configDir(): string {
+  return dirname(configPath());
 }
 
 export function load(): Config {
