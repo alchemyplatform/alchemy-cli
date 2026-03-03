@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { load } from "./config.js";
+import type { AlchemyClient } from "./client-interface.js";
 import { Client } from "./client.js";
+import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
-import { errAppRequired, errAuthRequired, errAccessKeyRequired } from "./errors.js";
+import { errAppRequired, errAuthRequired, errAccessKeyRequired, errWalletKeyRequired } from "./errors.js";
 import { debug } from "./output.js";
 
 export function resolveAPIKey(program: Command): string | undefined {
@@ -48,12 +51,47 @@ export function adminClientFromFlags(program: Command): AdminClient {
   return new AdminClient(accessKey);
 }
 
-export function clientFromFlags(program: Command): Client {
-  const apiKey = resolveAPIKey(program);
-  if (!apiKey) throw errAuthRequired();
+export function resolveX402(program: Command): boolean {
+  const opts = program.opts();
+  if (opts.x402) return true;
+  const cfg = load();
+  return cfg.x402 === true;
+}
 
+export function resolveWalletKey(program: Command): string | undefined {
+  const opts = program.opts();
+
+  // 1. --wallet-key-file flag
+  if (opts.walletKeyFile) {
+    return readFileSync(opts.walletKeyFile, "utf-8").trim();
+  }
+
+  // 2. ALCHEMY_WALLET_KEY env var
+  if (process.env.ALCHEMY_WALLET_KEY) {
+    return process.env.ALCHEMY_WALLET_KEY;
+  }
+
+  // 3. Config wallet_key_file
+  const cfg = load();
+  if (cfg.wallet_key_file) {
+    return readFileSync(cfg.wallet_key_file, "utf-8").trim();
+  }
+
+  return undefined;
+}
+
+export function clientFromFlags(program: Command): AlchemyClient {
   const network = resolveNetwork(program);
   debug(`using network=${network}`);
+
+  if (resolveX402(program)) {
+    const walletKey = resolveWalletKey(program);
+    if (!walletKey) throw errWalletKeyRequired();
+    return new X402Client(walletKey, network);
+  }
+
+  const apiKey = resolveAPIKey(program);
+  if (!apiKey) throw errAuthRequired();
   return new Client(apiKey, network);
 }
 

@@ -36,6 +36,8 @@ const COMMAND_NAMES = [
   "config set app",
   "config set network",
   "config set verbose",
+  "config set wallet-key-file",
+  "config set x402",
   "config get",
   "config list",
   "help",
@@ -46,6 +48,10 @@ const COMMAND_NAMES = [
   "tokens",
   "tx",
   "version",
+  "wallet",
+  "wallet generate",
+  "wallet import",
+  "wallet address",
 ];
 
 const NETWORK_NAMES = getRPCNetworkIds();

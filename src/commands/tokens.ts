@@ -1,8 +1,8 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
-import { isJSONMode, printJSON } from "../lib/output.js";
+import * as output from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { dim, withSpinner, printTable, emptyState } from "../lib/ui.js";
+import { dim, withSpinner, printTable, emptyState, printKeyValueBox } from "../lib/ui.js";
 import { validateAddress, readStdinArg } from "../lib/validators.js";
 
 interface TokenResponse {
@@ -12,6 +12,14 @@ interface TokenResponse {
     tokenBalance: string;
   }>;
   pageKey?: string;
+}
+
+function isVerboseEnabled(): boolean {
+  try {
+    return Boolean((output as { verbose?: boolean }).verbose);
+  } catch {
+    return false;
+  }
 }
 
 export function registerTokens(program: Command) {
@@ -42,8 +50,8 @@ Examples:
           client.call("alchemy_getTokenBalances", params),
         ) as TokenResponse;
 
-        if (isJSONMode()) {
-          printJSON(result);
+        if (output.isJSONMode()) {
+          output.printJSON(result);
           return;
         }
 
@@ -60,14 +68,27 @@ Examples:
         }
 
         const rows = nonZero.map((tb) => {
-          const display =
-            tb.tokenBalance.length > 20
-              ? tb.tokenBalance.slice(0, 20) + "…"
-              : tb.tokenBalance;
-          return [tb.contractAddress, display];
+          let decimalBalance = dim("unparseable");
+          try {
+            decimalBalance = BigInt(tb.tokenBalance).toString();
+          } catch {
+            // Keep fallback when provider returns unexpected non-hex content.
+          }
+          return [tb.contractAddress, decimalBalance, tb.tokenBalance];
         });
 
-        printTable(["Contract", "Balance"], rows);
+        printKeyValueBox([
+          ["Address", address],
+          ["Network", client.network],
+          ["Non-zero tokens", String(nonZero.length)],
+        ]);
+        printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
+        console.log(`\n  ${dim(`Showing ${nonZero.length} of ${result.tokenBalances.length} contracts (non-zero only).`)}`);
+
+        if (isVerboseEnabled()) {
+          console.log("");
+          output.printJSON(result);
+        }
 
         if (result.pageKey) {
           console.log(`\n  ${dim(`More results available. Use --page-key ${result.pageKey} to see the next page.`)}`);

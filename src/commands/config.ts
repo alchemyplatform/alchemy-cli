@@ -15,6 +15,11 @@ const RESET_KEY_MAP: Record<string, keyof config.Config> = {
   app: "app",
   network: "network",
   verbose: "verbose",
+  "wallet-key-file": "wallet_key_file",
+  wallet_key_file: "wallet_key_file",
+  "wallet-address": "wallet_address",
+  wallet_address: "wallet_address",
+  x402: "x402",
 };
 
 async function saveAppWithPrompt(app: App): Promise<boolean> {
@@ -300,11 +305,45 @@ export function registerConfig(program: Command) {
       }
     });
 
+  setCmd
+    .command("wallet-key-file <path>")
+    .description("Set the path to a wallet private key file for x402")
+    .action((path: string) => {
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, wallet_key_file: path });
+        printHuman(`${green("✓")} Set wallet-key-file\n`, { key: "wallet-key-file", status: "set" });
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  setCmd
+    .command("x402 <enabled>")
+    .description("Enable or disable x402 wallet-based auth by default (true|false)")
+    .action((enabled: string) => {
+      try {
+        const normalized = enabled.trim().toLowerCase();
+        if (normalized !== "true" && normalized !== "false") {
+          throw errInvalidArgs("x402 must be 'true' or 'false'");
+        }
+        const x402 = normalized === "true";
+        const cfg = config.load();
+        config.save({ ...cfg, x402 });
+        printHuman(
+          `${green("✓")} Set x402 default to ${x402}\n`,
+          { key: "x402", value: String(x402), status: "set" },
+        );
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
   // ── config get ─────────────────────────────────────────────────────
 
   cmd
     .command("get <key>")
-    .description("Get a config value (api-key, access-key, network, verbose)")
+    .description("Get a config value (api-key, access-key, network, verbose, wallet-key-file, x402)")
     .action((key: string) => {
       const cfg = config.load();
       const value = config.get(cfg, key);
@@ -345,6 +384,14 @@ export function registerConfig(program: Command) {
             ? String(cfg.verbose)
             : dim("(not set, defaults to false)"),
         ],
+        ["wallet-key-file", cfg.wallet_key_file || dim("(not set)")],
+        ["wallet-address", cfg.wallet_address || dim("(not set)")],
+        [
+          "x402",
+          cfg.x402 !== undefined
+            ? String(cfg.x402)
+            : dim("(not set, defaults to false)"),
+        ],
       ];
 
       printKeyValueBox(pairs);
@@ -362,7 +409,7 @@ export function registerConfig(program: Command) {
           const mapped = RESET_KEY_MAP[key];
           if (!mapped) {
             throw errInvalidArgs(
-              `invalid reset key '${key}' (valid: api-key, access-key, app, network, verbose)`,
+              `invalid reset key '${key}' (valid: api-key, access-key, app, network, verbose, wallet-key-file, x402)`,
             );
           }
 

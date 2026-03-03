@@ -221,12 +221,14 @@ describe("command integration coverage", () => {
       ],
     });
     const printTable = vi.fn();
+    const printKeyValueBox = vi.fn();
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const emptyState = vi.fn();
     const validateAddress = vi.fn();
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ call }),
+      clientFromFlags: () => ({ call, network: "eth-mainnet" }),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
@@ -240,6 +242,7 @@ describe("command integration coverage", () => {
       ) => fn(),
       dim: (s: string) => s,
       printTable,
+      printKeyValueBox,
       emptyState,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -257,11 +260,21 @@ describe("command integration coverage", () => {
     });
 
     expect(call).toHaveBeenCalledWith("alchemy_getTokenBalances", [ADDRESS]);
+    expect(call).toHaveBeenCalledTimes(1);
     expect(emptyState).not.toHaveBeenCalled();
+    expect(printKeyValueBox).toHaveBeenCalledWith([
+      ["Address", ADDRESS],
+      ["Network", "eth-mainnet"],
+      ["Non-zero tokens", "1"],
+    ]);
     expect(printTable).toHaveBeenCalledWith(
-      ["Contract", "Balance"],
-      [["0xnonzero", "0x1234"]],
+      ["Contract", "Balance (base units)", "Raw (hex)"],
+      [["0xnonzero", "4660", "0x1234"]],
     );
+    expect(log).toHaveBeenCalledWith(
+      "\n  Showing 1 of 2 contracts (non-zero only).",
+    );
+    log.mockRestore();
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
@@ -1290,6 +1303,7 @@ describe("command integration coverage", () => {
       ) => fn(),
       dim: (s: string) => s,
       printTable: vi.fn(),
+      printKeyValueBox: vi.fn(),
       emptyState,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -1319,7 +1333,7 @@ describe("command integration coverage", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ call }),
+      clientFromFlags: () => ({ call, network: "eth-mainnet" }),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,

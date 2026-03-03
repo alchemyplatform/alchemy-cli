@@ -21,6 +21,7 @@ import { registerNetwork } from "./commands/network.js";
 import { registerVersion } from "./commands/version.js";
 import { registerChains } from "./commands/chains.js";
 import { registerApps } from "./commands/apps.js";
+import { registerWallet } from "./commands/wallet.js";
 
 // ── ANSI helpers for help formatting ────────────────────────────────
 const identity = (s: string) => s;
@@ -72,6 +73,8 @@ program
   .option("--reveal", "Show secrets in plain text (TTY only)")
   .option("--no-color", "Disable color output")
   .option("--timeout <ms>", "Request timeout in milliseconds", parseInt)
+  .option("--x402", "Use x402 wallet-based gateway auth")
+  .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
   .addHelpCommand(false)
   .configureOutput({
     outputError(str, write) {
@@ -164,6 +167,7 @@ program
       `  ${hBrand("6")}     Network error`,
       `  ${hBrand("7")}     RPC error`,
       `  ${hBrand("8")}     Admin API error`,
+      `  ${hBrand("9")}     Payment required`,
       `  ${hBrand("130")}   Interrupted (SIGINT)`,
     ].join("\n");
   })
@@ -208,6 +212,7 @@ registerTokens(program);
 registerNetwork(program);
 registerChains(program);
 registerApps(program);
+registerWallet(program);
 registerVersion(program);
 program
   .command("help [command...]")
