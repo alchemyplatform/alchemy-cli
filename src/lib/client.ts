@@ -1,3 +1,4 @@
+import type { AlchemyClient } from "./client-interface.js";
 import {
   CLIError,
   errInvalidAPIKey,
@@ -24,7 +25,7 @@ export interface RPCResponse {
   id: number;
 }
 
-export class Client {
+export class Client implements AlchemyClient {
   apiKey: string;
   network: string;
   // Test/debug only: used by mock E2E to route CLI requests locally.

@@ -11,6 +11,7 @@ export const ErrorCode = {
   INVALID_ARGS: "INVALID_ARGS",
   NOT_FOUND: "NOT_FOUND",
   RATE_LIMITED: "RATE_LIMITED",
+  PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
@@ -34,6 +35,7 @@ export const EXIT_CODES: Record<ErrorCodeType, number> = {
   NETWORK_ERROR: 6,
   RPC_ERROR: 7,
   ADMIN_API_ERROR: 8,
+  PAYMENT_REQUIRED: 9,
   INTERNAL_ERROR: 1,
 };
 
@@ -156,6 +158,14 @@ export function errAppRequired(): CLIError {
     ErrorCode.APP_REQUIRED,
     "No app selected. Set an app to resolve the API key automatically.",
     "alchemy config set app <app-id>",
+  );
+}
+
+export function errWalletKeyRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "Wallet key required for x402. Set ALCHEMY_WALLET_KEY, run 'alchemy wallet generate', or use --wallet-key-file.",
+    "alchemy wallet generate",
   );
 }
 
