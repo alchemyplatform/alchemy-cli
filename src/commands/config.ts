@@ -5,10 +5,18 @@ import type { App } from "../lib/admin-client.js";
 import { errNotFound, errAccessKeyRequired, errInvalidArgs } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { green, dim, printKeyValueBox, emptyState, maskIf } from "../lib/ui.js";
+import { green, dim, withSpinner, printKeyValueBox, maskIf } from "../lib/ui.js";
+import {
+  promptAutocomplete,
+  promptConfirm,
+  promptMultiselect,
+  promptSelect,
+  promptText,
+} from "../lib/terminal-ui.js";
 import { splitCommaList } from "../lib/validators.js";
 
 const RESET_KEY_MAP: Record<string, keyof config.Config> = { ...config.KEY_MAP, app: "app" };
+const APP_SEARCH_THRESHOLD = 15;
 
 async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
@@ -19,14 +27,13 @@ async function saveAppWithPrompt(app: App): Promise<boolean> {
 
   // If user has a manually-set api-key, ask whether to replace it
   if (cfg.api_key) {
-    const { confirm, isCancel, cancel } = await import("@clack/prompts");
-    const replace = await confirm({
+    const replace = await promptConfirm({
       message:
         "You already have an API key configured. Use the app's API key instead?",
       initialValue: true,
+      cancelMessage: "Cancelled default app update.",
     });
-    if (isCancel(replace)) {
-      cancel("Cancelled default app update.");
+    if (replace === null) {
       return false;
     }
     if (replace) {
@@ -39,13 +46,11 @@ async function saveAppWithPrompt(app: App): Promise<boolean> {
 }
 
 async function selectOrCreateApp(admin: AdminClient): Promise<void> {
-  const { select, text, multiselect, confirm, isCancel, cancel } = await import(
-    "@clack/prompts"
-  );
-
   let apps: App[];
   try {
-    const result = await admin.listAllApps();
+    const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
+      admin.listAllApps(),
+    );
     apps = result.apps;
   } catch {
     console.log(
@@ -63,13 +68,22 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
       })),
       { label: "Create a new app", value: CREATE_NEW },
     ];
-
-    const selected = await select({
-      message: "Select an app to use as default:",
-      options,
-    });
-    if (isCancel(selected)) {
-      cancel("Cancelled app selection.");
+    const selected =
+      apps.length > APP_SEARCH_THRESHOLD
+        ? await promptAutocomplete({
+            message: "Select default app",
+            placeholder: "Type app name or id",
+            options,
+            cancelMessage: "Cancelled app selection.",
+            commitLabel: null,
+          })
+        : await promptSelect({
+            message: "Select default app",
+            options,
+            cancelMessage: "Cancelled app selection.",
+            commitLabel: null,
+          });
+    if (selected === null) {
       return;
     }
 
@@ -77,7 +91,7 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
       const app = apps.find((a) => a.id === selected)!;
       const saved = await saveAppWithPrompt(app);
       if (saved) {
-        console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);
+        console.log(`\n  ${green("✓")} Default app set to ${app.name} (${app.id})`);
       } else {
         console.log(`  ${dim("Skipped setting default app.")}`);
       }
@@ -88,9 +102,11 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   }
 
   // Create flow
-  const name = await text({ message: "App name:" });
-  if (isCancel(name)) {
-    cancel("Cancelled app creation.");
+  const name = await promptText({
+    message: "App name",
+    cancelMessage: "Cancelled app creation.",
+  });
+  if (name === null) {
     return;
   }
   if (!name.trim()) {
@@ -111,22 +127,22 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
 
   let networks: string[];
   if (chainChoices.length > 0) {
-    const selectedNetworks = await multiselect({
-      message: "Select networks:",
+    const selectedNetworks = await promptMultiselect({
+      message: "Select networks",
       options: chainChoices,
       required: true,
+      cancelMessage: "Cancelled network selection.",
     });
-    if (isCancel(selectedNetworks)) {
-      cancel("Cancelled network selection.");
+    if (selectedNetworks === null) {
       return;
     }
     networks = selectedNetworks;
   } else {
-    const raw = await text({
-      message: "Network IDs (comma-separated):",
+    const raw = await promptText({
+      message: "Network IDs (comma-separated)",
+      cancelMessage: "Cancelled network selection.",
     });
-    if (isCancel(raw)) {
-      cancel("Cancelled network selection.");
+    if (raw === null) {
       return;
     }
     networks = splitCommaList(raw);
@@ -139,21 +155,21 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
 
   try {
     const app = await admin.createApp({ name: name.trim(), networks });
-    console.log(`${green("✓")} Created app ${app.name} (${app.id})`);
+    console.log(`  ${green("✓")} Created app ${app.name} (${app.id})`);
 
-    const setDefault = await confirm({
+    const setDefault = await promptConfirm({
       message: "Set as default app?",
       initialValue: true,
+      cancelMessage: "Cancelled default app selection.",
     });
-    if (isCancel(setDefault)) {
-      cancel("Cancelled default app selection.");
+    if (setDefault === null) {
       return;
     }
 
     if (setDefault) {
       const saved = await saveAppWithPrompt(app);
       if (saved) {
-        console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);
+        console.log(`\n  ${green("✓")} Default app set to ${app.name} (${app.id})`);
       } else {
         console.log(`  ${dim("Skipped setting default app.")}`);
       }
@@ -397,13 +413,12 @@ export function registerConfig(program: Command) {
         }
 
         if (!options.yes && process.stdin.isTTY && !isJSONMode()) {
-          const { confirm, isCancel, cancel } = await import("@clack/prompts");
-          const proceed = await confirm({
+          const proceed = await promptConfirm({
             message: "Reset all saved config values?",
             initialValue: false,
+            cancelMessage: "Cancelled config reset.",
           });
-          if (isCancel(proceed)) {
-            cancel("Cancelled config reset.");
+          if (proceed === null) {
             return;
           }
           if (!proceed) {

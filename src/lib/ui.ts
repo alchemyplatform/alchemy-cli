@@ -1,6 +1,7 @@
 import Table from "cli-table3";
 import { isJSONMode, isRevealMode, quiet } from "./output.js";
 import { esc, rgb } from "./colors.js";
+import { runWithSpinner } from "./terminal-ui.js";
 
 const ansi = {
   green: esc("32"),
@@ -65,18 +66,7 @@ export async function withSpinner<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   if (isJSONMode() || quiet) return fn();
-
-  const { spinner } = await import("@clack/prompts");
-  const s = spinner();
-  s.start(label);
-  try {
-    const result = await fn();
-    s.stop(`${ansi.green("◇")} ${doneLabel}`);
-    return result;
-  } catch (err) {
-    s.error();
-    throw err;
-  }
+  return runWithSpinner(label, doneLabel, fn);
 }
 
 // ── Key-Value ────────────────────────────────────────────────────────

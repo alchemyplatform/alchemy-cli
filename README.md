@@ -80,6 +80,9 @@ alchemy apps list --access-key <your-key>
 
 Resolution order: `--access-key` flag -> `ALCHEMY_ACCESS_KEY` env var -> config file.
 
+In TTY mode, access-key onboarding shows a fetch spinner before app selection. If your account has many apps, the selector supports type-to-filter search in a single prompt.
+Prompt interactions are rendered as a single finalized transcript line (no duplicated prompt label lines).
+
 ## x402 Guide
 
 Use x402 when you want wallet-based authentication (and payment handling) instead of API key auth for blockchain query commands.
@@ -290,7 +293,7 @@ alchemy wallet address
 ```bash
 alchemy config set api-key <key>
 alchemy config set access-key <key>
-alchemy config set app              # interactive app selector
+alchemy config set app              # interactive app selector (type-to-filter for large lists)
 alchemy config set network polygon-mainnet
 alchemy config set verbose true     # default verbose output for supported commands
 alchemy config set wallet-key-file ~/.config/alchemy/wallet-key.txt

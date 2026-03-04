@@ -4,6 +4,7 @@ import type { App } from "../lib/admin-client.js";
 import { errInvalidArgs } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
+import { promptSelect } from "../lib/terminal-ui.js";
 import {
   green,
   dim,
@@ -35,19 +36,17 @@ function printFetchSummary(
 type PaginationAction = "next" | "all" | "stop";
 
 async function promptPaginationAction(): Promise<PaginationAction> {
-  const { select, isCancel, cancel } = await import("@clack/prompts");
-  const action = await select({
-    message: "More apps are available. What do you want to do?",
+  const action = await promptSelect({
+    message: "More apps available",
     options: [
       { label: "Load next page", value: "next" },
       { label: "Load all remaining pages", value: "all" },
       { label: "Stop here", value: "stop" },
     ],
     initialValue: "next",
+    cancelMessage: "Stopped pagination.",
   });
-
-  if (isCancel(action)) {
-    cancel("Stopped pagination.");
+  if (action === null) {
     return "stop";
   }
 

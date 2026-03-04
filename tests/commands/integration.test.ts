@@ -5,7 +5,9 @@ const ADDRESS = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
 const HASH =
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-function makeListAllApps(listApps: ReturnType<typeof vi.fn>) {
+function makeListAllApps(
+  listApps: (opts: { cursor?: string; limit?: number }) => Promise<{ apps: unknown[]; cursor?: string }>,
+) {
   return async (opts?: { limit?: number }) => {
     const apps: unknown[] = [];
     const seenCursors = new Set<string>();
@@ -745,10 +747,8 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/resolve.js", () => ({
       adminClientFromFlags: () => ({ listApps }),
     }));
-    vi.doMock("@clack/prompts", () => ({
-      select,
-      isCancel,
-      cancel,
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: select,
     }));
     vi.doMock("../../src/lib/errors.js", async () => {
       const actual = await vi.importActual("../../src/lib/errors.js");
@@ -882,6 +882,11 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
       printKeyValueBox: vi.fn(),
       emptyState: vi.fn(),
       maskIf: (s: string) => s,
@@ -958,13 +963,12 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: MockAdminClient,
     }));
-    vi.doMock("@clack/prompts", () => ({
-      select,
-      text: vi.fn(),
-      multiselect: vi.fn(),
-      confirm: vi.fn(),
-      isCancel,
-      cancel,
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: select,
+      promptAutocomplete: vi.fn(),
+      promptText: vi.fn(),
+      promptMultiselect: vi.fn(),
+      promptConfirm: vi.fn(),
     }));
     vi.doMock("../../src/lib/errors.js", async () => {
       const actual = await vi.importActual("../../src/lib/errors.js");
@@ -979,6 +983,11 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
       printKeyValueBox: vi.fn(),
       emptyState: vi.fn(),
       maskIf: (s: string) => s,
@@ -998,7 +1007,7 @@ describe("command integration coverage", () => {
     expect(listApps).toHaveBeenNthCalledWith(2, { cursor: "cursor_2" });
     expect(select).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: "Select an app to use as default:",
+        message: "Select default app",
         options: expect.arrayContaining([
           { label: "First App (app_1)", value: "app_1" },
           { label: "Second App (app_2)", value: "app_2" },
@@ -1036,10 +1045,8 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
     }));
-    vi.doMock("@clack/prompts", () => ({
-      confirm,
-      isCancel: () => false,
-      cancel: vi.fn(),
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptConfirm: confirm,
     }));
     vi.doMock("../../src/lib/errors.js", async () => {
       const actual = await vi.importActual("../../src/lib/errors.js");
@@ -1197,10 +1204,8 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
     }));
-    vi.doMock("@clack/prompts", () => ({
-      confirm,
-      isCancel: () => false,
-      cancel: vi.fn(),
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptConfirm: confirm,
     }));
     vi.doMock("../../src/lib/errors.js", async () => {
       const actual = await vi.importActual("../../src/lib/errors.js");
