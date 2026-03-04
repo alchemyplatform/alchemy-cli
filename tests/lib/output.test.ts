@@ -6,6 +6,7 @@ import {
   verbose,
   debugMode,
   printError,
+  formatCommanderError,
 } from "../../src/lib/output.js";
 import { CLIError, ErrorCode } from "../../src/lib/errors.js";
 
@@ -106,5 +107,65 @@ describe("printError", () => {
     );
 
     errSpy.mockRestore();
+  });
+
+  it("redacts sensitive markers in hints in json mode", () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    setFlags({ json: true });
+
+    const err = new CLIError(
+      ErrorCode.NETWORK_ERROR,
+      "Request failed",
+      "Retry via https://eth-mainnet.g.alchemy.com/v2/abcd1234secret",
+    );
+
+    printError(err);
+
+    const payload = JSON.parse(String(errSpy.mock.calls[0][0])) as {
+      error: { hint?: string };
+    };
+    expect(payload.error.hint).toBe(
+      "Retry via https://eth-mainnet.g.alchemy.com/v2/[REDACTED]",
+    );
+    errSpy.mockRestore();
+  });
+});
+
+describe("formatCommanderError", () => {
+  const originalArgv = [...process.argv];
+  const originalTTY = process.stdout.isTTY;
+
+  afterEach(() => {
+    process.argv = [...originalArgv];
+    Object.defineProperty(process.stdout, "isTTY", {
+      value: originalTTY,
+      configurable: true,
+    });
+  });
+
+  it("returns INVALID_ARGS json contract when --json is present", () => {
+    process.argv = ["node", "alchemy", "--json"];
+    Object.defineProperty(process.stdout, "isTTY", {
+      value: true,
+      configurable: true,
+    });
+
+    const out = formatCommanderError(
+      "error: unknown option '--bad'\n(Did you mean --help?)\n",
+    );
+    const payload = JSON.parse(out) as { error: { code: string; message: string } };
+    expect(payload.error.code).toBe("INVALID_ARGS");
+    expect(payload.error.message).toContain("unknown option '--bad'");
+  });
+
+  it("returns human-readable output when not in json mode", () => {
+    process.argv = ["node", "alchemy"];
+    Object.defineProperty(process.stdout, "isTTY", {
+      value: true,
+      configurable: true,
+    });
+
+    const out = formatCommanderError("error: missing required argument 'id'");
+    expect(out).toContain("missing required argument 'id'");
   });
 });

@@ -28,6 +28,7 @@ coverage/
 
 # Plans
 plans/
+docs/
 
 # Claude Code
 .claude/
