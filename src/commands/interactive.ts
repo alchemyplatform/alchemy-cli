@@ -1,7 +1,7 @@
 import * as readline from "node:readline";
 import { stdin, stdout } from "node:process";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import type { Command } from "commander";
 import {
   brandedHelp,
