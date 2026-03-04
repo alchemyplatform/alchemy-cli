@@ -1017,6 +1017,7 @@ describe("command integration coverage", () => {
     expect(save).toHaveBeenNthCalledWith(1, { access_key: "ak_test" });
     expect(save).toHaveBeenNthCalledWith(2, {
       access_key: "ak_test",
+      api_key: "api_2",
       app: { id: "app_2", name: "Second App", apiKey: "api_2" },
     });
     expect(exitWithError).not.toHaveBeenCalled();
@@ -1514,6 +1515,134 @@ describe("command integration coverage", () => {
     expect(load).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
     expect(exitWithError).toHaveBeenCalledTimes(1);
+  });
+
+  it("config list warns when api-key mismatches selected app key", async () => {
+    const load = vi.fn().mockReturnValue({
+      api_key: "manual_api_key",
+      app: { id: "app_1", name: "First App", apiKey: "app_api_key" },
+    });
+    const printKeyValueBox = vi.fn();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    vi.doMock("../../src/lib/config.js", () => ({
+      load,
+      save: vi.fn(),
+      get: vi.fn(),
+      toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
+    }));
+    vi.doMock("../../src/lib/admin-client.js", () => ({
+      AdminClient: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printHuman: vi.fn(),
+      printJSON: vi.fn(),
+      verbose: false,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      yellow: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printKeyValueBox,
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError: vi.fn() }));
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    const program = new Command();
+    registerConfig(program);
+
+    await program.parseAsync(["node", "test", "config", "list"], {
+      from: "node",
+    });
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(printKeyValueBox).toHaveBeenCalledTimes(1);
+    expect(printKeyValueBox).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        ["api-key", "◆ manual_api_key"],
+      ]),
+    );
+    expect(logSpy).toHaveBeenCalledWith("");
+    expect(logSpy).toHaveBeenCalledWith(
+      "  ◆ Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.",
+    );
+  });
+
+  it("config set api-key warns when selected app key differs", async () => {
+    const load = vi.fn().mockReturnValue({
+      app: { id: "app_1", name: "First App", apiKey: "app_api_key" },
+    });
+    const save = vi.fn();
+    const printHuman = vi.fn();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/config.js", () => ({
+      load,
+      save,
+      get: vi.fn(),
+      toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
+    }));
+    vi.doMock("../../src/lib/admin-client.js", () => ({
+      AdminClient: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => {
+      const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printHuman,
+      printJSON: vi.fn(),
+      verbose: false,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      yellow: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printKeyValueBox: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError }));
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    const program = new Command();
+    registerConfig(program);
+
+    await program.parseAsync(["node", "test", "config", "set", "api-key", "manual_api_key"], {
+      from: "node",
+    });
+
+    expect(save).toHaveBeenCalledWith({
+      app: { id: "app_1", name: "First App", apiKey: "app_api_key" },
+      api_key: "manual_api_key",
+    });
+    expect(printHuman).toHaveBeenCalledWith("✓ Set api-key\n", {
+      key: "api-key",
+      status: "set",
+    });
+    expect(logSpy).toHaveBeenCalledWith(
+      "  ◆ Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.",
+    );
+    expect(exitWithError).not.toHaveBeenCalled();
   });
 
   it("tx forwards not-found case to exitWithError", async () => {

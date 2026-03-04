@@ -5,7 +5,7 @@ import type { App } from "../lib/admin-client.js";
 import { errNotFound, errAccessKeyRequired, errInvalidArgs } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { green, dim, withSpinner, printKeyValueBox, maskIf } from "../lib/ui.js";
+import { green, dim, yellow, withSpinner, printKeyValueBox, maskIf } from "../lib/ui.js";
 import {
   promptAutocomplete,
   promptConfirm,
@@ -22,6 +22,7 @@ async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
   const updated: config.Config = {
     ...cfg,
+    api_key: app.apiKey,
     app: { id: app.id, name: app.name, apiKey: app.apiKey },
   };
 
@@ -36,8 +37,8 @@ async function saveAppWithPrompt(app: App): Promise<boolean> {
     if (replace === null) {
       return false;
     }
-    if (replace) {
-      delete updated.api_key;
+    if (!replace) {
+      updated.api_key = cfg.api_key;
     }
   }
 
@@ -194,6 +195,11 @@ export function registerConfig(program: Command) {
         const cfg = config.load();
         config.save({ ...cfg, api_key: key });
         printHuman(`${green("✓")} Set api-key\n`, { key: "api-key", status: "set" });
+        if (!isJSONMode() && cfg.app?.apiKey && cfg.app.apiKey !== key) {
+          console.log(
+            `  ${yellow("◆")} ${dim("Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.")}`,
+          );
+        }
       } catch (err) {
         exitWithError(err);
       }
@@ -236,6 +242,7 @@ export function registerConfig(program: Command) {
           const app = await admin.getApp(appId);
           const updated: config.Config = {
             ...cfg,
+            api_key: app.apiKey,
             app: { id: app.id, name: app.name, apiKey: app.apiKey },
           };
           config.save(updated);
@@ -350,6 +357,11 @@ export function registerConfig(program: Command) {
     .description("List all config values")
     .action(() => {
       const cfg = config.load();
+      const hasApiKeyMismatch = Boolean(
+        cfg.api_key &&
+          cfg.app?.apiKey &&
+          cfg.api_key !== cfg.app.apiKey,
+      );
 
       if (isJSONMode()) {
         printJSON(config.toMap(cfg));
@@ -357,7 +369,12 @@ export function registerConfig(program: Command) {
       }
 
       const pairs: Array<[string, string]> = [
-        ["api-key", cfg.api_key ? maskIf(cfg.api_key) : dim("(not set)")],
+        [
+          "api-key",
+          cfg.api_key
+            ? `${hasApiKeyMismatch ? `${yellow("◆")} ` : ""}${maskIf(cfg.api_key)}`
+            : dim("(not set)"),
+        ],
         ["access-key", cfg.access_key ? maskIf(cfg.access_key) : dim("(not set)")],
         [
           "app",
@@ -383,6 +400,13 @@ export function registerConfig(program: Command) {
       ];
 
       printKeyValueBox(pairs);
+
+      if (hasApiKeyMismatch) {
+        console.log("");
+        console.log(
+          `  ${yellow("◆")} ${dim("Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.")}`,
+        );
+      }
     });
 
   // ── config reset ───────────────────────────────────────────────────
