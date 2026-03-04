@@ -5,7 +5,7 @@ import {
   resolveNetwork,
 } from "../lib/resolve.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
-import { dim, green, printTable } from "../lib/ui.js";
+import { dim, green, printTable, withSpinner } from "../lib/ui.js";
 import { getRPCNetworks } from "../lib/networks.js";
 import { exitWithError } from "../index.js";
 
@@ -28,7 +28,11 @@ export function registerNetwork(program: Command) {
         const supported = getRPCNetworks();
         const current = resolveNetwork(program);
         const configured = opts.configured
-          ? await resolveConfiguredNetworkSlugs(program, opts.appId)
+          ? await withSpinner(
+              "Fetching configured networks…",
+              "Configured networks fetched",
+              () => resolveConfiguredNetworkSlugs(program, opts.appId),
+            )
           : null;
         const configuredSet = new Set(configured ?? []);
         const appId = opts.configured

@@ -118,7 +118,9 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   // Fetch chains for network selection
   let chainChoices: Array<{ label: string; value: string }> = [];
   try {
-    const chains = await admin.listChains();
+    const chains = await withSpinner("Fetching chains…", "Chains fetched", () =>
+      admin.listChains(),
+    );
     chainChoices = chains
       .filter((c) => c.availability === "public" && !c.isTestnet)
       .map((c) => ({ label: `${c.name} (${c.id})`, value: c.id }));
@@ -155,7 +157,9 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   }
 
   try {
-    const app = await admin.createApp({ name: name.trim(), networks });
+    const app = await withSpinner("Creating app…", "App created", () =>
+      admin.createApp({ name: name.trim(), networks }),
+    );
     console.log(`  ${green("✓")} Created app ${app.name} (${app.id})`);
 
     const setDefault = await promptConfirm({
@@ -239,7 +243,9 @@ export function registerConfig(program: Command) {
         if (appId) {
           // Non-interactive: look up the app by ID and save it
           const admin = new AdminClient(accessKey);
-          const app = await admin.getApp(appId);
+          const app = await withSpinner("Fetching app…", "App fetched", () =>
+            admin.getApp(appId),
+          );
           const updated: config.Config = {
             ...cfg,
             api_key: app.apiKey,
@@ -338,7 +344,7 @@ export function registerConfig(program: Command) {
 
   cmd
     .command("get <key>")
-    .description("Get a config value (api-key, access-key, network, verbose, wallet-key-file, x402)")
+    .description("Get a config value (api-key, access-key, app, network, verbose, wallet-key-file, x402)")
     .action((key: string) => {
       const cfg = config.load();
       const value = config.get(cfg, key);

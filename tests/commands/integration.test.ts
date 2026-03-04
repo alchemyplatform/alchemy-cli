@@ -166,6 +166,11 @@ describe("command integration coverage", () => {
       verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
       dim: (s: string) => s,
       green: (s: string) => s,
       printTable: vi.fn(),
@@ -208,6 +213,11 @@ describe("command integration coverage", () => {
       verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
       dim: (s: string) => s,
       green: (s: string) => s,
       printTable: vi.fn(),
