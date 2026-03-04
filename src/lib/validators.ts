@@ -1,5 +1,9 @@
 import { errInvalidArgs } from "./errors.js";
 
+export function splitCommaList(input: string): string[] {
+  return input.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 

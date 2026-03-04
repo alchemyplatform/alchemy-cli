@@ -5,6 +5,27 @@ const ADDRESS = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
 const HASH =
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
+function makeListAllApps(listApps: ReturnType<typeof vi.fn>) {
+  return async (opts?: { limit?: number }) => {
+    const apps: unknown[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+    let pages = 0;
+    do {
+      const page = await listApps({
+        ...(cursor && { cursor }),
+        ...(opts?.limit !== undefined && { limit: opts.limit }),
+      });
+      pages += 1;
+      apps.push(...page.apps);
+      cursor = page.cursor;
+      if (cursor && seenCursors.has(cursor)) break;
+      if (cursor) seenCursors.add(cursor);
+    } while (cursor);
+    return { apps, pages };
+  };
+}
+
 describe("command integration coverage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -25,6 +46,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (
@@ -76,6 +98,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (
@@ -138,6 +161,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       dim: (s: string) => s,
@@ -179,6 +203,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       dim: (s: string) => s,
@@ -233,6 +258,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (
@@ -307,6 +333,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -374,6 +401,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -449,7 +477,7 @@ describe("command integration coverage", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
-      adminClientFromFlags: () => ({ listApps }),
+      adminClientFromFlags: () => ({ listApps, listAllApps: makeListAllApps(listApps) }),
     }));
     vi.doMock("../../src/lib/errors.js", async () => {
       const actual = await vi.importActual("../../src/lib/errors.js");
@@ -458,6 +486,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -541,7 +570,7 @@ describe("command integration coverage", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
-      adminClientFromFlags: () => ({ listApps }),
+      adminClientFromFlags: () => ({ listApps, listAllApps: makeListAllApps(listApps) }),
     }));
     vi.doMock("../../src/lib/errors.js", async () => {
       const actual = await vi.importActual("../../src/lib/errors.js");
@@ -550,6 +579,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -621,7 +651,7 @@ describe("command integration coverage", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
-      adminClientFromFlags: () => ({ listApps }),
+      adminClientFromFlags: () => ({ listApps, listAllApps: makeListAllApps(listApps) }),
     }));
     vi.doMock("../../src/lib/errors.js", async () => {
       const actual = await vi.importActual("../../src/lib/errors.js");
@@ -630,6 +660,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -726,6 +757,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -770,6 +802,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -782,6 +815,10 @@ describe("command integration coverage", () => {
     }));
     vi.doMock("../../src/lib/errors.js", async () => {
       const actual = await vi.importActual("../../src/lib/errors.js");
+      return actual;
+    });
+    vi.doMock("../../src/lib/validators.js", async () => {
+      const actual = await vi.importActual("../../src/lib/validators.js");
       return actual;
     });
     vi.doMock("../../src/index.js", () => ({ exitWithError }));
@@ -827,6 +864,7 @@ describe("command integration coverage", () => {
       save,
       get: vi.fn(),
       toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
     }));
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
@@ -839,6 +877,7 @@ describe("command integration coverage", () => {
       isJSONMode: () => false,
       printHuman: vi.fn(),
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -902,6 +941,7 @@ describe("command integration coverage", () => {
     class MockAdminClient {
       constructor(_accessKey: string) {}
       listApps = listApps;
+      listAllApps = makeListAllApps(listApps);
       listChains = vi.fn();
       createApp = vi.fn();
     }
@@ -913,6 +953,7 @@ describe("command integration coverage", () => {
       save,
       get: vi.fn(),
       toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
     }));
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: MockAdminClient,
@@ -933,6 +974,7 @@ describe("command integration coverage", () => {
       isJSONMode: () => false,
       printHuman,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -952,7 +994,7 @@ describe("command integration coverage", () => {
     });
 
     expect(listApps).toHaveBeenCalledTimes(2);
-    expect(listApps).toHaveBeenNthCalledWith(1, undefined);
+    expect(listApps).toHaveBeenNthCalledWith(1, {});
     expect(listApps).toHaveBeenNthCalledWith(2, { cursor: "cursor_2" });
     expect(select).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -989,6 +1031,7 @@ describe("command integration coverage", () => {
       save,
       get: vi.fn(),
       toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
     }));
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
@@ -1006,6 +1049,7 @@ describe("command integration coverage", () => {
       isJSONMode: () => false,
       printHuman,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -1049,6 +1093,7 @@ describe("command integration coverage", () => {
       save,
       get: vi.fn(),
       toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
     }));
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
@@ -1061,6 +1106,7 @@ describe("command integration coverage", () => {
       isJSONMode: () => false,
       printHuman: vi.fn(),
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -1098,6 +1144,7 @@ describe("command integration coverage", () => {
       save,
       get: vi.fn(),
       toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
     }));
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
@@ -1110,6 +1157,7 @@ describe("command integration coverage", () => {
       isJSONMode: () => false,
       printHuman: vi.fn(),
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -1144,6 +1192,7 @@ describe("command integration coverage", () => {
       save,
       get: vi.fn(),
       toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
     }));
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
@@ -1161,6 +1210,7 @@ describe("command integration coverage", () => {
       isJSONMode: () => false,
       printHuman: vi.fn(),
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -1204,6 +1254,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON,
+      verbose: false,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateTxHash,
@@ -1254,6 +1305,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (
@@ -1294,6 +1346,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (
@@ -1338,6 +1391,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (
@@ -1386,6 +1440,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -1419,6 +1474,7 @@ describe("command integration coverage", () => {
       save,
       get: vi.fn(),
       toMap: vi.fn(),
+      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
     }));
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
@@ -1431,6 +1487,7 @@ describe("command integration coverage", () => {
       isJSONMode: () => false,
       printHuman: vi.fn(),
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
@@ -1469,6 +1526,7 @@ describe("command integration coverage", () => {
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
       printJSON: vi.fn(),
+      verbose: false,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateTxHash: vi.fn(),

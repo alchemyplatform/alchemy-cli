@@ -6,21 +6,9 @@ import { errNotFound, errAccessKeyRequired, errInvalidArgs } from "../lib/errors
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import { green, dim, printKeyValueBox, emptyState, maskIf } from "../lib/ui.js";
+import { splitCommaList } from "../lib/validators.js";
 
-const RESET_KEY_MAP: Record<string, keyof config.Config> = {
-  "api-key": "api_key",
-  api_key: "api_key",
-  "access-key": "access_key",
-  access_key: "access_key",
-  app: "app",
-  network: "network",
-  verbose: "verbose",
-  "wallet-key-file": "wallet_key_file",
-  wallet_key_file: "wallet_key_file",
-  "wallet-address": "wallet_address",
-  wallet_address: "wallet_address",
-  x402: "x402",
-};
+const RESET_KEY_MAP: Record<string, keyof config.Config> = { ...config.KEY_MAP, app: "app" };
 
 async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
@@ -50,23 +38,6 @@ async function saveAppWithPrompt(app: App): Promise<boolean> {
   return true;
 }
 
-async function listAllApps(admin: AdminClient): Promise<App[]> {
-  const apps: App[] = [];
-  let cursor: string | undefined;
-  const seenCursors = new Set<string>();
-
-  // Follow admin API cursors so interactive selection can show all apps.
-  do {
-    const page = await admin.listApps(cursor ? { cursor } : undefined);
-    apps.push(...page.apps);
-    cursor = page.cursor;
-    if (cursor && seenCursors.has(cursor)) break;
-    if (cursor) seenCursors.add(cursor);
-  } while (cursor);
-
-  return apps;
-}
-
 async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   const { select, text, multiselect, confirm, isCancel, cancel } = await import(
     "@clack/prompts"
@@ -74,7 +45,8 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
 
   let apps: App[];
   try {
-    apps = await listAllApps(admin);
+    const result = await admin.listAllApps();
+    apps = result.apps;
   } catch {
     console.log(
       `  ${dim("Could not fetch apps. Skipping app selection.")}`,
@@ -157,7 +129,7 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
       cancel("Cancelled network selection.");
       return;
     }
-    networks = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    networks = splitCommaList(raw);
   }
 
   if (networks.length === 0) {

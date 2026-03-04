@@ -1,8 +1,7 @@
 import * as readline from "node:readline";
 import { stdin, stdout } from "node:process";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { homedir } from "node:os";
+import { join, dirname } from "node:path";
 import type { Command } from "commander";
 import {
   brandedHelp,
@@ -13,6 +12,7 @@ import {
 import { isJSONMode } from "../lib/output.js";
 import { setReplMode } from "../index.js";
 import { getRPCNetworkIds } from "../lib/networks.js";
+import { configDir } from "../lib/config.js";
 
 const COMMAND_NAMES = [
   "apps",
@@ -59,11 +59,7 @@ const NETWORK_NAMES = getRPCNetworkIds();
 const REPL_HISTORY_MAX = 100;
 
 function replHistoryPath(): string {
-  const configPath = process.env.ALCHEMY_CONFIG;
-  if (configPath) {
-    return join(dirname(configPath), "repl-history");
-  }
-  return join(process.env.HOME || homedir(), ".config", "alchemy", "repl-history");
+  return join(configDir(), "repl-history");
 }
 
 function loadReplHistory(): string[] {

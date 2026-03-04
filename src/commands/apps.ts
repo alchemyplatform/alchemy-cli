@@ -13,6 +13,7 @@ import {
   emptyState,
   maskIf,
 } from "../lib/ui.js";
+import { splitCommaList } from "../lib/validators.js";
 
 function maskAppSecrets<T extends { apiKey?: string; webhookApiKey?: string }>(app: T): T {
   return {
@@ -56,33 +57,28 @@ async function promptPaginationAction(): Promise<PaginationAction> {
   return "stop";
 }
 
-async function listAllApps(
-  listApps: (opts?: { cursor?: string; limit?: number }) => Promise<{ apps: App[]; cursor?: string }>,
-  opts?: { limit?: number },
-): Promise<{ apps: Awaited<ReturnType<typeof listApps>>["apps"]; pages: number }> {
-  const apps: Awaited<ReturnType<typeof listApps>>["apps"] = [];
-  const seenCursors = new Set<string>();
-  let cursor: string | undefined;
-  let pages = 0;
-
-  do {
-    const page = await listApps({
-      ...(cursor && { cursor }),
-      ...(opts?.limit !== undefined && { limit: opts.limit }),
-    });
-    pages += 1;
-    apps.push(...page.apps);
-    cursor = page.cursor;
-    if (cursor && seenCursors.has(cursor)) break;
-    if (cursor) seenCursors.add(cursor);
-  } while (cursor);
-
-  return { apps, pages };
-}
-
 function matchesSearch(app: App, query: string): boolean {
   const q = query.toLowerCase();
   return app.name.toLowerCase().includes(q) || app.id.toLowerCase().includes(q);
+}
+
+function appToTableRow(app: App): string[] {
+  return [app.id, app.name, String(app.chainNetworks.length), app.createdAt];
+}
+
+function handleDryRun(
+  opts: { dryRun?: boolean },
+  action: string,
+  payload: unknown,
+  humanMsg: string,
+): boolean {
+  if (!opts.dryRun) return false;
+  if (isJSONMode()) {
+    printJSON({ dryRun: true, action, payload });
+  } else {
+    console.log(`  ${dim("Dry run:")} ${humanMsg}`);
+  }
+  return true;
 }
 
 export function registerApps(program: Command) {
@@ -126,7 +122,7 @@ export function registerApps(program: Command) {
         const isFilteredList = hasSearch || hasId;
         if (fetchAll || isFilteredList) {
           const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
-            listAllApps(admin.listApps.bind(admin), { limit: opts.limit }),
+            admin.listAllApps({ limit: opts.limit }),
           );
           const filteredApps = hasId
             ? result.apps.filter((a) => a.id === idQuery)
@@ -160,12 +156,7 @@ export function registerApps(program: Command) {
             return;
           }
 
-          const rows = filteredApps.map((a) => [
-            a.id,
-            a.name,
-            String(a.chainNetworks.length),
-            a.createdAt,
-          ]);
+          const rows = filteredApps.map(appToTableRow);
 
           printTable(["ID", "Name", "Networks", "Created"], rows);
           if (isFilteredList) {
@@ -196,12 +187,7 @@ export function registerApps(program: Command) {
             if (page.apps.length > 0) {
               pagesFetched += 1;
               appsFetched += page.apps.length;
-              const rows = page.apps.map((a) => [
-                a.id,
-                a.name,
-                String(a.chainNetworks.length),
-                a.createdAt,
-              ]);
+              const rows = page.apps.map(appToTableRow);
               printTable(["ID", "Name", "Networks", "Created"], rows);
             } else {
               emptyState("No apps found.");
@@ -237,12 +223,7 @@ export function registerApps(program: Command) {
           return;
         }
 
-        const rows = result.apps.map((a) => [
-          a.id,
-          a.name,
-          String(a.chainNetworks.length),
-          a.createdAt,
-        ]);
+        const rows = result.apps.map(appToTableRow);
 
         printTable(["ID", "Name", "Networks", "Created"], rows);
         printFetchSummary(result.apps.length, 1);
@@ -298,9 +279,9 @@ export function registerApps(program: Command) {
     .option("--dry-run", "Preview without executing")
     .action(async (opts) => {
       try {
-        const networks = opts.networks.split(",").map((s: string) => s.trim());
+        const networks = splitCommaList(opts.networks);
         const products = opts.products
-          ? opts.products.split(",").map((s: string) => s.trim())
+          ? splitCommaList(opts.products)
           : undefined;
 
         const payload = {
@@ -310,14 +291,7 @@ export function registerApps(program: Command) {
           ...(products && { products }),
         };
 
-        if (opts.dryRun) {
-          if (isJSONMode()) {
-            printJSON({ dryRun: true, action: "create", payload });
-          } else {
-            console.log(`  ${dim("Dry run:")} Would create app "${opts.name}" on networks: ${networks.join(", ")}`);
-          }
-          return;
-        }
+        if (handleDryRun(opts, "create", payload, `Would create app "${opts.name}" on networks: ${networks.join(", ")}`)) return;
 
         const admin = adminClientFromFlags(program);
         const app = await withSpinner("Creating app…", "App created", () =>
@@ -352,14 +326,7 @@ export function registerApps(program: Command) {
     .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        if (opts.dryRun) {
-          if (isJSONMode()) {
-            printJSON({ dryRun: true, action: "delete", payload: { id } });
-          } else {
-            console.log(`  ${dim("Dry run:")} Would delete app ${id}`);
-          }
-          return;
-        }
+        if (handleDryRun(opts, "delete", { id }, `Would delete app ${id}`)) return;
 
         const admin = adminClientFromFlags(program);
         await withSpinner("Deleting app…", "App deleted", () =>
@@ -397,14 +364,7 @@ export function registerApps(program: Command) {
           ...(opts.description && { description: opts.description }),
         };
 
-        if (opts.dryRun) {
-          if (isJSONMode()) {
-            printJSON({ dryRun: true, action: "update", payload });
-          } else {
-            console.log(`  ${dim("Dry run:")} Would update app ${id}`);
-          }
-          return;
-        }
+        if (handleDryRun(opts, "update", payload, `Would update app ${id}`)) return;
 
         const admin = adminClientFromFlags(program);
         const app = await withSpinner("Updating app…", "App updated", () =>
@@ -434,16 +394,9 @@ export function registerApps(program: Command) {
     .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        const networks = opts.networks.split(",").map((s: string) => s.trim());
+        const networks = splitCommaList(opts.networks);
 
-        if (opts.dryRun) {
-          if (isJSONMode()) {
-            printJSON({ dryRun: true, action: "networks", payload: { id, networks } });
-          } else {
-            console.log(`  ${dim("Dry run:")} Would update networks for app ${id}: ${networks.join(", ")}`);
-          }
-          return;
-        }
+        if (handleDryRun(opts, "networks", { id, networks }, `Would update networks for app ${id}: ${networks.join(", ")}`)) return;
 
         const admin = adminClientFromFlags(program);
         const app = await withSpinner(
@@ -474,18 +427,9 @@ export function registerApps(program: Command) {
     .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        const entries = opts.addresses
-          .split(",")
-          .map((s: string) => ({ value: s.trim() }));
+        const entries = splitCommaList(opts.addresses).map((s) => ({ value: s }));
 
-        if (opts.dryRun) {
-          if (isJSONMode()) {
-            printJSON({ dryRun: true, action: "address-allowlist", payload: { id, addresses: entries } });
-          } else {
-            console.log(`  ${dim("Dry run:")} Would update address allowlist for app ${id}`);
-          }
-          return;
-        }
+        if (handleDryRun(opts, "address-allowlist", { id, addresses: entries }, `Would update address allowlist for app ${id}`)) return;
 
         const admin = adminClientFromFlags(program);
         const app = await withSpinner(
@@ -516,18 +460,9 @@ export function registerApps(program: Command) {
     .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        const entries = opts.origins
-          .split(",")
-          .map((s: string) => ({ value: s.trim() }));
+        const entries = splitCommaList(opts.origins).map((s) => ({ value: s }));
 
-        if (opts.dryRun) {
-          if (isJSONMode()) {
-            printJSON({ dryRun: true, action: "origin-allowlist", payload: { id, origins: entries } });
-          } else {
-            console.log(`  ${dim("Dry run:")} Would update origin allowlist for app ${id}`);
-          }
-          return;
-        }
+        if (handleDryRun(opts, "origin-allowlist", { id, origins: entries }, `Would update origin allowlist for app ${id}`)) return;
 
         const admin = adminClientFromFlags(program);
         const app = await withSpinner(
@@ -558,18 +493,9 @@ export function registerApps(program: Command) {
     .option("--dry-run", "Preview without executing")
     .action(async (id: string, opts) => {
       try {
-        const entries = opts.ips
-          .split(",")
-          .map((s: string) => ({ value: s.trim() }));
+        const entries = splitCommaList(opts.ips).map((s) => ({ value: s }));
 
-        if (opts.dryRun) {
-          if (isJSONMode()) {
-            printJSON({ dryRun: true, action: "ip-allowlist", payload: { id, ips: entries } });
-          } else {
-            console.log(`  ${dim("Dry run:")} Would update IP allowlist for app ${id}`);
-          }
-          return;
-        }
+        if (handleDryRun(opts, "ip-allowlist", { id, ips: entries }, `Would update IP allowlist for app ${id}`)) return;
 
         const admin = adminClientFromFlags(program);
         const app = await withSpinner(

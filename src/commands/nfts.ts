@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
-import * as output from "../lib/output.js";
+import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../index.js";
 import { dim, withSpinner, printTable, emptyState } from "../lib/ui.js";
 import { validateAddress, readStdinArg } from "../lib/validators.js";
@@ -14,14 +14,6 @@ interface NFTResponse {
   }>;
   totalCount: number;
   pageKey?: string;
-}
-
-function isVerboseEnabled(): boolean {
-  try {
-    return Boolean((output as { verbose?: boolean }).verbose);
-  } catch {
-    return false;
-  }
 }
 
 export function registerNFTs(program: Command) {
@@ -55,8 +47,8 @@ Examples:
           client.callEnhanced("getNFTsForOwner", params),
         ) as NFTResponse;
 
-        if (output.isJSONMode()) {
-          output.printJSON(result);
+        if (isJSONMode()) {
+          printJSON(result);
           return;
         }
 
@@ -73,9 +65,9 @@ Examples:
 
         printTable(["Collection", "Name", "Contract"], rows);
 
-        if (isVerboseEnabled()) {
+        if (verbose) {
           console.log("");
-          output.printJSON(result);
+          printJSON(result);
         }
 
         if (result.pageKey) {

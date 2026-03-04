@@ -7,6 +7,7 @@ import {
   errInvalidArgs,
 } from "./errors.js";
 import { timeout as globalTimeout } from "./output.js";
+import { isLocalhost, parseBaseURLOverride } from "./client-utils.js";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -81,43 +82,11 @@ export class AdminClient {
   }
 
   protected allowInsecureTransport(hostname: string): boolean {
-    return this.isLocalhost(hostname);
-  }
-
-  private isLocalhost(hostname: string): boolean {
-    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+    return isLocalhost(hostname);
   }
 
   private baseURLOverride(): URL | null {
-    const raw = process.env[AdminClient.ADMIN_API_BASE_URL_ENV];
-    if (!raw) return null;
-
-    let parsed: URL;
-    try {
-      parsed = new URL(raw);
-    } catch {
-      throw errInvalidArgs(`Invalid ${AdminClient.ADMIN_API_BASE_URL_ENV} value.`);
-    }
-
-    if (!this.isLocalhost(parsed.hostname)) {
-      throw errInvalidArgs(
-        `${AdminClient.ADMIN_API_BASE_URL_ENV} must target localhost or 127.0.0.1.`,
-      );
-    }
-
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw errInvalidArgs(
-        `${AdminClient.ADMIN_API_BASE_URL_ENV} must use http:// or https://.`,
-      );
-    }
-
-    if (parsed.protocol === "http:" && !this.isLocalhost(parsed.hostname)) {
-      throw errInvalidArgs(
-        `${AdminClient.ADMIN_API_BASE_URL_ENV} can only use non-HTTPS for localhost targets.`,
-      );
-    }
-
-    return parsed;
+    return parseBaseURLOverride(AdminClient.ADMIN_API_BASE_URL_ENV);
   }
 
   private validateAccessKey(accessKey: string): void {
@@ -219,6 +188,27 @@ export class AdminClient {
       `/v1/apps${qs ? `?${qs}` : ""}`,
     );
     return resp.data;
+  }
+
+  async listAllApps(opts?: { limit?: number }): Promise<{ apps: App[]; pages: number }> {
+    const apps: App[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+    let pages = 0;
+
+    do {
+      const page = await this.listApps({
+        ...(cursor && { cursor }),
+        ...(opts?.limit !== undefined && { limit: opts.limit }),
+      });
+      pages += 1;
+      apps.push(...page.apps);
+      cursor = page.cursor;
+      if (cursor && seenCursors.has(cursor)) break;
+      if (cursor) seenCursors.add(cursor);
+    } while (cursor);
+
+    return { apps, pages };
   }
 
   async getApp(id: string): Promise<App> {

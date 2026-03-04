@@ -4,18 +4,10 @@ import {
   resolveConfiguredNetworkSlugs,
   resolveNetwork,
 } from "../lib/resolve.js";
-import * as output from "../lib/output.js";
+import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { dim, green, printTable } from "../lib/ui.js";
 import { getRPCNetworks } from "../lib/networks.js";
 import { exitWithError } from "../index.js";
-
-function isVerboseEnabled(): boolean {
-  try {
-    return Boolean((output as { verbose?: boolean }).verbose);
-  } catch {
-    return false;
-  }
-}
 
 export function registerNetwork(program: Command) {
   const cmd = program.command("network").description("Manage networks");
@@ -47,9 +39,9 @@ export function registerNetwork(program: Command) {
           ? supported.filter((network) => configuredSet.has(network.id))
           : supported;
 
-        if (output.isJSONMode()) {
+        if (isJSONMode()) {
           if (configured) {
-            output.printJSON({
+            printJSON({
               mode: "configured",
               appId,
               configuredNetworkIds: configured,
@@ -58,7 +50,7 @@ export function registerNetwork(program: Command) {
             return;
           }
 
-          output.printJSON(display);
+          printJSON(display);
           return;
         }
 
@@ -82,9 +74,9 @@ export function registerNetwork(program: Command) {
           `  ${dim("Need Admin API chain enums instead? Run: alchemy chains list")}`,
         );
 
-        if (isVerboseEnabled()) {
+        if (verbose) {
           console.log("");
-          output.printJSON({
+          printJSON({
             mode: configured ? "configured" : "all",
             appId: appId ?? null,
             configuredNetworkIds: configured ?? null,

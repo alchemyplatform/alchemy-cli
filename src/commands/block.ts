@@ -6,6 +6,8 @@ import { exitWithError } from "../index.js";
 import {
   formatBlockTimestamp,
   formatHexQuantity,
+  parseHexQuantity,
+  formatWithCommas,
 } from "../lib/block-format.js";
 import {
   bold,
@@ -14,21 +16,6 @@ import {
   printKeyValueBox,
   printSyntaxJSON,
 } from "../lib/ui.js";
-
-function parseHexQuantity(value: unknown): bigint | undefined {
-  if (typeof value !== "string" || !/^0x[0-9a-f]+$/i.test(value)) {
-    return undefined;
-  }
-  try {
-    return BigInt(value);
-  } catch {
-    return undefined;
-  }
-}
-
-function formatWithCommas(value: bigint): string {
-  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
 
 function formatGasSummaryColored(
   gasUsed: unknown,

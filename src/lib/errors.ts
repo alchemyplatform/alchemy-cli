@@ -87,15 +87,7 @@ export function errAccessKeyRequired(): CLIError {
   );
 }
 
-export function errInvalidAPIKey(): CLIError {
-  return new CLIError(
-    ErrorCode.INVALID_API_KEY,
-    "Invalid API key. Check your key and try again.",
-    "alchemy config set api-key <your-key>",
-  );
-}
-
-export function errInvalidAPIKeyWithDetails(details: string): CLIError {
+export function errInvalidAPIKey(details?: string): CLIError {
   return new CLIError(
     ErrorCode.INVALID_API_KEY,
     "Invalid API key. Check your key and try again.",

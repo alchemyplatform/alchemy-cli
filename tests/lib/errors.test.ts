@@ -6,7 +6,6 @@ import {
   errAuthRequired,
   errAccessKeyRequired,
   errInvalidAPIKey,
-  errInvalidAPIKeyWithDetails,
   errNetworkNotEnabled,
   errInvalidAccessKey,
   errAppRequired,
@@ -99,8 +98,8 @@ describe("convenience constructors", () => {
       code: ErrorCode.INVALID_API_KEY,
     },
     {
-      name: "errInvalidAPIKeyWithDetails",
-      fn: () => errInvalidAPIKeyWithDetails("upstream auth failed"),
+      name: "errInvalidAPIKey with details",
+      fn: () => errInvalidAPIKey("upstream auth failed"),
       code: ErrorCode.INVALID_API_KEY,
     },
     {
