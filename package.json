@@ -1,5 +1,5 @@
 {
-  "name": "@alchemyplatform/cli",
+  "name": "@alchemy/cli",
   "version": "0.1.0",
   "description": "Alchemy CLI — interact with blockchain data",
   "type": "module",
@@ -38,7 +38,6 @@
   },
   "dependencies": {
     "@alchemy/x402": "^0.4.0",
-    "@clack/prompts": "^1.0.1",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.3",
     "zod": "^4.3.6"

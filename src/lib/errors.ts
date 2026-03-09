@@ -12,6 +12,7 @@ export const ErrorCode = {
   NOT_FOUND: "NOT_FOUND",
   RATE_LIMITED: "RATE_LIMITED",
   PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
+  SETUP_REQUIRED: "SETUP_REQUIRED",
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
@@ -36,6 +37,7 @@ export const EXIT_CODES: Record<ErrorCodeType, number> = {
   RPC_ERROR: 7,
   ADMIN_API_ERROR: 8,
   PAYMENT_REQUIRED: 9,
+  SETUP_REQUIRED: 3,
   INTERNAL_ERROR: 1,
 };
 
@@ -43,13 +45,21 @@ export class CLIError extends Error {
   code: ErrorCodeType;
   hint?: string;
   details?: string;
+  data?: unknown;
 
-  constructor(code: ErrorCodeType, message: string, hint?: string, details?: string) {
+  constructor(
+    code: ErrorCodeType,
+    message: string,
+    hint?: string,
+    details?: string,
+    data?: unknown,
+  ) {
     super(message);
     this.name = "CLIError";
     this.code = code;
     this.hint = hint;
     this.details = details;
+    this.data = data;
   }
 
   toJSON() {
@@ -59,6 +69,7 @@ export class CLIError extends Error {
         message: this.message,
         ...(this.hint && { hint: this.hint }),
         ...(this.details && { details: this.details }),
+        ...(this.data !== undefined && { data: this.data }),
         retryable: RETRYABLE_CODES.has(this.code),
       },
     };
@@ -165,5 +176,15 @@ export function errAdminAPI(status: number, message: string): CLIError {
   return new CLIError(
     ErrorCode.ADMIN_API_ERROR,
     `Admin API error (HTTP ${status}): ${message}`,
+  );
+}
+
+export function errSetupRequired(data?: unknown): CLIError {
+  return new CLIError(
+    ErrorCode.SETUP_REQUIRED,
+    "Setup required before running in non-interactive mode.",
+    "Run 'alchemy' in a TTY for guided onboarding, or run 'alchemy setup status --json' for machine-readable remediation steps.",
+    undefined,
+    data,
   );
 }

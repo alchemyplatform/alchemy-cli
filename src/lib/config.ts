@@ -115,6 +115,10 @@ export function save(cfg: Config): void {
 }
 
 export function get(cfg: Config, key: string): string | undefined {
+  if (key === "app") {
+    if (!cfg.app) return undefined;
+    return `${cfg.app.name} (${cfg.app.id})`;
+  }
   const mapped = KEY_MAP[key];
   if (!mapped) return undefined;
   const value = cfg[mapped];

@@ -357,4 +357,34 @@ describe("CLI mock E2E", () => {
       "Bearer test-access-key",
     );
   });
+
+  it("returns setup status JSON contract in an unconfigured home", async () => {
+    const result = await runCLI(["--json", "setup", "status"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(parseJSON(result.stdout)).toMatchObject({
+      complete: false,
+      satisfiedBy: null,
+      missing: expect.any(Array),
+      nextCommands: expect.any(Array),
+    });
+  });
+
+  it("bare no-interactive returns SETUP_REQUIRED with remediation data", async () => {
+    const result = await runCLI(["--json", "--no-interactive"]);
+
+    expect(result.exitCode).toBe(3);
+    expect(parseJSON(result.stderr)).toMatchObject({
+      error: {
+        code: "SETUP_REQUIRED",
+        data: {
+          complete: false,
+          satisfiedBy: null,
+          missing: expect.any(Array),
+          nextCommands: expect.any(Array),
+        },
+      },
+    });
+  });
 });

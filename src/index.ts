@@ -1,5 +1,5 @@
 import { Command, Help } from "commander";
-import { CLIError, ErrorCode, EXIT_CODES } from "./lib/errors.js";
+import { CLIError, ErrorCode, EXIT_CODES, errSetupRequired } from "./lib/errors.js";
 import {
   setFlags,
   printError,
@@ -22,6 +22,9 @@ import { registerVersion } from "./commands/version.js";
 import { registerChains } from "./commands/chains.js";
 import { registerApps } from "./commands/apps.js";
 import { registerWallet } from "./commands/wallet.js";
+import { registerSetup } from "./commands/setup.js";
+import { isInteractiveAllowed } from "./lib/interaction.js";
+import { getSetupStatus, isSetupComplete, shouldRunOnboarding } from "./lib/onboarding.js";
 
 // ── ANSI helpers for help formatting ────────────────────────────────
 const hBrand = noColor
@@ -72,6 +75,7 @@ program
   .option("--timeout <ms>", "Request timeout in milliseconds", parseInt)
   .option("--x402", "Use x402 wallet-based gateway auth")
   .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
+  .option("--no-interactive", "Disable REPL and prompt-driven interactions")
   .addHelpCommand(false)
   .configureOutput({
     outputError(str, write) {
@@ -186,17 +190,42 @@ program
     }
   })
   .action(async () => {
-    if (process.stdin.isTTY) {
-      const { startREPL } = await import("./commands/interactive.js");
-      // In REPL mode, override exitOverride so errors don't kill the process
-      program.exitOverride();
-      program.configureOutput({
-        writeErr: () => {},
-      });
-      await startREPL(program);
-    } else {
-      program.help();
+    const cfg = loadConfig();
+    if (!isSetupComplete(cfg) && !isInteractiveAllowed(program)) {
+      throw errSetupRequired(getSetupStatus(cfg));
     }
+
+    if (isInteractiveAllowed(program)) {
+      const useAltScreen = Boolean(process.stdout.isTTY);
+      if (useAltScreen) {
+        process.stdout.write("\x1b[?1049h\x1b[H\x1b[2J");
+        process.stdout.write("\x1b[?1000h\x1b[?1006h");
+      }
+      try {
+        if (shouldRunOnboarding(program, cfg)) {
+          const { runOnboarding } = await import("./commands/onboarding.js");
+          const completed = await runOnboarding(program);
+          if (!completed) {
+            // User skipped or aborted onboarding while setup remains incomplete.
+            // Do not enter REPL; return to shell without forcing interactive mode.
+            return;
+          }
+        }
+        const { startREPL } = await import("./commands/interactive.js");
+        // In REPL mode, override exitOverride so errors don't kill the process
+        program.exitOverride();
+        program.configureOutput({
+          writeErr: () => {},
+        });
+        await startREPL(program);
+      } finally {
+        if (useAltScreen) {
+          process.stdout.write("\x1b[?1000l\x1b[?1006l\x1b[?1049l");
+        }
+      }
+      return;
+    }
+    program.help();
   });
 
 registerConfig(program);
@@ -210,6 +239,7 @@ registerNetwork(program);
 registerChains(program);
 registerApps(program);
 registerWallet(program);
+registerSetup(program);
 registerVersion(program);
 program
   .command("help [command...]")

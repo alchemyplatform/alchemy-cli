@@ -5,32 +5,41 @@ import type { App } from "../lib/admin-client.js";
 import { errNotFound, errAccessKeyRequired, errInvalidArgs } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../index.js";
-import { green, dim, printKeyValueBox, emptyState, maskIf } from "../lib/ui.js";
+import { green, dim, yellow, withSpinner, printKeyValueBox, maskIf } from "../lib/ui.js";
+import {
+  promptAutocomplete,
+  promptConfirm,
+  promptMultiselect,
+  promptSelect,
+  promptText,
+} from "../lib/terminal-ui.js";
 import { splitCommaList } from "../lib/validators.js";
+import { isInteractiveAllowed } from "../lib/interaction.js";
 
 const RESET_KEY_MAP: Record<string, keyof config.Config> = { ...config.KEY_MAP, app: "app" };
+const APP_SEARCH_THRESHOLD = 15;
 
-async function saveAppWithPrompt(app: App): Promise<boolean> {
+export async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
   const updated: config.Config = {
     ...cfg,
+    api_key: app.apiKey,
     app: { id: app.id, name: app.name, apiKey: app.apiKey },
   };
 
   // If user has a manually-set api-key, ask whether to replace it
   if (cfg.api_key) {
-    const { confirm, isCancel, cancel } = await import("@clack/prompts");
-    const replace = await confirm({
+    const replace = await promptConfirm({
       message:
         "You already have an API key configured. Use the app's API key instead?",
       initialValue: true,
+      cancelMessage: "Cancelled default app update.",
     });
-    if (isCancel(replace)) {
-      cancel("Cancelled default app update.");
+    if (replace === null) {
       return false;
     }
-    if (replace) {
-      delete updated.api_key;
+    if (!replace) {
+      updated.api_key = cfg.api_key;
     }
   }
 
@@ -38,14 +47,12 @@ async function saveAppWithPrompt(app: App): Promise<boolean> {
   return true;
 }
 
-async function selectOrCreateApp(admin: AdminClient): Promise<void> {
-  const { select, text, multiselect, confirm, isCancel, cancel } = await import(
-    "@clack/prompts"
-  );
-
+export async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   let apps: App[];
   try {
-    const result = await admin.listAllApps();
+    const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
+      admin.listAllApps(),
+    );
     apps = result.apps;
   } catch {
     console.log(
@@ -63,13 +70,22 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
       })),
       { label: "Create a new app", value: CREATE_NEW },
     ];
-
-    const selected = await select({
-      message: "Select an app to use as default:",
-      options,
-    });
-    if (isCancel(selected)) {
-      cancel("Cancelled app selection.");
+    const selected =
+      apps.length > APP_SEARCH_THRESHOLD
+        ? await promptAutocomplete({
+            message: "Select default app",
+            placeholder: "Type app name or id",
+            options,
+            cancelMessage: "Cancelled app selection.",
+            commitLabel: null,
+          })
+        : await promptSelect({
+            message: "Select default app",
+            options,
+            cancelMessage: "Cancelled app selection.",
+            commitLabel: null,
+          });
+    if (selected === null) {
       return;
     }
 
@@ -77,7 +93,7 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
       const app = apps.find((a) => a.id === selected)!;
       const saved = await saveAppWithPrompt(app);
       if (saved) {
-        console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);
+        console.log(`\n  ${green("✓")} Default app set to ${app.name} (${app.id})`);
       } else {
         console.log(`  ${dim("Skipped setting default app.")}`);
       }
@@ -88,9 +104,11 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   }
 
   // Create flow
-  const name = await text({ message: "App name:" });
-  if (isCancel(name)) {
-    cancel("Cancelled app creation.");
+  const name = await promptText({
+    message: "App name",
+    cancelMessage: "Cancelled app creation.",
+  });
+  if (name === null) {
     return;
   }
   if (!name.trim()) {
@@ -101,7 +119,9 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   // Fetch chains for network selection
   let chainChoices: Array<{ label: string; value: string }> = [];
   try {
-    const chains = await admin.listChains();
+    const chains = await withSpinner("Fetching chains…", "Chains fetched", () =>
+      admin.listChains(),
+    );
     chainChoices = chains
       .filter((c) => c.availability === "public" && !c.isTestnet)
       .map((c) => ({ label: `${c.name} (${c.id})`, value: c.id }));
@@ -111,22 +131,22 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
 
   let networks: string[];
   if (chainChoices.length > 0) {
-    const selectedNetworks = await multiselect({
-      message: "Select networks:",
+    const selectedNetworks = await promptMultiselect({
+      message: "Select networks",
       options: chainChoices,
       required: true,
+      cancelMessage: "Cancelled network selection.",
     });
-    if (isCancel(selectedNetworks)) {
-      cancel("Cancelled network selection.");
+    if (selectedNetworks === null) {
       return;
     }
     networks = selectedNetworks;
   } else {
-    const raw = await text({
-      message: "Network IDs (comma-separated):",
+    const raw = await promptText({
+      message: "Network IDs (comma-separated)",
+      cancelMessage: "Cancelled network selection.",
     });
-    if (isCancel(raw)) {
-      cancel("Cancelled network selection.");
+    if (raw === null) {
       return;
     }
     networks = splitCommaList(raw);
@@ -138,22 +158,24 @@ async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   }
 
   try {
-    const app = await admin.createApp({ name: name.trim(), networks });
-    console.log(`${green("✓")} Created app ${app.name} (${app.id})`);
+    const app = await withSpinner("Creating app…", "App created", () =>
+      admin.createApp({ name: name.trim(), networks }),
+    );
+    console.log(`  ${green("✓")} Created app ${app.name} (${app.id})`);
 
-    const setDefault = await confirm({
+    const setDefault = await promptConfirm({
       message: "Set as default app?",
       initialValue: true,
+      cancelMessage: "Cancelled default app selection.",
     });
-    if (isCancel(setDefault)) {
-      cancel("Cancelled default app selection.");
+    if (setDefault === null) {
       return;
     }
 
     if (setDefault) {
       const saved = await saveAppWithPrompt(app);
       if (saved) {
-        console.log(`${green("✓")} Default app set to ${app.name} (${app.id})`);
+        console.log(`\n  ${green("✓")} Default app set to ${app.name} (${app.id})`);
       } else {
         console.log(`  ${dim("Skipped setting default app.")}`);
       }
@@ -178,6 +200,11 @@ export function registerConfig(program: Command) {
         const cfg = config.load();
         config.save({ ...cfg, api_key: key });
         printHuman(`${green("✓")} Set api-key\n`, { key: "api-key", status: "set" });
+        if (!isJSONMode() && cfg.app?.apiKey && cfg.app.apiKey !== key) {
+          console.log(
+            `  ${yellow("◆")} ${dim("Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.")}`,
+          );
+        }
       } catch (err) {
         exitWithError(err);
       }
@@ -192,8 +219,8 @@ export function registerConfig(program: Command) {
         config.save({ ...cfg, access_key: key });
         printHuman(`${green("✓")} Set access-key\n`, { key: "access-key", status: "set" });
 
-        // Trigger onboarding in TTY mode
-        if (process.stdin.isTTY && !isJSONMode()) {
+        // Trigger onboarding in interactive mode
+        if (isInteractiveAllowed(program)) {
           await selectOrCreateApp(new AdminClient(key));
         }
       } catch (err) {
@@ -217,9 +244,12 @@ export function registerConfig(program: Command) {
         if (appId) {
           // Non-interactive: look up the app by ID and save it
           const admin = new AdminClient(accessKey);
-          const app = await admin.getApp(appId);
+          const app = await withSpinner("Fetching app…", "App fetched", () =>
+            admin.getApp(appId),
+          );
           const updated: config.Config = {
             ...cfg,
+            api_key: app.apiKey,
             app: { id: app.id, name: app.name, apiKey: app.apiKey },
           };
           config.save(updated);
@@ -231,9 +261,9 @@ export function registerConfig(program: Command) {
         }
 
         // Interactive mode
-        if (!process.stdin.isTTY || isJSONMode()) {
+        if (!isInteractiveAllowed(program)) {
           exitWithError(
-            new Error("Interactive app selection requires a TTY. Use 'config set app <app-id>' or 'alchemy apps list' to find app IDs."),
+            new Error("Interactive app selection requires an interactive terminal. Use 'config set app <app-id>' or 'alchemy apps list' to find app IDs."),
           );
         }
 
@@ -315,7 +345,7 @@ export function registerConfig(program: Command) {
 
   cmd
     .command("get <key>")
-    .description("Get a config value (api-key, access-key, network, verbose, wallet-key-file, x402)")
+    .description("Get a config value (api-key, access-key, app, network, verbose, wallet-key-file, x402)")
     .action((key: string) => {
       const cfg = config.load();
       const value = config.get(cfg, key);
@@ -334,6 +364,11 @@ export function registerConfig(program: Command) {
     .description("List all config values")
     .action(() => {
       const cfg = config.load();
+      const hasApiKeyMismatch = Boolean(
+        cfg.api_key &&
+          cfg.app?.apiKey &&
+          cfg.api_key !== cfg.app.apiKey,
+      );
 
       if (isJSONMode()) {
         printJSON(config.toMap(cfg));
@@ -341,7 +376,12 @@ export function registerConfig(program: Command) {
       }
 
       const pairs: Array<[string, string]> = [
-        ["api-key", cfg.api_key ? maskIf(cfg.api_key) : dim("(not set)")],
+        [
+          "api-key",
+          cfg.api_key
+            ? `${hasApiKeyMismatch ? `${yellow("◆")} ` : ""}${maskIf(cfg.api_key)}`
+            : dim("(not set)"),
+        ],
         ["access-key", cfg.access_key ? maskIf(cfg.access_key) : dim("(not set)")],
         [
           "app",
@@ -367,6 +407,13 @@ export function registerConfig(program: Command) {
       ];
 
       printKeyValueBox(pairs);
+
+      if (hasApiKeyMismatch) {
+        console.log("");
+        console.log(
+          `  ${yellow("◆")} ${dim("Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.")}`,
+        );
+      }
     });
 
   // ── config reset ───────────────────────────────────────────────────
@@ -396,14 +443,13 @@ export function registerConfig(program: Command) {
           return;
         }
 
-        if (!options.yes && process.stdin.isTTY && !isJSONMode()) {
-          const { confirm, isCancel, cancel } = await import("@clack/prompts");
-          const proceed = await confirm({
+        if (!options.yes && isInteractiveAllowed(program)) {
+          const proceed = await promptConfirm({
             message: "Reset all saved config values?",
             initialValue: false,
+            cancelMessage: "Cancelled config reset.",
           });
-          if (isCancel(proceed)) {
-            cancel("Cancelled config reset.");
+          if (proceed === null) {
             return;
           }
           if (!proceed) {

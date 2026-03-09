@@ -27,6 +27,13 @@ describe("config set/get", () => {
     expect(ok).toBe(false);
   });
 
+  it("gets app display value when selected app exists", () => {
+    const cfg: config.Config = {
+      app: { id: "app-123", name: "Demo App", apiKey: "demo-key" },
+    };
+    expect(config.get(cfg, "app")).toBe("Demo App (app-123)");
+  });
+
   it("sets and gets network", () => {
     const cfg: config.Config = {};
     const { ok, config: updated } = config.set(cfg, "network", "polygon-mainnet");

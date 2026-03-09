@@ -1,6 +1,7 @@
 import Table from "cli-table3";
 import { isJSONMode, isRevealMode, quiet } from "./output.js";
 import { esc, rgb } from "./colors.js";
+import { runWithSpinner } from "./terminal-ui.js";
 
 const ansi = {
   green: esc("32"),
@@ -65,18 +66,7 @@ export async function withSpinner<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   if (isJSONMode() || quiet) return fn();
-
-  const { spinner } = await import("@clack/prompts");
-  const s = spinner();
-  s.start(label);
-  try {
-    const result = await fn();
-    s.stop(`${ansi.green("◇")} ${doneLabel}`);
-    return result;
-  } catch (err) {
-    s.error();
-    throw err;
-  }
+  return runWithSpinner(label, doneLabel, fn);
 }
 
 // ── Key-Value ────────────────────────────────────────────────────────
@@ -86,9 +76,11 @@ export function printKeyValue(
   withBottomPadding = true,
 ): void {
   if (isJSONMode()) return;
-  const maxLen = Math.max(...pairs.map(([k]) => k.length));
+  const maxLen = Math.max(...pairs.map(([k]) => stripAnsi(k).length));
   for (const [key, value] of pairs) {
-    console.log(`  ${ansi.dim(key.padEnd(maxLen))}  ${value}`);
+    const visibleKeyLen = stripAnsi(key).length;
+    const paddedKey = key + " ".repeat(Math.max(0, maxLen - visibleKeyLen));
+    console.log(`  ${ansi.dim(paddedKey)}  ${value}`);
   }
   if (withBottomPadding) {
     console.log("");
@@ -105,9 +97,11 @@ export function printKeyValueBox(
     return;
   }
 
-  const keyWidth = Math.max(...pairs.map(([k]) => k.length));
+  const keyWidth = Math.max(...pairs.map(([k]) => stripAnsi(k).length));
   const contentRows = pairs.map(([key, value]) => {
-    return `${ansi.dim(key.padEnd(keyWidth))}  ${value}`;
+    const visibleKeyLen = stripAnsi(key).length;
+    const paddedKey = key + " ".repeat(Math.max(0, keyWidth - visibleKeyLen));
+    return `${ansi.dim(paddedKey)}  ${value}`;
   });
   const contentWidth = Math.max(...contentRows.map((row) => stripAnsi(row).length));
 
