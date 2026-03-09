@@ -264,6 +264,33 @@ describe("additional command coverage", () => {
     });
   });
 
+  it("setup status prints JSON contract", async () => {
+    const printJSON = vi.fn();
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ api_key: "api_test" }),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      printKeyValueBox: vi.fn(),
+      dim: (s: string) => s,
+    }));
+
+    const { registerSetup } = await import("../../src/commands/setup.js");
+    const program = new Command();
+    registerSetup(program);
+
+    await program.parseAsync(["node", "test", "setup", "status"], { from: "node" });
+    expect(printJSON).toHaveBeenCalledWith({
+      complete: true,
+      satisfiedBy: "api_key",
+      missing: [],
+      nextCommands: [],
+    });
+  });
+
   it("block forwards invalid block identifiers to exitWithError", async () => {
     const exitWithError = vi.fn();
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -334,6 +361,65 @@ describe("additional command coverage", () => {
     expect(call).toHaveBeenCalledWith("eth_getBlockByNumber", ["latest", false]);
     expect(printJSON).toHaveBeenCalledWith({ number: "0x10", hash: "0xhash" });
     expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("apps list skips interactive pagination when --no-interactive is set", async () => {
+    const listApps = vi
+      .fn()
+      .mockResolvedValue({
+        apps: [
+          {
+            id: "app_1",
+            name: "First App",
+            apiKey: "api_1",
+            webhookApiKey: "wh_1",
+            chainNetworks: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+        cursor: "cursor_2",
+      });
+    const promptSelect = vi.fn();
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printJSON: vi.fn(),
+      verbose: false,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printTable: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      emptyState: vi.fn(),
+      maskIf: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect,
+    }));
+    vi.doMock("../../src/index.js", () => ({ exitWithError: vi.fn() }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    const program = new Command();
+    program.option("--no-interactive");
+    registerApps(program);
+
+    await program.parseAsync(["node", "test", "--no-interactive", "apps", "list"], {
+      from: "node",
+    });
+
+    expect(listApps).toHaveBeenCalledTimes(1);
+    expect(promptSelect).not.toHaveBeenCalled();
   });
 });
 

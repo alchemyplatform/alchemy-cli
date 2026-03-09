@@ -753,6 +753,7 @@ describe("command integration coverage", () => {
     const isCancel = vi.fn().mockReturnValue(false);
     const cancel = vi.fn();
     Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       adminClientFromFlags: () => ({ listApps }),
@@ -962,6 +963,7 @@ describe("command integration coverage", () => {
     }
     const exitWithError = vi.fn();
     Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
 
     vi.doMock("../../src/lib/config.js", () => ({
       load,

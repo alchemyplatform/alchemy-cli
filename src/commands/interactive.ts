@@ -4,15 +4,19 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import type { Command } from "commander";
 import {
+  bold,
   brandedHelp,
   brand,
   dim,
+  green,
   setBrandedHelpSuppressed,
 } from "../lib/ui.js";
 import { isJSONMode } from "../lib/output.js";
+import { ScrollbackBuffer } from "../lib/scrollback.js";
 import { setReplMode } from "../index.js";
 import { getRPCNetworkIds } from "../lib/networks.js";
-import { configDir } from "../lib/config.js";
+import { configDir, load as loadConfig } from "../lib/config.js";
+import { getSetupMethod } from "../lib/onboarding.js";
 
 const COMMAND_NAMES = [
   "apps",
@@ -45,6 +49,8 @@ const COMMAND_NAMES = [
   "network list",
   "nfts",
   "rpc",
+  "setup",
+  "setup status",
   "tokens",
   "tx",
   "version",
@@ -57,6 +63,14 @@ const COMMAND_NAMES = [
 const NETWORK_NAMES = getRPCNetworkIds();
 
 const REPL_HISTORY_MAX = 100;
+
+function formatSetupMethodLabel(): string {
+  const method = getSetupMethod(loadConfig());
+  if (method === "api_key") return "API key";
+  if (method === "access_key_app") return "Access key + app";
+  if (method === "x402_wallet") return "x402 wallet";
+  return "Not configured";
+}
 
 function replHistoryPath(): string {
   return join(configDir(), "repl-history");
@@ -191,20 +205,67 @@ export async function startREPL(program: Command): Promise<void> {
   const printIntro = (): void => {
     if (isJSONMode()) return;
     process.stdout.write(brandedHelp({ force: true }));
-    console.log(`  ${brand("Interactive mode")}`);
-    console.log(`  ${dim("Run commands directly, or type 'help' for command details.")}`);
+    console.log(`  ${brand("◆")} ${bold("Welcome to Alchemy CLI")}`);
+    console.log(`  ${green("✓")} ${dim(`Configured auth: ${formatSetupMethodLabel()}`)}`);
+    console.log(`  ${dim("Run commands directly (no 'alchemy' prefix).")}`);
+    console.log("");
+    console.log(`  ${brand("◆")} ${bold("Quick commands")}`);
+    console.log(`  ${dim("- rpc eth_chainId")}`);
+    console.log(`  ${dim("- config list")}`);
+    console.log(`  ${dim("- network list")}`);
+    console.log(`  ${dim("- help")}`);
+    console.log("");
     console.log(`  ${dim("Press TAB for autocomplete. Type 'exit' or 'quit' to leave.")}`);
     console.log("");
   };
 
+  const scrollback = new ScrollbackBuffer();
+  const PROMPT_STR = "alchemy \x1b[38;2;54;63;249m◆\x1b[39m ";
+  scrollback.setPrompt(PROMPT_STR);
+
   const rl = readline.createInterface({
     input: stdin,
     output: stdout,
-    prompt: "alchemy \x1b[38;2;54;63;249m◆\x1b[39m ",
+    prompt: PROMPT_STR,
     historySize: REPL_HISTORY_MAX,
     removeHistoryDuplicates: true,
   });
 
+  // ── Mouse-event stdin filtering ────────────────────────────────────
+  // Grab the data listener installed by readline/emitKeypressEvents and
+  // replace it with a wrapper that strips SGR mouse sequences.  The
+  // original listener (the keypress parser) never sees mouse bytes.
+  const MOUSE_SEQ_RE = /\x1b\[<(\d+);\d+;\d+[Mm]/g;
+  const dataListeners = stdin.listeners("data") as ((...args: unknown[]) => void)[];
+  const origDataListener = dataListeners[dataListeners.length - 1];
+  stdin.removeListener("data", origDataListener);
+
+  const filteredDataListener = (chunk: string | Buffer): void => {
+    const str = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    let match: RegExpExecArray | null;
+    MOUSE_SEQ_RE.lastIndex = 0;
+    while ((match = MOUSE_SEQ_RE.exec(str)) !== null) {
+      const button = parseInt(match[1], 10);
+      if (button === 64) {
+        scrollback.scrollUp();
+      } else if (button === 65) {
+        scrollback.scrollDown();
+        if (!scrollback.isScrolled) {
+          // Reached the bottom via mouse scroll — readline doesn't know the
+          // screen was redrawn, so force it to redraw the prompt.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const r = rl as any;
+          if (r.prevRows !== undefined) r.prevRows = 0;
+          if (r._refreshLine) r._refreshLine();
+        }
+      }
+    }
+    const cleaned = str.replace(MOUSE_SEQ_RE, "");
+    if (cleaned) origDataListener(cleaned);
+  };
+  stdin.on("data", filteredDataListener);
+
+  // ── History & inline suggestion ────────────────────────────────────
   const initialHistory = loadReplHistory();
   const rlWithHistory = rl as readline.Interface & { history?: string[] };
   if (Array.isArray(rlWithHistory.history) && initialHistory.length > 0) {
@@ -256,15 +317,21 @@ export async function startREPL(program: Command): Promise<void> {
     }
   };
 
+  // ── _ttyWrite override ────────────────────────────────────────────
   const rlWithTTYWrite = rl as readline.Interface & {
     _ttyWrite?: (s: string, key: readline.Key) => void;
   };
   const originalTTYWrite = rlWithTTYWrite._ttyWrite?.bind(rl);
+
   if (originalTTYWrite) {
     rlWithTTYWrite._ttyWrite = (s: string, key: readline.Key): void => {
       if (key?.name === "tab") {
         acceptInlineCompletion();
         return;
+      }
+      if (scrollback.isScrolled) {
+        scrollback.snapToBottom();
+        if (rlWithRefresh._refreshLine) rlWithRefresh._refreshLine();
       }
       originalTTYWrite(s, key);
     };
@@ -345,6 +412,9 @@ export async function startREPL(program: Command): Promise<void> {
       setReplMode(false);
       setBrandedHelpSuppressed(false);
       stdin.off("keypress", onKeypress);
+      stdin.removeListener("data", filteredDataListener);
+      stdin.on("data", origDataListener);
+      scrollback.dispose();
       resolve();
     });
     printIntro();

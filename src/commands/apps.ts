@@ -15,6 +15,7 @@ import {
   maskIf,
 } from "../lib/ui.js";
 import { splitCommaList } from "../lib/validators.js";
+import { isInteractiveAllowed } from "../lib/interaction.js";
 
 function maskAppSecrets<T extends { apiKey?: string; webhookApiKey?: string }>(app: T): T {
   return {
@@ -175,7 +176,7 @@ export function registerApps(program: Command) {
           return;
         }
 
-        const interactivePagination = process.stdin.isTTY && !opts.all;
+        const interactivePagination = isInteractiveAllowed(program) && !opts.all;
         if (interactivePagination) {
           let page = result;
           let autoFetchRemaining = false;

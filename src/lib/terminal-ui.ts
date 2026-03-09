@@ -74,6 +74,7 @@ async function runListPrompt<T extends string>(opts: {
   readline.emitKeypressEvents(stdin);
   const restoreKeypressListeners = suspendStdinKeypressListeners();
   const previousRawMode = stdin.isRaw;
+  stdin.resume();
   stdin.setRawMode(true);
 
   let query = "";
@@ -137,7 +138,7 @@ async function runListPrompt<T extends string>(opts: {
             : ansi.dim("◇");
         const label = optionLabel(option);
         const value = disabled ? ansi.dim(label) : label;
-        const hint = option.hint ? ` ${ansi.dim(`(${option.hint})`)}` : "";
+        const hint = option.hint ? ` ${ansi.dim(`— ${option.hint}`)}` : "";
         lines.push(`  ${ansi.dim(FLOW_PIPE)}  ${selectedMark} ${value}${hint}`);
       }
       if (filtered.length > maxVisible) {
@@ -162,6 +163,10 @@ async function runListPrompt<T extends string>(opts: {
     stdin.setRawMode(previousRawMode);
     stdin.removeListener("keypress", onKeypress);
     restoreKeypressListeners();
+    // Always release stdin after a standalone prompt to avoid keeping
+    // the process alive when the caller exits immediately after cancel.
+    stdin.pause();
+    (stdin as NodeJS.ReadStream & { unref?: () => void }).unref?.();
   };
 
   const commitSingleLine = (text: string): void => {
@@ -249,10 +254,13 @@ export async function promptText(opts: {
   initialValue?: string;
   defaultValue?: string;
   cancelMessage?: string;
+  clearAfterSubmit?: boolean;
 }): Promise<string | null> {
   if (!stdin.isTTY || !stdout.isTTY) {
     return opts.defaultValue ?? opts.initialValue ?? "";
   }
+  stdin.resume();
+  (stdin as NodeJS.ReadStream & { ref?: () => void }).ref?.();
   const restoreKeypressListeners = suspendStdinKeypressListeners();
   const rl = readline.createInterface({ input: stdin, output: stdout, terminal: true });
   console.log(`  ${ansi.dim(FLOW_PIPE)}`);
@@ -266,6 +274,11 @@ export async function promptText(opts: {
   rl.close();
   restoreKeypressListeners();
   if (previousRawMode) stdin.setRawMode(true);
+  if (opts.clearAfterSubmit) {
+    // Clear the prompt line and spacer line so sensitive/temporary
+    // prompt input does not remain visible after submit.
+    clearRenderedLines(2);
+  }
   if (value === null) {
     printCancel(opts.cancelMessage);
     return null;

@@ -14,11 +14,12 @@ import {
   promptText,
 } from "../lib/terminal-ui.js";
 import { splitCommaList } from "../lib/validators.js";
+import { isInteractiveAllowed } from "../lib/interaction.js";
 
 const RESET_KEY_MAP: Record<string, keyof config.Config> = { ...config.KEY_MAP, app: "app" };
 const APP_SEARCH_THRESHOLD = 15;
 
-async function saveAppWithPrompt(app: App): Promise<boolean> {
+export async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
   const updated: config.Config = {
     ...cfg,
@@ -46,7 +47,7 @@ async function saveAppWithPrompt(app: App): Promise<boolean> {
   return true;
 }
 
-async function selectOrCreateApp(admin: AdminClient): Promise<void> {
+export async function selectOrCreateApp(admin: AdminClient): Promise<void> {
   let apps: App[];
   try {
     const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
@@ -218,8 +219,8 @@ export function registerConfig(program: Command) {
         config.save({ ...cfg, access_key: key });
         printHuman(`${green("✓")} Set access-key\n`, { key: "access-key", status: "set" });
 
-        // Trigger onboarding in TTY mode
-        if (process.stdin.isTTY && !isJSONMode()) {
+        // Trigger onboarding in interactive mode
+        if (isInteractiveAllowed(program)) {
           await selectOrCreateApp(new AdminClient(key));
         }
       } catch (err) {
@@ -260,9 +261,9 @@ export function registerConfig(program: Command) {
         }
 
         // Interactive mode
-        if (!process.stdin.isTTY || isJSONMode()) {
+        if (!isInteractiveAllowed(program)) {
           exitWithError(
-            new Error("Interactive app selection requires a TTY. Use 'config set app <app-id>' or 'alchemy apps list' to find app IDs."),
+            new Error("Interactive app selection requires an interactive terminal. Use 'config set app <app-id>' or 'alchemy apps list' to find app IDs."),
           );
         }
 
@@ -442,7 +443,7 @@ export function registerConfig(program: Command) {
           return;
         }
 
-        if (!options.yes && process.stdin.isTTY && !isJSONMode()) {
+        if (!options.yes && isInteractiveAllowed(program)) {
           const proceed = await promptConfirm({
             message: "Reset all saved config values?",
             initialValue: false,

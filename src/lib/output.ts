@@ -77,6 +77,7 @@ function toSafeErrorJSON(err: CLIError): Record<string, unknown> {
       message?: string;
       hint?: string;
       details?: string;
+      data?: unknown;
       retryable?: boolean;
     };
   };
@@ -90,6 +91,9 @@ function toSafeErrorJSON(err: CLIError): Record<string, unknown> {
   };
   if (typeof error.details === "string" && !SENSITIVE_ERROR_CODES.has(code)) {
     safeError.details = redactSensitiveText(error.details);
+  }
+  if (error.data !== undefined) {
+    safeError.data = error.data;
   }
   return {
     error: safeError,
