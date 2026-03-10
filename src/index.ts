@@ -32,6 +32,29 @@ const hBrand = noColor
   : (s: string) => `\x1b[38;2;54;63;249m${s}\x1b[39m`;
 const hBold = esc("1");
 const hDim = esc("2");
+const ROOT_OPTION_GROUPS = [
+  {
+    label: "Auth & Network",
+    matchers: ["--api-key", "--access-key", "--network", "--x402", "--wallet-key-file"],
+  },
+  {
+    label: "Output & Formatting",
+    matchers: ["--json", "--quiet", "--verbose", "--no-color", "--reveal"],
+  },
+  {
+    label: "Runtime & Behavior",
+    matchers: ["--timeout", "--debug", "--no-interactive"],
+  },
+] as const;
+
+function rootOptionGroupLabel(flags: string): string {
+  for (const group of ROOT_OPTION_GROUPS) {
+    if (group.matchers.some((matcher) => flags.includes(matcher))) {
+      return group.label;
+    }
+  }
+  return "General";
+}
 
 const program = new Command();
 const argvTokens = process.argv.slice(2);
@@ -66,15 +89,15 @@ program
     "-n, --network <network>",
     "Target network (default: eth-mainnet) (env: ALCHEMY_NETWORK)",
   )
+  .option("--x402", "Use x402 wallet-based gateway auth")
+  .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
   .option("--json", "Force JSON output")
   .option("-q, --quiet", "Suppress non-essential output")
   .option("-v, --verbose", "Enable verbose output")
-  .option("--debug", "Enable debug diagnostics")
-  .option("--reveal", "Show secrets in plain text (TTY only)")
   .option("--no-color", "Disable color output")
+  .option("--reveal", "Show secrets in plain text (TTY only)")
   .option("--timeout <ms>", "Request timeout in milliseconds", parseInt)
-  .option("--x402", "Use x402 wallet-based gateway auth")
-  .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
+  .option("--debug", "Enable debug diagnostics")
   .option("--no-interactive", "Disable REPL and prompt-driven interactions")
   .addHelpCommand(false)
   .configureOutput({
@@ -122,6 +145,7 @@ program
 
       const lines = defaultHelp.split("\n");
       let section: "usage" | "options" | "commands" | "arguments" | null = null;
+      const emittedOptionGroups = new Set<string>();
 
       const out = lines.map((line) => {
         const sectionMatch = line.match(/^(Usage|Commands|Options|Arguments):$/);
@@ -142,7 +166,17 @@ program
           const entryMatch = line.match(/^(\s+)(.+?)(\s{2,})(.+)$/);
           if (entryMatch) {
             const [, indent, left, gap, right] = entryMatch;
-            return `${indent}${hBrand(left)}${gap}${hDim(right)}`;
+            const styledLine = `${indent}${hBrand(left)}${gap}${hDim(right)}`;
+            if (section === "options" && cmd === program) {
+              const groupLabel = rootOptionGroupLabel(left);
+              if (!emittedOptionGroups.has(groupLabel)) {
+                emittedOptionGroups.add(groupLabel);
+                const needsLeadingGap = emittedOptionGroups.size > 1;
+                const groupHeader = `${indent}${hBold(groupLabel)}${hDim(":")}`;
+                return `${needsLeadingGap ? "\n" : ""}${groupHeader}\n${styledLine}`;
+              }
+            }
+            return styledLine;
           }
         }
 

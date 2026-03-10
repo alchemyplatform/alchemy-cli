@@ -8,6 +8,7 @@ import { validateAddress, readStdinArg } from "../lib/validators.js";
 export function registerBalance(program: Command) {
   program
     .command("balance [address]")
+    .alias("bal")
     .description("Get the ETH balance of an address")
     .addHelpText(
       "after",

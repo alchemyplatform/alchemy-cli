@@ -29,6 +29,7 @@ const COMMAND_NAMES = [
   "apps address-allowlist",
   "apps origin-allowlist",
   "apps ip-allowlist",
+  "bal",
   "balance",
   "block",
   "chains",
