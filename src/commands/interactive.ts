@@ -1,5 +1,5 @@
 import * as readline from "node:readline";
-import { stdin, stdout } from "node:process";
+import { stdin, stdout, stderr } from "node:process";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import type { Command } from "commander";
@@ -12,11 +12,11 @@ import {
   setBrandedHelpSuppressed,
 } from "../lib/ui.js";
 import { isJSONMode } from "../lib/output.js";
-import { ScrollbackBuffer } from "../lib/scrollback.js";
 import { setReplMode } from "../index.js";
 import { getRPCNetworkIds } from "../lib/networks.js";
 import { configDir, load as loadConfig } from "../lib/config.js";
 import { getSetupMethod } from "../lib/onboarding.js";
+import { bgRgb, rgb, noColor } from "../lib/colors.js";
 
 const COMMAND_NAMES = [
   "apps",
@@ -205,6 +205,7 @@ export async function startREPL(program: Command): Promise<void> {
   const printIntro = (): void => {
     if (isJSONMode()) return;
     process.stdout.write(brandedHelp({ force: true }));
+    console.log("");
     console.log(`  ${brand("◆")} ${bold("Welcome to Alchemy CLI")}`);
     console.log(`  ${green("✓")} ${dim(`Configured auth: ${formatSetupMethodLabel()}`)}`);
     console.log(`  ${dim("Run commands directly (no 'alchemy' prefix).")}`);
@@ -217,11 +218,57 @@ export async function startREPL(program: Command): Promise<void> {
     console.log("");
     console.log(`  ${dim("Press TAB for autocomplete. Type 'exit' or 'quit' to leave.")}`);
     console.log("");
+    console.log("");
   };
 
-  const scrollback = new ScrollbackBuffer();
-  const PROMPT_STR = "alchemy \x1b[38;2;54;63;249m◆\x1b[39m ";
-  scrollback.setPrompt(PROMPT_STR);
+  const PROMPT_STR = "\x1b[38;2;54;63;249m›\x1b[39m ";
+  const submittedCommandBg = bgRgb(64, 64, 68);
+  const submittedCommandFg = rgb(232, 232, 236);
+  const OUTPUT_INDENT = "  ";
+  const styleSubmittedCommand = (command: string): string => {
+    if (!stdout.isTTY || noColor) return command;
+    return submittedCommandBg(submittedCommandFg(` ${command} `));
+  };
+  const runWithIndentedOutput = async (fn: () => Promise<void>): Promise<void> => {
+    if (isJSONMode() || !stdout.isTTY) {
+      await fn();
+      return;
+    }
+
+    const createIndentedWriter = (orig: typeof stdout.write): typeof stdout.write => {
+      let atLineStart = true;
+      return function (chunk: Uint8Array | string, ...rest: unknown[]): boolean {
+        const str = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+        if (!str) return true;
+
+        let out = "";
+        for (const ch of str) {
+          if (atLineStart && ch !== "\n" && ch !== "\r") {
+            out += OUTPUT_INDENT;
+            atLineStart = false;
+          }
+          out += ch;
+          if (ch === "\n" || ch === "\r") {
+            atLineStart = true;
+          }
+        }
+
+        return orig(out, ...(rest as [BufferEncoding, () => void]));
+      } as typeof stdout.write;
+    };
+
+    const origStdoutWrite = stdout.write.bind(stdout);
+    const origStderrWrite = stderr.write.bind(stderr);
+    stdout.write = createIndentedWriter(origStdoutWrite);
+    stderr.write = createIndentedWriter(origStderrWrite);
+
+    try {
+      await fn();
+    } finally {
+      stdout.write = origStdoutWrite as typeof stdout.write;
+      stderr.write = origStderrWrite as typeof stderr.write;
+    }
+  };
 
   const rl = readline.createInterface({
     input: stdin,
@@ -230,40 +277,6 @@ export async function startREPL(program: Command): Promise<void> {
     historySize: REPL_HISTORY_MAX,
     removeHistoryDuplicates: true,
   });
-
-  // ── Mouse-event stdin filtering ────────────────────────────────────
-  // Grab the data listener installed by readline/emitKeypressEvents and
-  // replace it with a wrapper that strips SGR mouse sequences.  The
-  // original listener (the keypress parser) never sees mouse bytes.
-  const MOUSE_SEQ_RE = /\x1b\[<(\d+);\d+;\d+[Mm]/g;
-  const dataListeners = stdin.listeners("data") as ((...args: unknown[]) => void)[];
-  const origDataListener = dataListeners[dataListeners.length - 1];
-  stdin.removeListener("data", origDataListener);
-
-  const filteredDataListener = (chunk: string | Buffer): void => {
-    const str = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-    let match: RegExpExecArray | null;
-    MOUSE_SEQ_RE.lastIndex = 0;
-    while ((match = MOUSE_SEQ_RE.exec(str)) !== null) {
-      const button = parseInt(match[1], 10);
-      if (button === 64) {
-        scrollback.scrollUp();
-      } else if (button === 65) {
-        scrollback.scrollDown();
-        if (!scrollback.isScrolled) {
-          // Reached the bottom via mouse scroll — readline doesn't know the
-          // screen was redrawn, so force it to redraw the prompt.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const r = rl as any;
-          if (r.prevRows !== undefined) r.prevRows = 0;
-          if (r._refreshLine) r._refreshLine();
-        }
-      }
-    }
-    const cleaned = str.replace(MOUSE_SEQ_RE, "");
-    if (cleaned) origDataListener(cleaned);
-  };
-  stdin.on("data", filteredDataListener);
 
   // ── History & inline suggestion ────────────────────────────────────
   const initialHistory = loadReplHistory();
@@ -286,15 +299,6 @@ export async function startREPL(program: Command): Promise<void> {
     stdout.write(dim(suggestion));
     readline.moveCursor(stdout, -suggestion.length, 0);
   };
-
-  const rlWithRefresh = rl as readline.Interface & { _refreshLine?: () => void };
-  const originalRefreshLine = rlWithRefresh._refreshLine?.bind(rl);
-  if (originalRefreshLine) {
-    rlWithRefresh._refreshLine = (): void => {
-      originalRefreshLine();
-      renderInlineSuggestion();
-    };
-  }
 
   const acceptInlineCompletion = (): void => {
     const line = rl.line;
@@ -325,13 +329,12 @@ export async function startREPL(program: Command): Promise<void> {
 
   if (originalTTYWrite) {
     rlWithTTYWrite._ttyWrite = (s: string, key: readline.Key): void => {
+      if (key?.name === "return" && !rl.line.trim()) {
+        return;
+      }
       if (key?.name === "tab") {
         acceptInlineCompletion();
         return;
-      }
-      if (scrollback.isScrolled) {
-        scrollback.snapToBottom();
-        if (rlWithRefresh._refreshLine) rlWithRefresh._refreshLine();
       }
       originalTTYWrite(s, key);
     };
@@ -359,6 +362,12 @@ export async function startREPL(program: Command): Promise<void> {
     rl.prompt();
   };
 
+  const printPostOutputSpacing = (): void => {
+    if (!isJSONMode() && stdout.isTTY) {
+      console.log("");
+    }
+  };
+
   const onLine = async (line: string): Promise<void> => {
     const trimmed = line.trim();
     if (!trimmed) {
@@ -371,6 +380,13 @@ export async function startREPL(program: Command): Promise<void> {
       return;
     }
 
+    if (!isJSONMode() && stdout.isTTY) {
+      readline.moveCursor(stdout, 0, -1);
+      readline.clearLine(stdout, 0);
+      stdout.write(styleSubmittedCommand(trimmed) + "\n");
+      console.log("");
+    }
+
     const words = trimmed.split(/\s+/);
 
     // Friendly REPL help shortcuts:
@@ -379,10 +395,13 @@ export async function startREPL(program: Command): Promise<void> {
     if (words[0] === "help") {
       const target = words.slice(1);
       try {
-        await program.parseAsync(["node", "alchemy", ...target, "--help"]);
+        await runWithIndentedOutput(async () => {
+          await program.parseAsync(["node", "alchemy", ...target, "--help"]);
+        });
       } catch {
         // Commander help/errors are already handled by exitOverride
       }
+      printPostOutputSpacing();
       prompt();
       return;
     }
@@ -395,11 +414,14 @@ export async function startREPL(program: Command): Promise<void> {
     }
 
     try {
-      await program.parseAsync(["node", "alchemy", ...words]);
+      await runWithIndentedOutput(async () => {
+        await program.parseAsync(["node", "alchemy", ...words]);
+      });
     } catch {
       // Commander errors are already handled by exitOverride
     }
 
+    printPostOutputSpacing();
     prompt();
   };
 
@@ -412,9 +434,6 @@ export async function startREPL(program: Command): Promise<void> {
       setReplMode(false);
       setBrandedHelpSuppressed(false);
       stdin.off("keypress", onKeypress);
-      stdin.removeListener("data", filteredDataListener);
-      stdin.on("data", origDataListener);
-      scrollback.dispose();
       resolve();
     });
     printIntro();

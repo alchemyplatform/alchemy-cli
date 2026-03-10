@@ -142,6 +142,28 @@ export class ScrollbackBuffer {
     this.origStdoutWrite("\x1b[J");
   }
 
+  rawWrite(data: string): void {
+    this.origStdoutWrite(data);
+  }
+
+  updateLastLine(content: string): void {
+    if (this.lines.length > 0) {
+      this.lines[this.lines.length - 1] = content;
+    }
+  }
+
+  removeLastLines(count: number): void {
+    this.lines.splice(-count, count);
+  }
+
+  rewriteLastLine(content: string): void {
+    if (this.lines.length === 0) return;
+    this.lines[this.lines.length - 1] = content;
+    if (this.scrollOffset === 0) {
+      this.origStdoutWrite("\x1b[1A\x1b[2K" + content + "\n");
+    }
+  }
+
   dispose(): void {
     if (this.partial) {
       this.lines.push(this.partial);
