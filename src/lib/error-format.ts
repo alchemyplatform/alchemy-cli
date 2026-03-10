@@ -78,7 +78,10 @@ export function printError(err: CLIError): void {
     const width = process.stderr.columns ?? 100;
     const safeMessage = redactSensitiveText(err.message);
     const safeHint = err.hint ? redactSensitiveText(err.hint) : undefined;
-    const safeDetails = err.details ? redactSensitiveText(err.details) : undefined;
+    const safeDetails =
+      err.details && !SENSITIVE_ERROR_CODES.has(err.code)
+        ? redactSensitiveText(err.details)
+        : undefined;
     const detailLines = safeDetails
       ? safeDetails
           .split(/\r?\n/)
