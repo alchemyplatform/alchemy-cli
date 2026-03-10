@@ -196,33 +196,22 @@ program
     }
 
     if (isInteractiveAllowed(program)) {
-      const useAltScreen = Boolean(process.stdout.isTTY);
-      if (useAltScreen) {
-        process.stdout.write("\x1b[?1049h\x1b[H\x1b[2J");
-        process.stdout.write("\x1b[?1000h\x1b[?1006h");
-      }
-      try {
-        if (shouldRunOnboarding(program, cfg)) {
-          const { runOnboarding } = await import("./commands/onboarding.js");
-          const completed = await runOnboarding(program);
-          if (!completed) {
-            // User skipped or aborted onboarding while setup remains incomplete.
-            // Do not enter REPL; return to shell without forcing interactive mode.
-            return;
-          }
-        }
-        const { startREPL } = await import("./commands/interactive.js");
-        // In REPL mode, override exitOverride so errors don't kill the process
-        program.exitOverride();
-        program.configureOutput({
-          writeErr: () => {},
-        });
-        await startREPL(program);
-      } finally {
-        if (useAltScreen) {
-          process.stdout.write("\x1b[?1000l\x1b[?1006l\x1b[?1049l");
+      if (shouldRunOnboarding(program, cfg)) {
+        const { runOnboarding } = await import("./commands/onboarding.js");
+        const completed = await runOnboarding(program);
+        if (!completed) {
+          // User skipped or aborted onboarding while setup remains incomplete.
+          // Do not enter REPL; return to shell without forcing interactive mode.
+          return;
         }
       }
+      const { startREPL } = await import("./commands/interactive.js");
+      // In REPL mode, override exitOverride so errors don't kill the process
+      program.exitOverride();
+      program.configureOutput({
+        writeErr: () => {},
+      });
+      await startREPL(program);
       return;
     }
     program.help();

@@ -12,3 +12,6 @@ export const esc = (code: string) =>
 
 export const rgb = (r: number, g: number, b: number) =>
   noColor ? identity : (s: string) => `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m`;
+
+export const bgRgb = (r: number, g: number, b: number) =>
+  noColor ? identity : (s: string) => `\x1b[48;2;${r};${g};${b}m${s}\x1b[49m`;
