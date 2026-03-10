@@ -23,7 +23,7 @@ export async function saveAppWithPrompt(app: App): Promise<boolean> {
   const updated: config.Config = {
     ...cfg,
     api_key: app.apiKey,
-    app: { id: app.id, name: app.name, apiKey: app.apiKey },
+    app: { id: app.id, name: app.name, apiKey: app.apiKey, webhookApiKey: app.webhookApiKey },
   };
 
   // If user has a manually-set api-key, ask whether to replace it
@@ -228,6 +228,19 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
+    .command("webhook-api-key <key>")
+    .description("Set the Alchemy webhook API key for Notify operations")
+    .action((key: string) => {
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, webhook_api_key: key });
+        printHuman(`${green("✓")} Set webhook-api-key\n`, { key: "webhook-api-key", status: "set" });
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  setCmd
     .command("app [app-id]")
     .description("Select the default app (interactive) or set by ID")
     .action(async (appId?: string) => {
@@ -249,7 +262,7 @@ export function registerConfig(program: Command) {
           const updated: config.Config = {
             ...cfg,
             api_key: app.apiKey,
-            app: { id: app.id, name: app.name, apiKey: app.apiKey },
+            app: { id: app.id, name: app.name, apiKey: app.apiKey, webhookApiKey: app.webhookApiKey },
           };
           config.save(updated);
           printHuman(

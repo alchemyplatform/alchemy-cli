@@ -24,15 +24,72 @@ To unlink later: `pnpm unlink --global`.
 Run commands as `alchemy <command>`.
 Use `alchemy help` or `alchemy help <command>` for generated command help.
 
+### Node
+
 | Command | What it does | Example |
 |---|---|---|
-| `(no command)` | Starts interactive REPL mode (TTY only) | `alchemy` |
 | `balance [address]` (`bal [address]`) | Gets ETH balance for an address | `alchemy bal 0x...` |
 | `tx [hash]` | Gets transaction + receipt by hash | `alchemy tx 0x...` |
 | `block <number>` | Gets block details (`latest`, decimal, or hex) | `alchemy block latest` |
-| `nfts [address]` | Lists NFTs owned by an address | `alchemy nfts 0x...` |
-| `tokens [address]` | Lists ERC-20 balances for an address | `alchemy tokens 0x...` |
 | `rpc <method> [params...]` | Makes raw JSON-RPC call | `alchemy rpc eth_blockNumber` |
+| `trace <method> [params...]` | Calls Trace API methods | `alchemy trace call '{"to":"0x..."}' '["trace"]' latest` |
+| `debug <method> [params...]` | Calls Debug API methods | `alchemy debug traceTransaction "0x..."` |
+
+### Data
+
+| Command | What it does | Example |
+|---|---|---|
+| `tokens [address]` | Lists ERC-20 balances for an address | `alchemy tokens 0x...` |
+| `tokens metadata <contract>` | Gets ERC-20 metadata | `alchemy tokens metadata 0x...` |
+| `tokens allowance --owner --spender --contract` | Gets ERC-20 allowance | `alchemy tokens allowance --owner 0x... --spender 0x... --contract 0x...` |
+| `nfts [address]` | Lists NFTs owned by an address | `alchemy nfts 0x...` |
+| `nfts metadata --contract <addr> --token-id <id>` | Gets NFT metadata by contract/token | `alchemy nfts metadata --contract 0x... --token-id 1` |
+| `nfts contract <address>` | Gets NFT contract metadata | `alchemy nfts contract 0x...` |
+| `transfers [address]` | Gets transfer history (`alchemy_getAssetTransfers`) | `alchemy transfers 0x... --category erc20,erc721` |
+| `prices symbol <symbols>` | Gets current token prices by symbol | `alchemy prices symbol ETH,USDC` |
+| `prices address --addresses <json>` | Gets current token prices by address/network pairs | `alchemy prices address --addresses '[{"network":"eth-mainnet","address":"0x..."}]'` |
+| `prices historical --body <json>` | Gets historical prices | `alchemy prices historical --body '{"symbol":"ETH","startTime":"...","endTime":"..."}'` |
+| `portfolio tokens --body <json>` | Gets token portfolio data | `alchemy portfolio tokens --body '{...}'` |
+| `portfolio token-balances --body <json>` | Gets token balance snapshots | `alchemy portfolio token-balances --body '{...}'` |
+| `portfolio nfts --body <json>` | Gets NFT portfolio data | `alchemy portfolio nfts --body '{...}'` |
+| `portfolio nft-contracts --body <json>` | Gets NFT contract portfolio data | `alchemy portfolio nft-contracts --body '{...}'` |
+| `portfolio transactions --body <json>` | Gets portfolio transaction history | `alchemy portfolio transactions --body '{...}'` |
+| `simulate asset-changes --tx <json>` | Simulates asset changes | `alchemy simulate asset-changes --tx '{"from":"0x...","to":"0x..."}'` |
+| `simulate execution --tx <json>` | Simulates execution traces | `alchemy simulate execution --tx '{"from":"0x...","to":"0x..."}'` |
+| `simulate asset-changes-bundle --txs <json>` | Simulates bundle asset changes | `alchemy simulate asset-changes-bundle --txs '[{...}]'` |
+| `simulate execution-bundle --txs <json>` | Simulates bundle execution traces | `alchemy simulate execution-bundle --txs '[{...}]'` |
+
+### Wallets
+
+| Command | What it does | Example |
+|---|---|---|
+| `wallet generate` | Generates wallet for x402 and saves to config | `alchemy wallet generate` |
+| `wallet import <path>` | Imports wallet key file for x402 | `alchemy wallet import ./private-key.txt` |
+| `wallet address` | Prints configured wallet address | `alchemy wallet address` |
+| `bundler send-user-operation ...` | Sends ERC-4337 user op | `alchemy bundler send-user-operation --user-op '{...}' --entry-point 0x...` |
+| `bundler estimate-user-operation-gas ...` | Estimates ERC-4337 user op gas | `alchemy bundler estimate-user-operation-gas --user-op '{...}' --entry-point 0x...` |
+| `bundler get-user-operation-receipt ...` | Gets ERC-4337 user op receipt | `alchemy bundler get-user-operation-receipt --user-op-hash 0x...` |
+| `gas-manager request-gas-and-paymaster --body <json>` | Requests paymaster data | `alchemy gas-manager request-gas-and-paymaster --body '{...}'` |
+| `gas-manager request-paymaster-token-quote --body <json>` | Gets paymaster token quote | `alchemy gas-manager request-paymaster-token-quote --body '{...}'` |
+| `webhooks list` | Lists Notify webhooks | `alchemy webhooks list --webhook-api-key <key>` |
+| `webhooks create --body <json>` | Creates Notify webhook | `alchemy webhooks create --body '{...}' --webhook-api-key <key>` |
+| `webhooks update --body <json>` | Updates Notify webhook | `alchemy webhooks update --body '{...}' --webhook-api-key <key>` |
+| `webhooks delete <id>` | Deletes Notify webhook | `alchemy webhooks delete <id> --webhook-api-key <key>` |
+
+### Chains
+
+| Command | What it does | Example |
+|---|---|---|
+| `network list` | Lists supported RPC networks | `alchemy network list --configured` |
+| `chains list` | Lists Admin API chain enums | `alchemy chains list` |
+| `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"'` |
+| `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}'` |
+
+### CLI Admin
+
+| Command | What it does | Example |
+|---|---|---|
+| `(no command)` | Starts interactive REPL mode (TTY only) | `alchemy` |
 | `apps list` | Lists apps (supports pagination/filtering) | `alchemy apps list --all` |
 | `apps get <id>` | Gets app details | `alchemy apps get <app-id>` |
 | `apps create` | Creates app | `alchemy apps create --name "My App" --networks eth-mainnet` |
@@ -42,12 +99,7 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 | `apps address-allowlist <id>` | Updates app address allowlist | `alchemy apps address-allowlist <app-id> --addresses 0xabc,0xdef` |
 | `apps origin-allowlist <id>` | Updates app origin allowlist | `alchemy apps origin-allowlist <app-id> --origins https://example.com` |
 | `apps ip-allowlist <id>` | Updates app IP allowlist | `alchemy apps ip-allowlist <app-id> --ips 1.2.3.4,5.6.7.8` |
-| `chains list` | Lists Admin API chain enums | `alchemy chains list` |
-| `network list` | Lists supported RPC networks | `alchemy network list --configured` |
 | `setup status` | Shows setup status + next commands | `alchemy setup status` |
-| `wallet generate` | Generates wallet for x402 and saves to config | `alchemy wallet generate` |
-| `wallet import <path>` | Imports wallet key file for x402 | `alchemy wallet import ./private-key.txt` |
-| `wallet address` | Prints configured wallet address | `alchemy wallet address` |
 | `config set ...` | Sets config values | `alchemy config set api-key <key>` |
 | `config get <key>` | Gets one config value | `alchemy config get network` |
 | `config list` | Lists all config values | `alchemy config list` |
@@ -94,13 +146,26 @@ Additional env vars:
 |---|---|
 | `ALCHEMY_CONFIG` | Custom path to config file |
 | `ALCHEMY_WALLET_KEY` | Wallet private key for x402 auth |
+| `ALCHEMY_WEBHOOK_API_KEY` | Webhook API key for Notify commands |
 
 ### Command-specific flags
 
 | Command | Flags |
 |---|---|
 | `nfts` | `--limit <n>`, `--page-key <key>` |
+| `nfts metadata` | `--contract <address>` (required), `--token-id <id>` (required) |
 | `tokens` | `--page-key <key>` |
+| `tokens allowance` | `--owner <address>` (required), `--spender <address>` (required), `--contract <address>` (required) |
+| `transfers` | `--from-address <address>`, `--to-address <address>`, `--from-block <block>`, `--to-block <block>`, `--category <list>`, `--max-count <n>`, `--page-key <key>` |
+| `prices address` | `--addresses <json>` (required) |
+| `prices historical` | `--body <json>` (required) |
+| `portfolio *` | `--body <json>` (required per subcommand) |
+| `simulate *` | `--tx <json>` or `--txs <json>` (required) |
+| `webhooks *` | `--webhook-api-key <key>` (or `ALCHEMY_WEBHOOK_API_KEY`, `ALCHEMY_NOTIFY_AUTH_TOKEN`, config `webhook-api-key`, or app webhook key) |
+| `bundler send-user-operation` | `--user-op <json>` (required), `--entry-point <address>` (required) |
+| `bundler estimate-user-operation-gas` | `--user-op <json>` (required), `--entry-point <address>` (required), `--state-override <json>` |
+| `bundler get-user-operation-receipt` | `--user-op-hash <hash>` (required) |
+| `gas-manager *` | `--body <json>` (required) |
 | `apps list` | `--cursor <cursor>`, `--limit <n>`, `--all`, `--search <query>`, `--id <appId>` |
 | `apps create` | `--name <name>` (required), `--networks <networks>` (required), `--description <desc>`, `--products <products>`, `--dry-run` |
 | `apps update` | `--name <name>`, `--description <desc>`, `--dry-run` |
@@ -119,6 +184,9 @@ The CLI supports three auth inputs:
 - API key for blockchain queries (`balance`, `tx`, `block`, `nfts`, `tokens`, `rpc`)
 - Access key for Admin API operations (`apps`, `chains`, configured network lookups)
 - x402 wallet key for wallet-authenticated blockchain queries
+
+Notify/webhook commands use a webhook API key with resolution order:
+`--webhook-api-key` -> `ALCHEMY_WEBHOOK_API_KEY` -> `ALCHEMY_NOTIFY_AUTH_TOKEN` -> config `webhook-api-key` -> configured app webhook key.
 
 Get API/access keys at [alchemy.com](https://dashboard.alchemy.com/).
 

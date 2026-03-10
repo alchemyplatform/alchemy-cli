@@ -195,7 +195,7 @@ describe("config command", () => {
     expect(save).toHaveBeenNthCalledWith(2, {
       access_key: "ak_test",
       api_key: "api_2",
-      app: { id: "app_2", name: "Second App", apiKey: "api_2" },
+      app: { id: "app_2", name: "Second App", apiKey: "api_2", webhookApiKey: "wh_2" },
     });
     expect(exitWithError).not.toHaveBeenCalled();
   });

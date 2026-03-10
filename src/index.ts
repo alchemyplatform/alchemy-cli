@@ -18,6 +18,16 @@ import { registerChains } from "./commands/chains.js";
 import { registerApps } from "./commands/apps.js";
 import { registerWallet } from "./commands/wallet.js";
 import { registerSetup } from "./commands/setup.js";
+import { registerTrace } from "./commands/trace.js";
+import { registerDebug } from "./commands/debug.js";
+import { registerTransfers } from "./commands/transfers.js";
+import { registerPrices } from "./commands/prices.js";
+import { registerPortfolio } from "./commands/portfolio.js";
+import { registerSimulate } from "./commands/simulate.js";
+import { registerWebhooks } from "./commands/webhooks.js";
+import { registerBundler } from "./commands/bundler.js";
+import { registerGasManager } from "./commands/gas-manager.js";
+import { registerSolana } from "./commands/solana.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
 import { getSetupStatus, isSetupComplete, shouldRunOnboarding } from "./lib/onboarding.js";
 
@@ -41,6 +51,38 @@ const ROOT_OPTION_GROUPS = [
     matchers: ["--timeout", "--debug", "--no-interactive"],
   },
 ] as const;
+
+const ROOT_COMMAND_PILLARS = [
+  {
+    label: "Node",
+    commands: ["balance", "tx", "block", "rpc", "trace", "debug"],
+  },
+  {
+    label: "Data",
+    commands: ["tokens", "nfts", "transfers", "prices", "portfolio", "simulate"],
+  },
+  {
+    label: "Wallets",
+    commands: ["wallet", "bundler", "gas-manager", "webhooks"],
+  },
+  {
+    label: "Chains",
+    commands: ["network", "chains", "solana"],
+  },
+  {
+    label: "Admin",
+    commands: ["apps", "config", "setup", "version", "help"],
+  },
+] as const;
+
+function formatCommandSignature(sub: Command): string {
+  const args = sub.registeredArguments.map((arg) => {
+    const variadic = (arg as { variadic?: boolean }).variadic === true;
+    const name = variadic ? `${arg.name()}...` : arg.name();
+    return arg.required ? `<${name}>` : `[${name}]`;
+  });
+  return [sub.name(), ...args].join(" ");
+}
 
 function rootOptionGroupLabel(flags: string): string {
   for (const group of ROOT_OPTION_GROUPS) {
@@ -142,10 +184,42 @@ program
       let section: "usage" | "options" | "commands" | "arguments" | null = null;
       const emittedOptionGroups = new Set<string>();
 
-      const out = lines.map((line) => {
+      const out = lines
+        .map((line): string | null => {
         const sectionMatch = line.match(/^(Usage|Commands|Options|Arguments):$/);
         if (sectionMatch) {
           const title = sectionMatch[1];
+          if (title === "Commands" && cmd === program) {
+            section = "commands";
+            const byName = new Map(
+              cmd.commands.map((sub) => [sub.name(), sub]),
+            );
+            const groupedRows = ROOT_COMMAND_PILLARS.map((pillar) => {
+              const rows = pillar.commands
+                .map((name) => byName.get(name))
+                .filter((sub): sub is Command => Boolean(sub))
+                .map((sub) => ({
+                  left: formatCommandSignature(sub),
+                  right: sub.description(),
+                }));
+              return { label: pillar.label, rows };
+            }).filter((group) => group.rows.length > 0);
+
+            const maxLeft = Math.max(
+              0,
+              ...groupedRows.flatMap((group) => group.rows.map((row) => row.left.length)),
+            );
+            const groupText = groupedRows.map((group) => {
+              const header = `  ${hBold(group.label)}${hDim(":")}`;
+              const rows = group.rows.map((row) => {
+                const gap = " ".repeat(Math.max(2, maxLeft - row.left.length + 2));
+                return `    ${hBrand(row.left)}${gap}${hDim(row.right)}`;
+              }).join("\n");
+              return `${header}\n${rows}`;
+            }).join("\n\n");
+
+            return `${hBrand("◆")} ${hBold("Commands")}\n  ${hDim("────────────────────────────────────")}\n${groupText}`;
+          }
           section = title.toLowerCase() as typeof section;
           return `${hBrand("◆")} ${hBold(title)}\n  ${hDim("────────────────────────────────────")}`;
         }
@@ -154,6 +228,11 @@ program
         if (line.trim() === "") {
           section = null;
           return line;
+        }
+
+        // Root help replaces "Commands" with grouped command pillars.
+        if (section === "commands" && cmd === program) {
+          return null;
         }
 
         // In options/commands tables, style only left and right columns.
@@ -176,7 +255,8 @@ program
         }
 
         return line;
-      });
+      })
+        .filter((line): line is string => line !== null);
 
       return out.join("\n") + "\n";
     },
@@ -199,6 +279,10 @@ program
       `  ${hBrand("8")}     Admin API error`,
       `  ${hBrand("9")}     Payment required`,
       `  ${hBrand("130")}   Interrupted (SIGINT)`,
+      "",
+      `${hBrand("◆")} ${hBold("Resources")}`,
+      `  ${hDim("────────────────────────────────────")}`,
+      `  ${hDim("Docs:")} ${hBrand("https://www.alchemy.com/docs")}`,
     ].join("\n");
   })
   .hook("preAction", () => {
@@ -246,18 +330,37 @@ program
     program.help();
   });
 
-registerConfig(program);
+// Node
 registerRPC(program);
 registerBalance(program);
 registerTx(program);
 registerBlock(program);
-registerNFTs(program);
+registerTrace(program);
+registerDebug(program);
+
+// Data
 registerTokens(program);
+registerNFTs(program);
+registerTransfers(program);
+registerPrices(program);
+registerPortfolio(program);
+registerSimulate(program);
+
+// Wallets
+registerWallet(program);
+registerBundler(program);
+registerGasManager(program);
+registerWebhooks(program);
+
+// Chains
 registerNetwork(program);
 registerChains(program);
+
+// Ops / Admin
 registerApps(program);
-registerWallet(program);
 registerSetup(program);
+registerConfig(program);
+registerSolana(program);
 registerVersion(program);
 program
   .command("help [command...]")
