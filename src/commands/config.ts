@@ -2,9 +2,8 @@ import { Command } from "commander";
 import * as config from "../lib/config.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
-import { errNotFound, errAccessKeyRequired, errInvalidArgs } from "../lib/errors.js";
+import { errNotFound, errAccessKeyRequired, errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
-import { exitWithError } from "../index.js";
 import { green, dim, yellow, withSpinner, printKeyValueBox, maskIf } from "../lib/ui.js";
 import {
   promptAutocomplete,
@@ -24,7 +23,7 @@ export async function saveAppWithPrompt(app: App): Promise<boolean> {
   const updated: config.Config = {
     ...cfg,
     api_key: app.apiKey,
-    app: { id: app.id, name: app.name, apiKey: app.apiKey },
+    app: { id: app.id, name: app.name, apiKey: app.apiKey, webhookApiKey: app.webhookApiKey },
   };
 
   // If user has a manually-set api-key, ask whether to replace it
@@ -229,6 +228,19 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
+    .command("webhook-api-key <key>")
+    .description("Set the Alchemy webhook API key for Notify operations")
+    .action((key: string) => {
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, webhook_api_key: key });
+        printHuman(`${green("✓")} Set webhook-api-key\n`, { key: "webhook-api-key", status: "set" });
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  setCmd
     .command("app [app-id]")
     .description("Select the default app (interactive) or set by ID")
     .action(async (appId?: string) => {
@@ -250,7 +262,7 @@ export function registerConfig(program: Command) {
           const updated: config.Config = {
             ...cfg,
             api_key: app.apiKey,
-            app: { id: app.id, name: app.name, apiKey: app.apiKey },
+            app: { id: app.id, name: app.name, apiKey: app.apiKey, webhookApiKey: app.webhookApiKey },
           };
           config.save(updated);
           printHuman(

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { load } from "./config.js";
+import type { Config } from "./config.js";
 import type { AlchemyClient } from "./client-interface.js";
 import { Client } from "./client.js";
 import { X402Client } from "./x402-client.js";
@@ -8,40 +9,40 @@ import { AdminClient } from "./admin-client.js";
 import { errAppRequired, errAuthRequired, errAccessKeyRequired, errWalletKeyRequired } from "./errors.js";
 import { debug } from "./output.js";
 
-export function resolveAPIKey(program: Command): string | undefined {
+export function resolveAPIKey(program: Command, cfg?: Config): string | undefined {
   const opts = program.opts();
   if (opts.apiKey) return opts.apiKey;
   if (process.env.ALCHEMY_API_KEY) return process.env.ALCHEMY_API_KEY;
-  const cfg = load();
-  if (cfg.api_key) return cfg.api_key;
+  const config = cfg ?? load();
+  if (config.api_key) return config.api_key;
   // Fallback: use the API key from the configured app
-  if (cfg.app?.apiKey) return cfg.app.apiKey;
+  if (config.app?.apiKey) return config.app.apiKey;
   return undefined;
 }
 
-export function resolveAccessKey(program: Command): string | undefined {
+export function resolveAccessKey(program: Command, cfg?: Config): string | undefined {
   const opts = program.opts();
   if (opts.accessKey) return opts.accessKey;
   if (process.env.ALCHEMY_ACCESS_KEY) return process.env.ALCHEMY_ACCESS_KEY;
-  const cfg = load();
-  if (cfg.access_key) return cfg.access_key;
+  const config = cfg ?? load();
+  if (config.access_key) return config.access_key;
   return undefined;
 }
 
-export function resolveNetwork(program: Command): string {
+export function resolveNetwork(program: Command, cfg?: Config): string {
   const opts = program.opts();
   if (opts.network) return opts.network;
   if (process.env.ALCHEMY_NETWORK) return process.env.ALCHEMY_NETWORK;
-  const cfg = load();
-  if (cfg.network) return cfg.network;
+  const config = cfg ?? load();
+  if (config.network) return config.network;
   return "eth-mainnet";
 }
 
-export function resolveAppId(program: Command): string | undefined {
+export function resolveAppId(program: Command, cfg?: Config): string | undefined {
   const opts = program.opts();
   if (opts.appId) return opts.appId;
-  const cfg = load();
-  if (cfg.app?.id) return cfg.app.id;
+  const config = cfg ?? load();
+  if (config.app?.id) return config.app.id;
   return undefined;
 }
 
@@ -51,14 +52,14 @@ export function adminClientFromFlags(program: Command): AdminClient {
   return new AdminClient(accessKey);
 }
 
-export function resolveX402(program: Command): boolean {
+export function resolveX402(program: Command, cfg?: Config): boolean {
   const opts = program.opts();
   if (opts.x402) return true;
-  const cfg = load();
-  return cfg.x402 === true;
+  const config = cfg ?? load();
+  return config.x402 === true;
 }
 
-export function resolveWalletKey(program: Command): string | undefined {
+export function resolveWalletKey(program: Command, cfg?: Config): string | undefined {
   const opts = program.opts();
 
   // 1. --wallet-key-file flag
@@ -72,25 +73,26 @@ export function resolveWalletKey(program: Command): string | undefined {
   }
 
   // 3. Config wallet_key_file
-  const cfg = load();
-  if (cfg.wallet_key_file) {
-    return readFileSync(cfg.wallet_key_file, "utf-8").trim();
+  const config = cfg ?? load();
+  if (config.wallet_key_file) {
+    return readFileSync(config.wallet_key_file, "utf-8").trim();
   }
 
   return undefined;
 }
 
 export function clientFromFlags(program: Command): AlchemyClient {
-  const network = resolveNetwork(program);
+  const cfg = load();
+  const network = resolveNetwork(program, cfg);
   debug(`using network=${network}`);
 
-  if (resolveX402(program)) {
-    const walletKey = resolveWalletKey(program);
+  if (resolveX402(program, cfg)) {
+    const walletKey = resolveWalletKey(program, cfg);
     if (!walletKey) throw errWalletKeyRequired();
     return new X402Client(walletKey, network);
   }
 
-  const apiKey = resolveAPIKey(program);
+  const apiKey = resolveAPIKey(program, cfg);
   if (!apiKey) throw errAuthRequired();
   return new Client(apiKey, network);
 }

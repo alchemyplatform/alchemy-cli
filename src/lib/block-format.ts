@@ -36,6 +36,7 @@ export function formatBlockTimestamp(value: unknown): string | undefined {
 export function formatGasSummary(
   gasUsed: unknown,
   gasLimit: unknown,
+  options?: { colored?: boolean },
 ): string | undefined {
   const used = parseHexQuantity(gasUsed);
   const limit = parseHexQuantity(gasLimit);
@@ -47,5 +48,7 @@ export function formatGasSummary(
 
   const bps = (used * 10_000n) / limit;
   const percent = Number(bps) / 100;
-  return `${usedFormatted} / ${limitFormatted} (${percent.toFixed(2)}%)`;
+  const percentText = `${percent.toFixed(2)}%`;
+  const percentDisplay = options?.colored ? dim(percentText) : percentText;
+  return `${usedFormatted} / ${limitFormatted} (${percentDisplay})`;
 }

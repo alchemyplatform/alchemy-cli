@@ -3,11 +3,9 @@ import {
   errNotFound,
   errRateLimited,
   errAdminAPI,
-  errNetwork,
   errInvalidArgs,
 } from "./errors.js";
-import { timeout as globalTimeout } from "./output.js";
-import { isLocalhost, parseBaseURLOverride } from "./client-utils.js";
+import { isLocalhost, parseBaseURLOverride, fetchWithTimeout } from "./client-utils.js";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -119,25 +117,16 @@ export class AdminClient {
   ): Promise<T> {
     const url = `${this.baseURL()}${path}`;
     this.assertSafeRequestTarget(url);
-    let resp: Response;
-    try {
-      resp = await fetch(url, {
-        method,
-        redirect: "error",
-        headers: {
-          Authorization: `Bearer ${this.accessKey}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        ...(body !== undefined && { body: JSON.stringify(body) }),
-        ...(globalTimeout && { signal: AbortSignal.timeout(globalTimeout) }),
-      });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "TimeoutError") {
-        throw errNetwork(`Request timed out after ${globalTimeout}ms`);
-      }
-      throw errNetwork((err as Error).message);
-    }
+    const resp = await fetchWithTimeout(url, {
+      method,
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${this.accessKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      ...(body !== undefined && { body: JSON.stringify(body) }),
+    });
 
     if (resp.status === 401 || resp.status === 403) throw errInvalidAccessKey();
     if (resp.status === 404) {

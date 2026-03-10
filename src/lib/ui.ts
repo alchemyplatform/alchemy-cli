@@ -1,5 +1,5 @@
 import Table from "cli-table3";
-import { isJSONMode, isRevealMode, quiet } from "./output.js";
+import { isJSONMode, quiet } from "./output.js";
 import { esc, rgb } from "./colors.js";
 import { runWithSpinner } from "./terminal-ui.js";
 
@@ -31,16 +31,8 @@ export const bold = wrap(ansi.bold);
 export const yellow = wrap(ansi.yellow);
 export const brand = wrap(ansi.brand);
 
-// ── Secret masking ──────────────────────────────────────────────────
-
-export function maskSecret(value: string): string {
-  if (value.length <= 8) return "\u2022".repeat(value.length);
-  return value.slice(0, 4) + "\u2022".repeat(value.length - 8) + value.slice(-4);
-}
-
-export function maskIf(value: string): string {
-  return isRevealMode() ? value : maskSecret(value);
-}
+// ── Secret masking (re-exported from secrets.ts) ────────────────────
+export { maskSecret, maskIf } from "./secrets.js";
 
 let suppressBrandedHelp = false;
 

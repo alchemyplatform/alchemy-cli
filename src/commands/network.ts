@@ -7,7 +7,7 @@ import {
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { dim, green, printTable, withSpinner } from "../lib/ui.js";
 import { getRPCNetworks } from "../lib/networks.js";
-import { exitWithError } from "../index.js";
+import { exitWithError } from "../lib/errors.js";
 
 export function registerNetwork(program: Command) {
   const cmd = program.command("network").description("Manage networks");

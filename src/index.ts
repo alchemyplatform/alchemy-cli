@@ -1,12 +1,7 @@
 import { Command, Help } from "commander";
-import { CLIError, ErrorCode, EXIT_CODES, errSetupRequired } from "./lib/errors.js";
-import {
-  setFlags,
-  printError,
-  isJSONMode,
-  quiet,
-  formatCommanderError,
-} from "./lib/output.js";
+import { errSetupRequired, exitWithError, setReplMode } from "./lib/errors.js";
+import { setFlags, isJSONMode, quiet } from "./lib/output.js";
+import { formatCommanderError } from "./lib/error-format.js";
 import { load as loadConfig } from "./lib/config.js";
 import { brandedHelp } from "./lib/ui.js";
 import { noColor, identity, esc } from "./lib/colors.js";
@@ -23,6 +18,16 @@ import { registerChains } from "./commands/chains.js";
 import { registerApps } from "./commands/apps.js";
 import { registerWallet } from "./commands/wallet.js";
 import { registerSetup } from "./commands/setup.js";
+import { registerTrace } from "./commands/trace.js";
+import { registerDebug } from "./commands/debug.js";
+import { registerTransfers } from "./commands/transfers.js";
+import { registerPrices } from "./commands/prices.js";
+import { registerPortfolio } from "./commands/portfolio.js";
+import { registerSimulate } from "./commands/simulate.js";
+import { registerWebhooks } from "./commands/webhooks.js";
+import { registerBundler } from "./commands/bundler.js";
+import { registerGasManager } from "./commands/gas-manager.js";
+import { registerSolana } from "./commands/solana.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
 import { getSetupStatus, isSetupComplete, shouldRunOnboarding } from "./lib/onboarding.js";
 
@@ -32,6 +37,61 @@ const hBrand = noColor
   : (s: string) => `\x1b[38;2;54;63;249m${s}\x1b[39m`;
 const hBold = esc("1");
 const hDim = esc("2");
+const ROOT_OPTION_GROUPS = [
+  {
+    label: "Auth & Network",
+    matchers: ["--api-key", "--access-key", "--network", "--x402", "--wallet-key-file"],
+  },
+  {
+    label: "Output & Formatting",
+    matchers: ["--json", "--quiet", "--verbose", "--no-color", "--reveal"],
+  },
+  {
+    label: "Runtime & Behavior",
+    matchers: ["--timeout", "--debug", "--no-interactive"],
+  },
+] as const;
+
+const ROOT_COMMAND_PILLARS = [
+  {
+    label: "Node",
+    commands: ["balance", "tx", "block", "rpc", "trace", "debug"],
+  },
+  {
+    label: "Data",
+    commands: ["tokens", "nfts", "transfers", "prices", "portfolio", "simulate"],
+  },
+  {
+    label: "Wallets",
+    commands: ["wallet", "bundler", "gas-manager", "webhooks"],
+  },
+  {
+    label: "Chains",
+    commands: ["network", "chains", "solana"],
+  },
+  {
+    label: "Admin",
+    commands: ["apps", "config", "setup", "version", "help"],
+  },
+] as const;
+
+function formatCommandSignature(sub: Command): string {
+  const args = sub.registeredArguments.map((arg) => {
+    const variadic = (arg as { variadic?: boolean }).variadic === true;
+    const name = variadic ? `${arg.name()}...` : arg.name();
+    return arg.required ? `<${name}>` : `[${name}]`;
+  });
+  return [sub.name(), ...args].join(" ");
+}
+
+function rootOptionGroupLabel(flags: string): string {
+  for (const group of ROOT_OPTION_GROUPS) {
+    if (group.matchers.some((matcher) => flags.includes(matcher))) {
+      return group.label;
+    }
+  }
+  return "General";
+}
 
 const program = new Command();
 const argvTokens = process.argv.slice(2);
@@ -66,15 +126,15 @@ program
     "-n, --network <network>",
     "Target network (default: eth-mainnet) (env: ALCHEMY_NETWORK)",
   )
+  .option("--x402", "Use x402 wallet-based gateway auth")
+  .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
   .option("--json", "Force JSON output")
   .option("-q, --quiet", "Suppress non-essential output")
   .option("-v, --verbose", "Enable verbose output")
-  .option("--debug", "Enable debug diagnostics")
-  .option("--reveal", "Show secrets in plain text (TTY only)")
   .option("--no-color", "Disable color output")
+  .option("--reveal", "Show secrets in plain text (TTY only)")
   .option("--timeout <ms>", "Request timeout in milliseconds", parseInt)
-  .option("--x402", "Use x402 wallet-based gateway auth")
-  .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
+  .option("--debug", "Enable debug diagnostics")
   .option("--no-interactive", "Disable REPL and prompt-driven interactions")
   .addHelpCommand(false)
   .configureOutput({
@@ -122,11 +182,44 @@ program
 
       const lines = defaultHelp.split("\n");
       let section: "usage" | "options" | "commands" | "arguments" | null = null;
+      const emittedOptionGroups = new Set<string>();
 
-      const out = lines.map((line) => {
+      const out = lines
+        .map((line): string | null => {
         const sectionMatch = line.match(/^(Usage|Commands|Options|Arguments):$/);
         if (sectionMatch) {
           const title = sectionMatch[1];
+          if (title === "Commands" && cmd === program) {
+            section = "commands";
+            const byName = new Map(
+              cmd.commands.map((sub) => [sub.name(), sub]),
+            );
+            const groupedRows = ROOT_COMMAND_PILLARS.map((pillar) => {
+              const rows = pillar.commands
+                .map((name) => byName.get(name))
+                .filter((sub): sub is Command => Boolean(sub))
+                .map((sub) => ({
+                  left: formatCommandSignature(sub),
+                  right: sub.description(),
+                }));
+              return { label: pillar.label, rows };
+            }).filter((group) => group.rows.length > 0);
+
+            const maxLeft = Math.max(
+              0,
+              ...groupedRows.flatMap((group) => group.rows.map((row) => row.left.length)),
+            );
+            const groupText = groupedRows.map((group) => {
+              const header = `  ${hBold(group.label)}${hDim(":")}`;
+              const rows = group.rows.map((row) => {
+                const gap = " ".repeat(Math.max(2, maxLeft - row.left.length + 2));
+                return `    ${hBrand(row.left)}${gap}${hDim(row.right)}`;
+              }).join("\n");
+              return `${header}\n${rows}`;
+            }).join("\n\n");
+
+            return `${hBrand("◆")} ${hBold("Commands")}\n  ${hDim("────────────────────────────────────")}\n${groupText}`;
+          }
           section = title.toLowerCase() as typeof section;
           return `${hBrand("◆")} ${hBold(title)}\n  ${hDim("────────────────────────────────────")}`;
         }
@@ -137,17 +230,33 @@ program
           return line;
         }
 
+        // Root help replaces "Commands" with grouped command pillars.
+        if (section === "commands" && cmd === program) {
+          return null;
+        }
+
         // In options/commands tables, style only left and right columns.
         if (section === "options" || section === "commands") {
           const entryMatch = line.match(/^(\s+)(.+?)(\s{2,})(.+)$/);
           if (entryMatch) {
             const [, indent, left, gap, right] = entryMatch;
-            return `${indent}${hBrand(left)}${gap}${hDim(right)}`;
+            const styledLine = `${indent}${hBrand(left)}${gap}${hDim(right)}`;
+            if (section === "options" && cmd === program) {
+              const groupLabel = rootOptionGroupLabel(left);
+              if (!emittedOptionGroups.has(groupLabel)) {
+                emittedOptionGroups.add(groupLabel);
+                const needsLeadingGap = emittedOptionGroups.size > 1;
+                const groupHeader = `${indent}${hBold(groupLabel)}${hDim(":")}`;
+                return `${needsLeadingGap ? "\n" : ""}${groupHeader}\n${styledLine}`;
+              }
+            }
+            return styledLine;
           }
         }
 
         return line;
-      });
+      })
+        .filter((line): line is string => line !== null);
 
       return out.join("\n") + "\n";
     },
@@ -170,6 +279,10 @@ program
       `  ${hBrand("8")}     Admin API error`,
       `  ${hBrand("9")}     Payment required`,
       `  ${hBrand("130")}   Interrupted (SIGINT)`,
+      "",
+      `${hBrand("◆")} ${hBold("Resources")}`,
+      `  ${hDim("────────────────────────────────────")}`,
+      `  ${hDim("Docs:")} ${hBrand("https://www.alchemy.com/docs")}`,
     ].join("\n");
   })
   .hook("preAction", () => {
@@ -217,18 +330,37 @@ program
     program.help();
   });
 
-registerConfig(program);
+// Node
 registerRPC(program);
 registerBalance(program);
 registerTx(program);
 registerBlock(program);
-registerNFTs(program);
+registerTrace(program);
+registerDebug(program);
+
+// Data
 registerTokens(program);
+registerNFTs(program);
+registerTransfers(program);
+registerPrices(program);
+registerPortfolio(program);
+registerSimulate(program);
+
+// Wallets
+registerWallet(program);
+registerBundler(program);
+registerGasManager(program);
+registerWebhooks(program);
+
+// Chains
 registerNetwork(program);
 registerChains(program);
+
+// Ops / Admin
 registerApps(program);
-registerWallet(program);
 registerSetup(program);
+registerConfig(program);
+registerSolana(program);
 registerVersion(program);
 program
   .command("help [command...]")
@@ -247,30 +379,6 @@ program
 
     target.outputHelp();
   });
-
-let replMode = false;
-
-export function setReplMode(enabled: boolean): void {
-  replMode = enabled;
-}
-
-export function exitWithError(err: unknown): never {
-  const cliErr =
-    err instanceof CLIError
-      ? err
-      : new CLIError(
-          ErrorCode.INTERNAL_ERROR,
-          err instanceof Error ? err.message : String(err),
-        );
-  printError(cliErr);
-
-  if (replMode) {
-    // In REPL mode, throw instead of exiting so the REPL can catch and continue
-    throw cliErr;
-  }
-
-  process.exit(EXIT_CODES[cliErr.code]);
-}
 
 process.on("unhandledRejection", (err) => exitWithError(err));
 process.on("uncaughtException", (err) => exitWithError(err));

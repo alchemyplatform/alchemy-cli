@@ -2,17 +2,19 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { z } from "zod";
-import { maskIf } from "./ui.js";
+import { maskIf } from "./secrets.js";
 
 export interface AppConfig {
   id: string;
   name: string;
   apiKey: string;
+  webhookApiKey?: string;
 }
 
 export interface Config {
   api_key?: string;
   access_key?: string;
+  webhook_api_key?: string;
   app?: AppConfig;
   network?: string;
   verbose?: boolean;
@@ -26,6 +28,8 @@ export const KEY_MAP: Record<string, keyof Config> = {
   api_key: "api_key",
   "access-key": "access_key",
   access_key: "access_key",
+  "webhook-api-key": "webhook_api_key",
+  webhook_api_key: "webhook_api_key",
   network: "network",
   verbose: "verbose",
   "wallet-key-file": "wallet_key_file",
@@ -54,6 +58,7 @@ const appConfigSchema = z
     id: z.string().regex(SAFE_ID_RE),
     name: safeTextSchema(MAX_APP_NAME_LEN),
     apiKey: safeTextSchema(MAX_SECRET_LEN),
+    webhookApiKey: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
   })
   .strip();
 
@@ -63,6 +68,7 @@ const configSchema = z
   .object({
     api_key: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     access_key: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    webhook_api_key: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     app: appConfigSchema.optional().catch(undefined),
     network: z.string().regex(SAFE_NETWORK_RE).optional().catch(undefined),
     verbose: z.boolean().optional().catch(undefined),
@@ -146,13 +152,22 @@ export function set(
 }
 
 export function validKeys(): string[] {
-  return ["api-key", "access-key", "network", "verbose", "wallet-key-file", "x402"];
+  return [
+    "api-key",
+    "access-key",
+    "webhook-api-key",
+    "network",
+    "verbose",
+    "wallet-key-file",
+    "x402",
+  ];
 }
 
 export function toMap(cfg: Config): Record<string, string> {
   const m: Record<string, string> = {};
   if (cfg.api_key) m["api-key"] = maskIf(cfg.api_key);
   if (cfg.access_key) m["access-key"] = maskIf(cfg.access_key);
+  if (cfg.webhook_api_key) m["webhook-api-key"] = maskIf(cfg.webhook_api_key);
   if (cfg.app) m["app"] = `${cfg.app.name} (${cfg.app.id})`;
   if (cfg.network) m["network"] = cfg.network;
   if (cfg.verbose !== undefined) m["verbose"] = String(cfg.verbose);
