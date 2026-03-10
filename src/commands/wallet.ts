@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { randomUUID } from "node:crypto";
 import { Command } from "commander";
 import { generateWallet, getWalletAddress } from "@alchemy/x402";
 import * as config from "../lib/config.js";
@@ -9,16 +10,37 @@ import { exitWithError } from "../index.js";
 import { green, printKeyValueBox } from "../lib/ui.js";
 import { errInvalidArgs, errWalletKeyRequired } from "../lib/errors.js";
 
-function walletKeyPath(): string {
-  return join(config.configDir(), "wallet-key.txt");
+const WALLET_KEYS_DIR = "wallet-keys";
+const UUID_SLICE_LEN = 8;
+const ADDRESS_SLICE_LEN = 12;
+
+function walletKeysDirPath(): string {
+  return join(config.configDir(), WALLET_KEYS_DIR);
+}
+
+function walletKeyPath(address: string): string {
+  const addr = address
+    .trim()
+    .toLowerCase()
+    .replace(/^0x/, "")
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, ADDRESS_SLICE_LEN);
+  const addressTag = addr || "unknown";
+  const fileName = `wallet-key-${addressTag}-${Date.now()}-${randomUUID().slice(0, UUID_SLICE_LEN)}.txt`;
+  return join(walletKeysDirPath(), fileName);
+}
+
+function persistWalletKey(privateKey: string, address: string): string {
+  const keyPath = walletKeyPath(address);
+  mkdirSync(dirname(keyPath), { recursive: true, mode: 0o755 });
+  // Use exclusive write to guarantee we never replace an existing key file.
+  writeFileSync(keyPath, privateKey + "\n", { mode: 0o600, flag: "wx" });
+  return keyPath;
 }
 
 export function generateAndPersistWallet(): { address: string; keyFile: string } {
   const wallet = generateWallet();
-  const keyPath = walletKeyPath();
-
-  mkdirSync(dirname(keyPath), { recursive: true, mode: 0o755 });
-  writeFileSync(keyPath, wallet.privateKey + "\n", { mode: 0o600 });
+  const keyPath = persistWalletKey(wallet.privateKey, wallet.address);
 
   const cfg = config.load();
   config.save({ ...cfg, wallet_key_file: keyPath, wallet_address: wallet.address });
@@ -34,9 +56,7 @@ export function importAndPersistWallet(path: string): { address: string; keyFile
   }
 
   const address = getWalletAddress(key);
-  const keyPath = walletKeyPath();
-  mkdirSync(dirname(keyPath), { recursive: true, mode: 0o755 });
-  writeFileSync(keyPath, key + "\n", { mode: 0o600 });
+  const keyPath = persistWalletKey(key, address);
 
   const cfg = config.load();
   config.save({ ...cfg, wallet_key_file: keyPath, wallet_address: address });

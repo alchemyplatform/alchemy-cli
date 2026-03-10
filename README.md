@@ -167,6 +167,8 @@ alchemy balance 0x... --x402
 alchemy config set x402 true
 ```
 
+Generated/imported wallets are stored as unique key files under `~/.config/alchemy/wallet-keys/` so creating another wallet does not overwrite prior private keys.
+
 You can also provide wallet key directly:
 
 ```bash

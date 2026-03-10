@@ -135,14 +135,18 @@ describe("additional command coverage", () => {
       from: "node",
     });
 
-    expect(printJSON).toHaveBeenCalledWith({
-      address: "0xaddress",
-      keyFile: `${tempHome}/.config/alchemy/wallet-key.txt`,
-    });
+    const printedWallet = printJSON.mock.calls[0]?.[0] as {
+      address: string;
+      keyFile: string;
+    };
+    expect(printedWallet).toMatchObject({ address: "0xaddress" });
+    expect(printedWallet.keyFile).toMatch(
+      new RegExp(`${tempHome}/\\.config/alchemy/wallet-keys/wallet-key-[a-z0-9]{1,12}-\\d+-[a-f0-9]{8}\\.txt$`),
+    );
     expect(exitWithError).not.toHaveBeenCalled();
 
     const configPath = `${tempHome}/.config/alchemy/config.json`;
-    const keyPath = `${tempHome}/.config/alchemy/wallet-key.txt`;
+    const keyPath = printedWallet.keyFile;
     expect(existsSync(configPath)).toBe(true);
     expect(existsSync(keyPath)).toBe(true);
     const configJSON = JSON.parse(readFileSync(configPath, "utf-8")) as {
