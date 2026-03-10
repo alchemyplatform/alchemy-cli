@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
 import { isJSONMode, debug } from "../lib/output.js";
-import { exitWithError } from "../index.js";
+import { exitWithError } from "../lib/errors.js";
 import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 
 export function registerRPC(program: Command) {

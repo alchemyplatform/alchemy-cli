@@ -1,0 +1,162 @@
+import { CLIError } from "./errors.js";
+import { forceColor, noColor } from "./colors.js";
+import { redactSensitiveText, SENSITIVE_ERROR_CODES } from "./redact.js";
+import { isJSONMode } from "./output.js";
+
+const ansi = {
+  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
+  boldRed: (s: string) => `\x1b[1;31m${s}\x1b[0m`,
+  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
+};
+
+function toSafeErrorJSON(err: CLIError): Record<string, unknown> {
+  const payload = err.toJSON() as {
+    error?: {
+      code?: string;
+      message?: string;
+      hint?: string;
+      details?: string;
+      data?: unknown;
+      retryable?: boolean;
+    };
+  };
+  const error = payload.error ?? {};
+  const code = error.code ?? err.code;
+  const safeError: Record<string, unknown> = {
+    ...(code && { code }),
+    ...(typeof error.message === "string" && { message: redactSensitiveText(error.message) }),
+    ...(typeof error.hint === "string" && { hint: redactSensitiveText(error.hint) }),
+    ...(typeof error.retryable === "boolean" && { retryable: error.retryable }),
+  };
+  if (typeof error.details === "string" && !SENSITIVE_ERROR_CODES.has(code)) {
+    safeError.details = redactSensitiveText(error.details);
+  }
+  if (error.data !== undefined) {
+    safeError.data = error.data;
+  }
+  return {
+    error: safeError,
+  };
+}
+
+function wrapWithPrefix(text: string, prefix: string, width: number): string[] {
+  const safeWidth = Math.max(20, width - prefix.length);
+  const words = text.trim().split(/\s+/);
+  if (words.length === 0 || (words.length === 1 && words[0] === "")) return [prefix];
+
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (current.length === 0) {
+      current = word;
+      continue;
+    }
+    if (current.length + 1 + word.length <= safeWidth) {
+      current += ` ${word}`;
+    } else {
+      lines.push(`${prefix}${current}`);
+      current = word;
+    }
+  }
+
+  if (current.length > 0) {
+    lines.push(`${prefix}${current}`);
+  }
+
+  return lines;
+}
+
+export function supportsStderrStyling(): boolean {
+  return (process.stderr.isTTY || forceColor) && !noColor;
+}
+
+export function printError(err: CLIError): void {
+  if (isJSONMode()) {
+    console.error(JSON.stringify(toSafeErrorJSON(err), null, 2));
+  } else {
+    const width = process.stderr.columns ?? 100;
+    const safeMessage = redactSensitiveText(err.message);
+    const safeHint = err.hint ? redactSensitiveText(err.hint) : undefined;
+    const safeDetails = err.details ? redactSensitiveText(err.details) : undefined;
+    const detailLines = safeDetails
+      ? safeDetails
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+      : [];
+    const lines: string[] = [`  ✗ ${err.code}`, `  ${"─".repeat(40)}`];
+    lines.push(...wrapWithPrefix(safeMessage, "  - ", width));
+    if (detailLines.length > 0) {
+      lines.push("");
+      lines.push("  - Provider:");
+      for (const line of detailLines) {
+        lines.push(...wrapWithPrefix(line, "    - ", width));
+      }
+    }
+    if (safeHint) {
+      lines.push("");
+      lines.push(...wrapWithPrefix(`Hint: ${safeHint}`, "  - ", width));
+    }
+
+    if (supportsStderrStyling()) {
+      const styled = [
+        `  ${ansi.red("✗")} ${ansi.boldRed(err.code)}`,
+        `  ${ansi.dim("─".repeat(40))}`,
+        ...wrapWithPrefix(safeMessage, "  - ", width).map((line) => ansi.red(line)),
+      ];
+      if (detailLines.length > 0) {
+        styled.push("");
+        styled.push(`  ${ansi.dim("- Provider:")}`);
+        for (const line of detailLines) {
+          styled.push(...wrapWithPrefix(line, "    - ", width).map((ln) => ansi.dim(ln)));
+        }
+      }
+      if (safeHint) {
+        styled.push("");
+        styled.push(
+          ...wrapWithPrefix(`Hint: ${safeHint}`, "  - ", width).map((line) => ansi.dim(line)),
+        );
+      }
+      console.error(`\n${styled.join("\n")}\n`);
+      return;
+    }
+
+    console.error(`\n${lines.join("\n")}\n`);
+  }
+}
+
+export function formatCommanderError(message: string): string {
+  // Commander errors fire before preAction, so forceJSON isn't set yet.
+  // Check non-TTY and --json directly.
+  const jsonMode = !process.stdout.isTTY || process.argv.includes("--json");
+
+  const lines = message
+    .trimEnd()
+    .split("\n")
+    .filter((line) => line.trim() !== "");
+  if (lines.length === 0) return message;
+
+  const [first, ...rest] = lines;
+  const detail = first.replace(/^error:\s*/i, "").trim();
+
+  if (jsonMode) {
+    const err: Record<string, unknown> = {
+      error: {
+        code: "INVALID_ARGS",
+        message: detail,
+        ...(rest.length > 0 && { hint: rest.map((l) => l.trim()).join(" ") }),
+      },
+    };
+    return JSON.stringify(err, null, 2) + "\n";
+  }
+
+  if (!supportsStderrStyling()) return message;
+
+  const styled = [
+    `  ${ansi.red("✗")} ${ansi.boldRed("Error")}`,
+    `  ${ansi.red(detail)}`,
+    ...rest.map((line) => `  ${ansi.dim(line)}`),
+  ];
+  return `\n${styled.join("\n")}\n`;
+}

@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { z } from "zod";
-import { maskIf } from "./ui.js";
+import { maskIf } from "./secrets.js";
 
 export interface AppConfig {
   id: string;

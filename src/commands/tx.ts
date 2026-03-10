@@ -1,8 +1,7 @@
 import { Command } from "commander";
 import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
-import { errNotFound } from "../lib/errors.js";
+import { errNotFound, exitWithError } from "../lib/errors.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
-import { exitWithError } from "../index.js";
 import { validateTxHash, readStdinArg } from "../lib/validators.js";
 import {
   green,

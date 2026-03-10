@@ -6,9 +6,8 @@ import { generateWallet, getWalletAddress } from "@alchemy/x402";
 import * as config from "../lib/config.js";
 import { resolveWalletKey } from "../lib/resolve.js";
 import { printHuman, isJSONMode, printJSON } from "../lib/output.js";
-import { exitWithError } from "../index.js";
+import { errInvalidArgs, errWalletKeyRequired, exitWithError } from "../lib/errors.js";
 import { green, printKeyValueBox } from "../lib/ui.js";
-import { errInvalidArgs, errWalletKeyRequired } from "../lib/errors.js";
 
 const WALLET_KEYS_DIR = "wallet-keys";
 const UUID_SLICE_LEN = 8;

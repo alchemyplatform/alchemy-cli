@@ -2,9 +2,8 @@ import { Command } from "commander";
 import * as config from "../lib/config.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
-import { errNotFound, errAccessKeyRequired, errInvalidArgs } from "../lib/errors.js";
+import { errNotFound, errAccessKeyRequired, errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
-import { exitWithError } from "../index.js";
 import { green, dim, yellow, withSpinner, printKeyValueBox, maskIf } from "../lib/ui.js";
 import {
   promptAutocomplete,

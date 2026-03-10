@@ -1,9 +1,8 @@
 import { Command } from "commander";
 import { adminClientFromFlags } from "../lib/resolve.js";
 import type { App } from "../lib/admin-client.js";
-import { errInvalidArgs } from "../lib/errors.js";
+import { errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
-import { exitWithError } from "../index.js";
 import { promptSelect } from "../lib/terminal-ui.js";
 import {
   green,

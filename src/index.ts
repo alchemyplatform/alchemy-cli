@@ -1,12 +1,7 @@
 import { Command, Help } from "commander";
-import { CLIError, ErrorCode, EXIT_CODES, errSetupRequired } from "./lib/errors.js";
-import {
-  setFlags,
-  printError,
-  isJSONMode,
-  quiet,
-  formatCommanderError,
-} from "./lib/output.js";
+import { errSetupRequired, exitWithError, setReplMode } from "./lib/errors.js";
+import { setFlags, isJSONMode, quiet } from "./lib/output.js";
+import { formatCommanderError } from "./lib/error-format.js";
 import { load as loadConfig } from "./lib/config.js";
 import { brandedHelp } from "./lib/ui.js";
 import { noColor, identity, esc } from "./lib/colors.js";
@@ -281,30 +276,6 @@ program
 
     target.outputHelp();
   });
-
-let replMode = false;
-
-export function setReplMode(enabled: boolean): void {
-  replMode = enabled;
-}
-
-export function exitWithError(err: unknown): never {
-  const cliErr =
-    err instanceof CLIError
-      ? err
-      : new CLIError(
-          ErrorCode.INTERNAL_ERROR,
-          err instanceof Error ? err.message : String(err),
-        );
-  printError(cliErr);
-
-  if (replMode) {
-    // In REPL mode, throw instead of exiting so the REPL can catch and continue
-    throw cliErr;
-  }
-
-  process.exit(EXIT_CODES[cliErr.code]);
-}
 
 process.on("unhandledRejection", (err) => exitWithError(err));
 process.on("uncaughtException", (err) => exitWithError(err));

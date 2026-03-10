@@ -12,7 +12,7 @@ import {
   setBrandedHelpSuppressed,
 } from "../lib/ui.js";
 import { isJSONMode } from "../lib/output.js";
-import { setReplMode } from "../index.js";
+import { setReplMode } from "../lib/errors.js";
 import { getRPCNetworkIds } from "../lib/networks.js";
 import { configDir, load as loadConfig } from "../lib/config.js";
 import { getSetupMethod } from "../lib/onboarding.js";

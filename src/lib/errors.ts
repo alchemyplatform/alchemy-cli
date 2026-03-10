@@ -1,3 +1,5 @@
+import { printError } from "./error-format.js";
+
 export const ErrorCode = {
   AUTH_REQUIRED: "AUTH_REQUIRED",
   INVALID_API_KEY: "INVALID_API_KEY",
@@ -187,4 +189,27 @@ export function errSetupRequired(data?: unknown): CLIError {
     undefined,
     data,
   );
+}
+
+let replMode = false;
+
+export function setReplMode(enabled: boolean): void {
+  replMode = enabled;
+}
+
+export function exitWithError(err: unknown): never {
+  const cliErr =
+    err instanceof CLIError
+      ? err
+      : new CLIError(
+          ErrorCode.INTERNAL_ERROR,
+          err instanceof Error ? err.message : String(err),
+        );
+  printError(cliErr);
+
+  if (replMode) {
+    throw cliErr;
+  }
+
+  process.exit(EXIT_CODES[cliErr.code]);
 }

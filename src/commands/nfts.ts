@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
-import { exitWithError } from "../index.js";
+import { exitWithError } from "../lib/errors.js";
 import { dim, withSpinner, printTable, emptyState } from "../lib/ui.js";
 import { validateAddress, readStdinArg } from "../lib/validators.js";
 

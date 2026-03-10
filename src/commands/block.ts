@@ -1,13 +1,11 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
-import { errInvalidArgs, errNotFound } from "../lib/errors.js";
+import { errInvalidArgs, errNotFound, exitWithError } from "../lib/errors.js";
 import { isJSONMode, printJSON, verbose } from "../lib/output.js";
-import { exitWithError } from "../index.js";
 import {
   formatBlockTimestamp,
   formatHexQuantity,
-  parseHexQuantity,
-  formatWithCommas,
+  formatGasSummary,
 } from "../lib/block-format.js";
 import {
   bold,
@@ -16,26 +14,6 @@ import {
   printKeyValueBox,
   printSyntaxJSON,
 } from "../lib/ui.js";
-
-function formatGasSummaryColored(
-  gasUsed: unknown,
-  gasLimit: unknown,
-): string | undefined {
-  const used = parseHexQuantity(gasUsed);
-  const limit = parseHexQuantity(gasLimit);
-  if (used === undefined || limit === undefined) return undefined;
-
-  const usedPart = formatWithCommas(used);
-  const limitPart = formatWithCommas(limit);
-  if (limit === 0n) return `${usedPart} / ${limitPart}`;
-
-  const bps = (used * 10_000n) / limit;
-  const percent = Number(bps) / 100;
-  const percentText = `${percent.toFixed(2)}%`;
-  const percentPart = dim(percentText);
-
-  return `${usedPart} / ${limitPart} (${percentPart})`;
-}
 
 export function registerBlock(program: Command) {
   program
@@ -93,7 +71,7 @@ Examples:
           pairs.push(["Transactions", txCount]);
         }
         if (block.miner) pairs.push(["Miner", String(block.miner)]);
-        const gasSummary = formatGasSummaryColored(block.gasUsed, block.gasLimit);
+        const gasSummary = formatGasSummary(block.gasUsed, block.gasLimit, { colored: true });
         if (gasSummary) {
           pairs.push(["Gas", gasSummary]);
         } else {
