@@ -3,6 +3,12 @@ name: Publish
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: Publish even when no changesets are present
+        required: false
+        default: "false"
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -97,7 +103,7 @@ jobs:
             -X PATCH \
             -f sha="${new_commit}"
       - name: Publish to npm
-        if: steps.changesets.outputs.has_changesets == 'true'
+        if: steps.changesets.outputs.has_changesets == 'true' || github.event.inputs.force_publish == 'true'
         run: pnpm run release
         env:
           NPM_CONFIG_PROVENANCE: true
