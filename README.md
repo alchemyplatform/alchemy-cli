@@ -321,6 +321,50 @@ Coverage:
 pnpm test:coverage
 ```
 
+### Changesets & Releasing
+
+This project uses [Changesets](https://github.com/changesets/changesets) for versioning and release notes.
+
+**When to add a changeset:** Any PR with user-facing changes (new commands, bug fixes, flag changes, output format changes) needs a changeset. Internal changes (CI, refactors with no behavior change, docs) can skip by adding the `no-changeset` label.
+
+**How to add a changeset:**
+
+```bash
+pnpm changeset
+```
+
+You'll be prompted to pick the bump type:
+- **patch** — bug fixes, small tweaks (e.g. fixing `--json` output for a command)
+- **minor** — new commands, new flags, new capabilities
+- **major** — breaking changes (removed commands, changed flag behavior, output format changes)
+
+This creates a file like `.changeset/cool-dogs-fly.md`:
+
+```markdown
+---
+"@alchemy/cli": minor
+---
+
+Add `alchemy portfolio transactions` command for portfolio transaction history.
+```
+
+Write a 1-2 sentence summary of the change from a user's perspective. Commit this file with your PR.
+
+**How releases work:** When PRs with changesets merge to `main`, the publish workflow automatically:
+1. Verifies the build (typecheck, build, test)
+2. Applies version bumps and updates `CHANGELOG.md` via `changeset version`
+3. Creates a signed release commit via the GitHub Git Database API (using a GitHub App token)
+4. Publishes to npm using OIDC trusted publishing (no long-lived npm token)
+5. Creates a GitHub release/tag with notes extracted from `CHANGELOG.md`
+
+If no changesets are pending, the workflow exits cleanly — no release is created.
+
+**Release infrastructure:**
+- Repository write operations use a GitHub App (`APP_ID` variable + `APP_PRIVATE_KEY` secret)
+- npm publish uses [trusted publishing](https://docs.npmjs.com/generating-provenance-statements) (OIDC) — no `NPM_TOKEN` secret required
+- Required GitHub repo settings: `APP_ID` (variable), `APP_PRIVATE_KEY` (secret)
+- Required npm-side: configure trusted publishing for this repo/workflow at npmjs.com package settings
+
 ### Endpoint Override Env Vars (Local Testing Only)
 
 These are for local/mock testing, not normal production usage:
