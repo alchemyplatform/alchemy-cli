@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "postinstall": "node ./scripts/postinstall.cjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "pnpm build && vitest run --config vitest.e2e.config.ts",
@@ -26,7 +27,8 @@
   ],
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "scripts/postinstall.cjs"
   ],
   "repository": {
     "type": "git",
