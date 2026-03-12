@@ -14,7 +14,6 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: write
-  pull-requests: read
   id-token: write
 
 jobs:
@@ -52,8 +51,8 @@ jobs:
         if: steps.changesets.outputs.has_changesets == 'true'
         run: pnpm run version-packages
         env:
-          # Use workflow token for Changesets GitHub changelog lookups.
-          GITHUB_TOKEN: ${{ github.token }}
+          # Use GitHub App token for Changesets GitHub changelog lookups.
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
       - name: Create signed commit and push via API
         if: steps.changesets.outputs.has_changesets == 'true'
         env:
