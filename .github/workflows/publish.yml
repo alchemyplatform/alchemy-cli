@@ -99,6 +99,8 @@ jobs:
       - name: Publish to npm
         if: steps.changesets.outputs.has_changesets == 'true'
         run: pnpm run release
+        env:
+          NPM_CONFIG_PROVENANCE: true
       - name: Create GitHub release
         if: steps.changesets.outputs.has_changesets == 'true'
         env:
