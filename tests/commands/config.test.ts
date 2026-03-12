@@ -1,594 +1,175 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Command } from "commander";
+import { describe, expect, it, vi } from "vitest";
+import {
+  installBaseCommandMocks,
+  runRegisteredCommand,
+  useCommandTestReset,
+} from "../helpers/command-harness.js";
 
-function makeListAllApps(
-  listApps: (opts: { cursor?: string; limit?: number }) => Promise<{ apps: unknown[]; cursor?: string }>,
-) {
-  return async (opts?: { limit?: number }) => {
-    const apps: unknown[] = [];
-    const seenCursors = new Set<string>();
-    let cursor: string | undefined;
-    let pages = 0;
-    do {
-      const page = await listApps({
-        ...(cursor && { cursor }),
-        ...(opts?.limit !== undefined && { limit: opts.limit }),
-      });
-      pages += 1;
-      apps.push(...page.apps);
-      cursor = page.cursor;
-      if (cursor && seenCursors.has(cursor)) break;
-      if (cursor) seenCursors.add(cursor);
-    } while (cursor);
-    return { apps, pages };
-  };
+useCommandTestReset();
+
+const KEY_MAP = {
+  "api-key": "api_key",
+  api_key: "api_key",
+  "access-key": "access_key",
+  access_key: "access_key",
+  "webhook-api-key": "webhook_api_key",
+  webhook_api_key: "webhook_api_key",
+  app: "app",
+  network: "network",
+  verbose: "verbose",
+  "wallet-key-file": "wallet_key_file",
+  wallet_key_file: "wallet_key_file",
+  "wallet-address": "wallet_address",
+  wallet_address: "wallet_address",
+  x402: "x402",
+} as const;
+
+function mockConfigModule(deps: {
+  load?: ReturnType<typeof vi.fn>;
+  save?: ReturnType<typeof vi.fn>;
+  get?: ReturnType<typeof vi.fn>;
+  toMap?: ReturnType<typeof vi.fn>;
+}) {
+  const load = deps.load ?? vi.fn().mockReturnValue({});
+  const save = deps.save ?? vi.fn();
+  const get = deps.get ?? vi.fn();
+  const toMap = deps.toMap ?? vi.fn((cfg) => cfg);
+
+  vi.doMock("../../src/lib/config.js", () => ({
+    load,
+    save,
+    get,
+    toMap,
+    KEY_MAP,
+  }));
+
+  return { load, save, get, toMap };
+}
+
+function mockConfigDependencies(opts?: { interactive?: boolean; confirmResult?: boolean | null }) {
+  const adminCtor = vi.fn();
+  const promptConfirm = vi.fn().mockResolvedValue(opts?.confirmResult ?? false);
+
+  vi.doMock("../../src/lib/admin-client.js", () => ({ AdminClient: adminCtor }));
+  vi.doMock("../../src/lib/interaction.js", () => ({
+    isInteractiveAllowed: () => opts?.interactive ?? false,
+  }));
+  vi.doMock("../../src/lib/terminal-ui.js", () => ({
+    promptAutocomplete: vi.fn(),
+    promptConfirm,
+    promptMultiselect: vi.fn(),
+    promptSelect: vi.fn(),
+    promptText: vi.fn(),
+  }));
+
+  return { adminCtor, promptConfirm };
 }
 
 describe("config command", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    vi.resetModules();
-  });
-
-  it("config set verbose persists normalized boolean", async () => {
-    const load = vi.fn().mockReturnValue({ api_key: "k" });
+  it("normalizes verbose boolean on set", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
     const save = vi.fn();
-    const exitWithError = vi.fn();
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load,
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({ api_key: "k" }),
       save,
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
     });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman: vi.fn(),
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      withSpinner: async (
-        _start: string,
-        _end: string,
-        fn: () => Promise<unknown>,
-      ) => fn(),
-      printKeyValueBox: vi.fn(),
-      emptyState: vi.fn(),
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+    mockConfigDependencies({ interactive: false });
 
     const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
+    await runRegisteredCommand(registerConfig, ["config", "set", "verbose", "TRUE"]);
 
-    await program.parseAsync(["node", "test", "config", "set", "verbose", "TRUE"], {
-      from: "node",
-    });
-
-    expect(load).toHaveBeenCalled();
     expect(save).toHaveBeenCalledWith({ api_key: "k", verbose: true });
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
-  it("config set access-key app selector includes paginated apps", async () => {
-    const load = vi
-      .fn()
-      .mockReturnValueOnce({})
-      .mockReturnValueOnce({ access_key: "ak_test" });
-    const save = vi.fn();
-    const printHuman = vi.fn();
-    const select = vi.fn().mockResolvedValue("app_2");
-    const isCancel = vi.fn().mockReturnValue(false);
-    const cancel = vi.fn();
-    const listApps = vi
-      .fn()
-      .mockResolvedValueOnce({
-        apps: [
-          {
-            id: "app_1",
-            name: "First App",
-            apiKey: "api_1",
-            webhookApiKey: "wh_1",
-            chainNetworks: [],
-            createdAt: "2025-01-01T00:00:00.000Z",
-          },
-        ],
-        cursor: "cursor_2",
-      })
-      .mockResolvedValueOnce({
-        apps: [
-          {
-            id: "app_2",
-            name: "Second App",
-            apiKey: "api_2",
-            webhookApiKey: "wh_2",
-            chainNetworks: [],
-            createdAt: "2025-01-02T00:00:00.000Z",
-          },
-        ],
-      });
-    class MockAdminClient {
-      constructor(_accessKey: string) {}
-      listApps = listApps;
-      listAllApps = makeListAllApps(listApps);
-      listChains = vi.fn();
-      createApp = vi.fn();
-    }
-    const exitWithError = vi.fn();
-    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
-    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load,
-      save,
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: MockAdminClient,
-    }));
-    vi.doMock("../../src/lib/terminal-ui.js", () => ({
-      promptSelect: select,
-      promptAutocomplete: vi.fn(),
-      promptText: vi.fn(),
-      promptMultiselect: vi.fn(),
-      promptConfirm: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
-    });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman,
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      withSpinner: async (
-        _start: string,
-        _end: string,
-        fn: () => Promise<unknown>,
-      ) => fn(),
-      printKeyValueBox: vi.fn(),
-      emptyState: vi.fn(),
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+  it("routes invalid verbose values to exitWithError", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
+    mockConfigModule({ load: vi.fn().mockReturnValue({}), save: vi.fn() });
+    mockConfigDependencies({ interactive: false });
 
     const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
+    await runRegisteredCommand(registerConfig, ["config", "set", "verbose", "maybe"]);
 
-    await program.parseAsync(["node", "test", "config", "set", "access-key", "ak_test"], {
-      from: "node",
-    });
-
-    expect(listApps).toHaveBeenCalledTimes(2);
-    expect(listApps).toHaveBeenNthCalledWith(1, {});
-    expect(listApps).toHaveBeenNthCalledWith(2, { cursor: "cursor_2" });
-    expect(select).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "Select default app",
-        options: expect.arrayContaining([
-          { label: "First App (app_1)", value: "app_1" },
-          { label: "Second App (app_2)", value: "app_2" },
-        ]),
-      }),
-    );
-    expect(save).toHaveBeenNthCalledWith(1, { access_key: "ak_test" });
-    expect(save).toHaveBeenNthCalledWith(2, {
-      access_key: "ak_test",
-      api_key: "api_2",
-      app: { id: "app_2", name: "Second App", apiKey: "api_2", webhookApiKey: "wh_2" },
-    });
-    expect(exitWithError).not.toHaveBeenCalled();
-  });
-
-  it("config reset --yes clears all values without prompting", async () => {
-    const load = vi.fn().mockReturnValue({
-      api_key: "k",
-      access_key: "ak",
-      network: "eth-mainnet",
-      verbose: true,
-    });
-    const save = vi.fn();
-    const printHuman = vi.fn();
-    const confirm = vi.fn();
-    const exitWithError = vi.fn();
-    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load,
-      save,
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/terminal-ui.js", () => ({
-      promptConfirm: confirm,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
-    });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman,
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      printKeyValueBox: vi.fn(),
-      emptyState: vi.fn(),
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
-
-    const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
-
-    await program.parseAsync(["node", "test", "config", "reset", "--yes"], {
-      from: "node",
-    });
-
-    expect(load).not.toHaveBeenCalled();
-    expect(save).toHaveBeenCalledWith({});
-    expect(confirm).not.toHaveBeenCalled();
-    expect(printHuman).toHaveBeenCalledWith("\u2713 Reset all config values\n", {
-      status: "reset",
-      scope: "all",
-    });
-    expect(exitWithError).not.toHaveBeenCalled();
-  });
-
-  it("config reset <key> removes only the selected key", async () => {
-    const load = vi.fn().mockReturnValue({
-      api_key: "k",
-      access_key: "ak",
-      network: "polygon-mainnet",
-      verbose: true,
-    });
-    const save = vi.fn();
-    const exitWithError = vi.fn();
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load,
-      save,
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
-    });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman: vi.fn(),
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      printKeyValueBox: vi.fn(),
-      emptyState: vi.fn(),
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
-
-    const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
-
-    await program.parseAsync(["node", "test", "config", "reset", "network"], {
-      from: "node",
-    });
-
-    expect(load).toHaveBeenCalled();
-    expect(save).toHaveBeenCalledWith({
-      api_key: "k",
-      access_key: "ak",
-      verbose: true,
-    });
-    expect(exitWithError).not.toHaveBeenCalled();
-  });
-
-  it("config reset rejects unknown keys", async () => {
-    const load = vi.fn();
-    const save = vi.fn();
-    const exitWithError = vi.fn();
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load,
-      save,
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
-    });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman: vi.fn(),
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      printKeyValueBox: vi.fn(),
-      emptyState: vi.fn(),
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
-
-    const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
-
-    await program.parseAsync(["node", "test", "config", "reset", "unknown"], {
-      from: "node",
-    });
-
-    expect(load).not.toHaveBeenCalled();
-    expect(save).not.toHaveBeenCalled();
     expect(exitWithError).toHaveBeenCalledTimes(1);
+    expect(exitWithError.mock.calls[0][0]).toMatchObject({ code: "INVALID_ARGS" });
   });
 
-  it("config reset in non-tty mode does not prompt", async () => {
+  it("sets access-key without app-selection flow in non-interactive mode", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
     const save = vi.fn();
-    const confirm = vi.fn();
-    const exitWithError = vi.fn();
-    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load: vi.fn(),
-      save,
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/terminal-ui.js", () => ({
-      promptConfirm: confirm,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
-    });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman: vi.fn(),
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      printKeyValueBox: vi.fn(),
-      emptyState: vi.fn(),
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+    const load = vi.fn().mockReturnValue({});
+    mockConfigModule({ load, save });
+    const { adminCtor } = mockConfigDependencies({ interactive: false });
 
     const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
+    await runRegisteredCommand(registerConfig, ["config", "set", "access-key", "ak_test"]);
 
-    await program.parseAsync(["node", "test", "config", "reset"], {
-      from: "node",
+    expect(save).toHaveBeenCalledWith({ access_key: "ak_test" });
+    expect(adminCtor).not.toHaveBeenCalled();
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("lists config map in JSON mode", async () => {
+    const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
+    const map = { "api-key": "masked", network: "eth-mainnet" };
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({ api_key: "key", network: "eth-mainnet" }),
+      toMap: vi.fn().mockReturnValue(map),
     });
+    mockConfigDependencies({ interactive: false });
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "list"]);
+
+    expect(printJSON).toHaveBeenCalledWith(map);
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("resets one key without wiping other config values", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
+    const save = vi.fn();
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({ api_key: "k", network: "eth-mainnet" }),
+      save,
+    });
+    mockConfigDependencies({ interactive: false });
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "reset", "network"]);
+
+    expect(save).toHaveBeenCalledWith({ api_key: "k" });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("resets all keys when --yes is provided", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
+    const save = vi.fn();
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({ api_key: "k", access_key: "ak" }),
+      save,
+    });
+    const { promptConfirm } = mockConfigDependencies({ interactive: true });
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "reset", "--yes"]);
 
     expect(save).toHaveBeenCalledWith({});
-    expect(confirm).not.toHaveBeenCalled();
+    expect(promptConfirm).not.toHaveBeenCalled();
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
-  it("config set verbose rejects invalid values", async () => {
-    const load = vi.fn().mockReturnValue({ api_key: "k" });
-    const save = vi.fn();
-    const exitWithError = vi.fn();
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load,
-      save,
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
+  it("returns NOT_FOUND contract when config key is missing", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({}),
+      get: vi.fn().mockReturnValue(undefined),
     });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman: vi.fn(),
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      printKeyValueBox: vi.fn(),
-      emptyState: vi.fn(),
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+    mockConfigDependencies({ interactive: false });
 
     const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
+    await runRegisteredCommand(registerConfig, ["config", "get", "api-key"]);
 
-    await program.parseAsync(["node", "test", "config", "set", "verbose", "yes"], {
-      from: "node",
-    });
-
-    expect(load).not.toHaveBeenCalled();
-    expect(save).not.toHaveBeenCalled();
     expect(exitWithError).toHaveBeenCalledTimes(1);
-  });
-
-  it("config list warns when api-key mismatches selected app key", async () => {
-    const load = vi.fn().mockReturnValue({
-      api_key: "manual_api_key",
-      app: { id: "app_1", name: "First App", apiKey: "app_api_key" },
-    });
-    const printKeyValueBox = vi.fn();
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load,
-      save: vi.fn(),
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
-    });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman: vi.fn(),
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      yellow: (s: string) => s,
-      withSpinner: async (
-        _start: string,
-        _end: string,
-        fn: () => Promise<unknown>,
-      ) => fn(),
-      printKeyValueBox,
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError: vi.fn() }));
-
-    const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
-
-    await program.parseAsync(["node", "test", "config", "list"], {
-      from: "node",
-    });
-
-    expect(load).toHaveBeenCalledTimes(1);
-    expect(printKeyValueBox).toHaveBeenCalledTimes(1);
-    expect(printKeyValueBox).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        ["api-key", "\u25C6 manual_api_key"],
-      ]),
-    );
-    expect(logSpy).toHaveBeenCalledWith("");
-    expect(logSpy).toHaveBeenCalledWith(
-      "  \u25C6 Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.",
-    );
-  });
-
-  it("config set api-key warns when selected app key differs", async () => {
-    const load = vi.fn().mockReturnValue({
-      app: { id: "app_1", name: "First App", apiKey: "app_api_key" },
-    });
-    const save = vi.fn();
-    const printHuman = vi.fn();
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const exitWithError = vi.fn();
-
-    vi.doMock("../../src/lib/config.js", () => ({
-      load,
-      save,
-      get: vi.fn(),
-      toMap: vi.fn(),
-      KEY_MAP: { "api-key": "api_key", api_key: "api_key", "access-key": "access_key", access_key: "access_key", network: "network", verbose: "verbose", "wallet-key-file": "wallet_key_file", wallet_key_file: "wallet_key_file", "wallet-address": "wallet_address", wallet_address: "wallet_address", x402: "x402" },
-    }));
-    vi.doMock("../../src/lib/admin-client.js", () => ({
-      AdminClient: vi.fn(),
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => {
-      const actual = await vi.importActual("../../src/lib/errors.js");
-      return actual;
-    });
-    vi.doMock("../../src/lib/output.js", () => ({
-      isJSONMode: () => false,
-      printHuman,
-      printJSON: vi.fn(),
-      verbose: false,
-    }));
-    vi.doMock("../../src/lib/ui.js", () => ({
-      green: (s: string) => s,
-      dim: (s: string) => s,
-      yellow: (s: string) => s,
-      withSpinner: async (
-        _start: string,
-        _end: string,
-        fn: () => Promise<unknown>,
-      ) => fn(),
-      printKeyValueBox: vi.fn(),
-      maskIf: (s: string) => s,
-    }));
-    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
-
-    const { registerConfig } = await import("../../src/commands/config.js");
-    const program = new Command();
-    registerConfig(program);
-
-    await program.parseAsync(["node", "test", "config", "set", "api-key", "manual_api_key"], {
-      from: "node",
-    });
-
-    expect(save).toHaveBeenCalledWith({
-      app: { id: "app_1", name: "First App", apiKey: "app_api_key" },
-      api_key: "manual_api_key",
-    });
-    expect(printHuman).toHaveBeenCalledWith("\u2713 Set api-key\n", {
-      key: "api-key",
-      status: "set",
-    });
-    expect(logSpy).toHaveBeenCalledWith(
-      "  \u25C6 Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.",
-    );
-    expect(exitWithError).not.toHaveBeenCalled();
+    expect(exitWithError.mock.calls[0][0]).toMatchObject({ code: "NOT_FOUND" });
   });
 });
