@@ -6,18 +6,17 @@ You can use API keys, access keys, or x402 wallet auth depending on the command.
 
 ## Installation
 
-The current repository workflow is source install:
+Install globally from npm:
 
 ```bash
-git clone https://github.com/alchemyplatform/alchemy-cli.git
-cd alchemy-cli
-pnpm install
-pnpm build
-pnpm link --global
+npm i -g @alchemy/cli
 ```
 
-This makes the `alchemy` command available globally.  
-To unlink later: `pnpm unlink --global`.
+Or run without installing globally:
+
+```bash
+npx @alchemy/cli <command>
+```
 
 ## Command Reference
 
@@ -283,8 +282,21 @@ Errors are structured JSON in JSON mode:
 
 Prerequisites:
 
-- [Node.js 18+](https://nodejs.org/)
+- [Node.js 22+](https://nodejs.org/)
 - [pnpm](https://pnpm.io/)
+
+### Local development setup
+
+```bash
+git clone https://github.com/alchemyplatform/alchemy-cli.git
+cd alchemy-cli
+pnpm install
+pnpm build
+pnpm link --global
+```
+
+This makes the local `alchemy` build available globally for testing.
+To unlink later: `pnpm unlink --global`.
 
 Run during development:
 
