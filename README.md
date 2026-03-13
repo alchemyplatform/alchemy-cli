@@ -59,6 +59,17 @@ alchemy
 alchemy balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --json --no-interactive
 ```
 
+#### Agent bootstrap
+
+Have your agent run `agent-prompt` as its first step to get a complete, machine-readable contract describing every command, auth method, error code, and execution rule:
+
+```bash
+# Agent runs this once to learn everything the CLI can do
+alchemy --json agent-prompt
+```
+
+This returns a single JSON document with execution policy, preflight instructions, auth matrix, the full command tree with all arguments and options, error codes with recovery actions, and example invocations. No external docs required.
+
 ## Command Reference
 
 Run commands as `alchemy <command>`.
