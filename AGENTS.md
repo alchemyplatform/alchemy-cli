@@ -4,7 +4,7 @@
 Keep all terminal output visually consistent with existing Alchemy CLI conventions used by help, tables, and command output.
 
 ## Core Principles
-- Prefer shared style helpers in `src/lib/ui.ts` and `src/lib/output.ts` over ad-hoc ANSI strings.
+- Prefer shared style helpers in `src/lib/ui.ts`, `src/lib/output.ts`, and `src/lib/error-format.ts` over ad-hoc ANSI strings.
 - Use one visual voice: indented blocks, compact spacing, and consistent symbols (`◆` for section headers, `✗` for errors, `✓` for success).
 - Keep copy short and actionable.
 

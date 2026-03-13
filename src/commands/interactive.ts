@@ -93,6 +93,7 @@ const COMMAND_NAMES = [
   "tokens metadata",
   "tokens allowance",
   "tx",
+  "agent-prompt",
   "version",
   "wallet",
   "wallet generate",
