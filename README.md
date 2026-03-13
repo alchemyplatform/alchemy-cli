@@ -180,7 +180,7 @@ These apply to all commands.
 |---|---|---|
 | `--json` | — | Force JSON output |
 | `-q, --quiet` | — | Suppress non-essential output |
-| `-v, --verbose` | — | Enable verbose output |
+| `--verbose` | — | Enable verbose output |
 | `--no-color` | `NO_COLOR` | Disable color output |
 | `--reveal` | — | Show secrets in plain text (TTY only) |
 
@@ -317,6 +317,7 @@ Use `--no-interactive` to disable REPL/prompts in automation.
 
 - TTY: formatted human output
 - Non-TTY: JSON output (script-friendly)
+- `-v`, `--version`: prints the CLI version
 - `--json`: forces JSON output in any context
 - `--verbose` or `alchemy config set verbose true`: includes richer payload output on supported commands
 

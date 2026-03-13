@@ -1,5 +1,5 @@
 import { Command, Help } from "commander";
-import { errSetupRequired, exitWithError, setReplMode } from "./lib/errors.js";
+import { EXIT_CODES, errSetupRequired, exitWithError } from "./lib/errors.js";
 import { setFlags, isJSONMode, quiet } from "./lib/output.js";
 import { formatCommanderError } from "./lib/error-format.js";
 import { load as loadConfig } from "./lib/config.js";
@@ -120,7 +120,7 @@ program
   .description(
     "The Alchemy CLI lets you query blockchain data, call JSON-RPC methods, and manage your Alchemy configuration.",
   )
-  .version(__CLI_VERSION__)
+  .version(__CLI_VERSION__, "-v, --version", "display CLI version")
   .option("--api-key <key>", "Alchemy API key (env: ALCHEMY_API_KEY)")
   .option("--access-key <key>", "Alchemy access key (env: ALCHEMY_ACCESS_KEY)")
   .option(
@@ -131,13 +131,23 @@ program
   .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
   .option("--json", "Force JSON output")
   .option("-q, --quiet", "Suppress non-essential output")
-  .option("-v, --verbose", "Enable verbose output")
+  .option("--verbose", "Enable verbose output")
   .option("--no-color", "Disable color output")
   .option("--reveal", "Show secrets in plain text (TTY only)")
   .option("--timeout <ms>", "Request timeout in milliseconds", parseInt)
   .option("--debug", "Enable debug diagnostics")
   .option("--no-interactive", "Disable REPL and prompt-driven interactions")
   .addHelpCommand(false)
+  .exitOverride((err) => {
+    if (
+      err.code === "commander.help" ||
+      err.code === "commander.helpDisplayed" ||
+      err.code === "commander.version"
+    ) {
+      process.exit(0);
+    }
+    process.exit(EXIT_CODES.INVALID_ARGS);
+  })
   .configureOutput({
     outputError(str, write) {
       write(formatCommanderError(str));

@@ -391,6 +391,26 @@ describe("CLI mock E2E", () => {
     expect(commands.some((c) => c.name === "agent-prompt")).toBe(false);
   });
 
+  it("prints version for -v without falling through to the root action", async () => {
+    const result = await runCLI(["-v"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("0.2.0");
+  });
+
+  it("returns INVALID_ARGS for unknown commands instead of setup fallback", async () => {
+    const result = await runCLI(["--json", "wat"]);
+
+    expect(result.exitCode).toBe(2);
+    expect(parseJSON(result.stderr)).toMatchObject({
+      error: {
+        code: "INVALID_ARGS",
+        message: "too many arguments. Expected 0 arguments but got 1.",
+      },
+    });
+  });
+
   it("bare no-interactive returns SETUP_REQUIRED with remediation data", async () => {
     const result = await runCLI(["--json", "--no-interactive"]);
 
