@@ -28,6 +28,7 @@ import { registerWebhooks } from "./commands/webhooks.js";
 import { registerBundler } from "./commands/bundler.js";
 import { registerGasManager } from "./commands/gas-manager.js";
 import { registerSolana } from "./commands/solana.js";
+import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
 import { getSetupStatus, isSetupComplete, shouldRunOnboarding } from "./lib/onboarding.js";
 
@@ -71,7 +72,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Admin",
-    commands: ["apps", "config", "setup", "version", "help"],
+    commands: ["apps", "config", "setup", "agent-prompt", "version", "help"],
   },
 ] as const;
 
@@ -361,6 +362,7 @@ registerApps(program);
 registerSetup(program);
 registerConfig(program);
 registerSolana(program);
+registerAgentPrompt(program);
 registerVersion(program);
 program
   .command("help [command...]")

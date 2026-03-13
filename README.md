@@ -144,6 +144,7 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 | `config get <key>` | Gets one config value | `alchemy config get network` |
 | `config list` | Lists all config values | `alchemy config list` |
 | `config reset [key]` | Resets one or all config values | `alchemy config reset --yes` |
+| `agent-prompt` | Emits complete agent/automation usage instructions | `alchemy --json agent-prompt` |
 | `version` | Prints CLI version | `alchemy version` |
 
 ## Flags

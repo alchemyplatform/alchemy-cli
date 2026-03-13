@@ -371,6 +371,26 @@ describe("CLI mock E2E", () => {
     });
   });
 
+  it("agent-prompt returns full agent contract JSON", async () => {
+    const result = await runCLI(["--json", "agent-prompt"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    const payload = parseJSON(result.stdout) as Record<string, unknown>;
+    expect(payload).toHaveProperty("executionPolicy");
+    expect(payload).toHaveProperty("preflight");
+    expect(payload).toHaveProperty("auth");
+    expect(payload).toHaveProperty("commands");
+    expect(payload).toHaveProperty("errors");
+    expect(payload).toHaveProperty("examples");
+    expect(payload).toHaveProperty("docs");
+
+    const commands = payload.commands as Array<{ name: string }>;
+    expect(commands.length).toBeGreaterThan(10);
+    expect(commands.some((c) => c.name === "balance")).toBe(true);
+    expect(commands.some((c) => c.name === "agent-prompt")).toBe(false);
+  });
+
   it("bare no-interactive returns SETUP_REQUIRED with remediation data", async () => {
     const result = await runCLI(["--json", "--no-interactive"]);
 
