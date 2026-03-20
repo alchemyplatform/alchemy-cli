@@ -31,6 +31,7 @@ import { registerSolana } from "./commands/solana.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
 import { getSetupStatus, isSetupComplete, shouldRunOnboarding } from "./lib/onboarding.js";
+import { getAvailableUpdate, printUpdateNotice } from "./lib/update-check.js";
 
 // ── ANSI helpers for help formatting ────────────────────────────────
 const hBrand = noColor
@@ -114,6 +115,21 @@ const findCommandByPath = (root: Command, path: string[]): Command | null => {
 };
 
 declare const __CLI_VERSION__: string;
+
+let cachedAvailableUpdate: string | null | undefined;
+let updateShownDuringInteractiveStartup = false;
+
+function getAvailableUpdateOnce(): string | null {
+  if (cachedAvailableUpdate === undefined) {
+    cachedAvailableUpdate = getAvailableUpdate();
+  }
+  return cachedAvailableUpdate;
+}
+
+function resetUpdateNoticeState(): void {
+  cachedAvailableUpdate = undefined;
+  updateShownDuringInteractiveStartup = false;
+}
 
 program
   .name("alchemy")
@@ -311,7 +327,12 @@ program
   .hook("postAction", () => {
     if (!isJSONMode() && !quiet) {
       console.log("");
+      if (!updateShownDuringInteractiveStartup) {
+        const latest = getAvailableUpdateOnce();
+        if (latest) printUpdateNotice(latest);
+      }
     }
+    resetUpdateNoticeState();
   })
   .action(async () => {
     const cfg = loadConfig();
@@ -320,14 +341,21 @@ program
     }
 
     if (isInteractiveAllowed(program)) {
+      let latestForInteractiveStartup: string | null = null;
       if (shouldRunOnboarding(program, cfg)) {
         const { runOnboarding } = await import("./commands/onboarding.js");
-        const completed = await runOnboarding(program);
+        const latest = getAvailableUpdateOnce();
+        const completed = await runOnboarding(program, latest);
+        updateShownDuringInteractiveStartup = Boolean(latest);
+        latestForInteractiveStartup = null;
         if (!completed) {
           // User skipped or aborted onboarding while setup remains incomplete.
           // Do not enter REPL; return to shell without forcing interactive mode.
           return;
         }
+      } else {
+        latestForInteractiveStartup = getAvailableUpdateOnce();
+        updateShownDuringInteractiveStartup = Boolean(latestForInteractiveStartup);
       }
       const { startREPL } = await import("./commands/interactive.js");
       // In REPL mode, override exitOverride so errors don't kill the process
@@ -335,7 +363,7 @@ program
       program.configureOutput({
         writeErr: () => {},
       });
-      await startREPL(program);
+      await startREPL(program, latestForInteractiveStartup);
       return;
     }
     program.help();

@@ -17,6 +17,7 @@ import { getRPCNetworkIds } from "../lib/networks.js";
 import { configDir, load as loadConfig } from "../lib/config.js";
 import { getSetupMethod } from "../lib/onboarding.js";
 import { bgRgb, rgb, noColor } from "../lib/colors.js";
+import { getUpdateNoticeLines } from "../lib/update-check.js";
 
 const COMMAND_NAMES = [
   "apps",
@@ -140,7 +141,10 @@ function saveReplHistory(lines: string[]): void {
   writeFileSync(historyFilePath, normalized.join("\n") + "\n", { mode: 0o600 });
 }
 
-export async function startREPL(program: Command): Promise<void> {
+export async function startREPL(
+  program: Command,
+  latestUpdate: string | null = null,
+): Promise<void> {
   if (!stdin.isTTY) return;
   setReplMode(true);
   setBrandedHelpSuppressed(true);
@@ -251,6 +255,12 @@ export async function startREPL(program: Command): Promise<void> {
     console.log(`  ${green("✓")} ${dim(`Configured auth: ${formatSetupMethodLabel()}`)}`);
     console.log(`  ${dim("Run commands directly (no 'alchemy' prefix).")}`);
     console.log("");
+    if (latestUpdate) {
+      for (const line of getUpdateNoticeLines(latestUpdate)) {
+        console.log(line);
+      }
+      console.log("");
+    }
     console.log(`  ${brand("◆")} ${bold("Quick commands")}`);
     console.log(`  ${dim("- rpc eth_chainId")}`);
     console.log(`  ${dim("- config list")}`);
