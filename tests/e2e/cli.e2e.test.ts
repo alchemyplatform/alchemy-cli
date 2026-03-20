@@ -1,3 +1,6 @@
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { FIXTURES } from "./fixtures.js";
 import { runCLI } from "./helpers/run-cli.js";
@@ -388,7 +391,35 @@ describe("CLI mock E2E", () => {
     const commands = payload.commands as Array<{ name: string }>;
     expect(commands.length).toBeGreaterThan(10);
     expect(commands.some((c) => c.name === "balance")).toBe(true);
+    expect(commands.some((c) => c.name === "update-check")).toBe(true);
     expect(commands.some((c) => c.name === "agent-prompt")).toBe(false);
+    expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
+  });
+
+  it("returns update status JSON from the cached version check", async () => {
+    const configDir = mkdtempSync(join(tmpdir(), "alchemy-cli-update-check-"));
+    const configPath = join(configDir, "config.json");
+    const checkedAt = Date.now();
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      join(configDir, ".update-check"),
+      JSON.stringify({ latest: "9.9.9", checkedAt }),
+    );
+
+    const result = await runCLI(
+      ["--json", "--no-interactive", "update-check"],
+      { ALCHEMY_CONFIG: configPath },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(parseJSON(result.stdout)).toEqual({
+      currentVersion: "0.2.0",
+      latestVersion: "9.9.9",
+      updateAvailable: true,
+      installCommand: "npm i -g @alchemy/cli",
+      checkedAt,
+    });
   });
 
   it("prints version for -v without falling through to the root action", async () => {

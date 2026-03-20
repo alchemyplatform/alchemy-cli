@@ -82,6 +82,7 @@ const COMMAND_NAMES = [
   "config get",
   "config list",
   "help",
+  "update-check",
   "network",
   "network list",
   "nfts",

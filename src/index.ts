@@ -29,6 +29,7 @@ import { registerBundler } from "./commands/bundler.js";
 import { registerGasManager } from "./commands/gas-manager.js";
 import { registerSolana } from "./commands/solana.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
+import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
 import { getSetupStatus, isSetupComplete, shouldRunOnboarding } from "./lib/onboarding.js";
 import { getAvailableUpdate, printUpdateNotice } from "./lib/update-check.js";
@@ -73,7 +74,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Admin",
-    commands: ["apps", "config", "setup", "agent-prompt", "version", "help"],
+    commands: ["apps", "config", "setup", "agent-prompt", "update-check", "version", "help"],
   },
 ] as const;
 
@@ -401,6 +402,7 @@ registerSetup(program);
 registerConfig(program);
 registerSolana(program);
 registerAgentPrompt(program);
+registerUpdateCheck(program);
 registerVersion(program);
 program
   .command("help [command...]")

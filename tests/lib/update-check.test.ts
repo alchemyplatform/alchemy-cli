@@ -17,7 +17,7 @@ vi.mock("../src/lib/config.js", () => ({
 }));
 
 // Must be after mocks so the module picks them up.
-const { getAvailableUpdate, printUpdateNotice } = await import(
+const { getAvailableUpdate, getUpdateStatus, printUpdateNotice } = await import(
   "../../src/lib/update-check.js"
 );
 
@@ -91,6 +91,69 @@ describe("getAvailableUpdate", () => {
 
     const result = getAvailableUpdate();
     expect(result).toBeNull();
+  });
+});
+
+describe("getUpdateStatus", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns structured status from a fresh cache", () => {
+    const checkedAt = Date.now();
+    vi.mocked(readFileSync).mockReturnValue(
+      JSON.stringify({ latest: "9.9.9", checkedAt }),
+    );
+
+    const result = getUpdateStatus();
+
+    expect(result).toEqual({
+      currentVersion: "0.0.0",
+      latestVersion: "9.9.9",
+      updateAvailable: true,
+      installCommand: "npm i -g @alchemy/cli",
+      checkedAt,
+    });
+    expect(execFileSync).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the cached version when refresh fails", () => {
+    const checkedAt = Date.now() - 25 * 60 * 60 * 1000;
+    vi.mocked(readFileSync).mockReturnValue(
+      JSON.stringify({ latest: "9.9.9", checkedAt }),
+    );
+    vi.mocked(execFileSync).mockImplementation(() => {
+      throw new Error("network error");
+    });
+
+    const result = getUpdateStatus();
+
+    expect(result).toEqual({
+      currentVersion: "0.0.0",
+      latestVersion: "9.9.9",
+      updateAvailable: true,
+      installCommand: "npm i -g @alchemy/cli",
+      checkedAt,
+    });
+  });
+
+  it("returns unknown latest version when no cache or refresh is available", () => {
+    vi.mocked(readFileSync).mockImplementation(() => {
+      throw new Error("ENOENT");
+    });
+    vi.mocked(execFileSync).mockImplementation(() => {
+      throw new Error("network error");
+    });
+
+    const result = getUpdateStatus();
+
+    expect(result).toEqual({
+      currentVersion: "0.0.0",
+      latestVersion: null,
+      updateAvailable: false,
+      installCommand: "npm i -g @alchemy/cli",
+      checkedAt: null,
+    });
   });
 });
 
