@@ -130,8 +130,17 @@ export function errNetwork(detail: string): CLIError {
   );
 }
 
+const RPC_ERROR_HINTS: Record<number, string> = {
+  [-32700]: "Parse error. The request JSON is malformed.",
+  [-32600]: "Invalid request. Check the JSON-RPC request format.",
+  [-32601]: "Method not supported. Check the method name and ensure your plan supports it.",
+  [-32602]: "Invalid parameters. Check argument types and format.",
+  [-32603]: "Internal JSON-RPC error.",
+};
+
 export function errRPC(code: number, message: string): CLIError {
-  return new CLIError(ErrorCode.RPC_ERROR, `RPC error ${code}: ${message}`);
+  const hint = RPC_ERROR_HINTS[code];
+  return new CLIError(ErrorCode.RPC_ERROR, `RPC error ${code}: ${message}`, hint);
 }
 
 export function errInvalidArgs(detail: string): CLIError {
@@ -155,6 +164,17 @@ export function errInvalidAccessKey(): CLIError {
     ErrorCode.INVALID_ACCESS_KEY,
     "Invalid access key. Check your key and try again.",
     "Get an access key: https://www.alchemy.com/docs/reference/admin-api/overview",
+  );
+}
+
+export function errAccessDenied(detail?: string): CLIError {
+  const message = detail
+    ? `Access denied: ${detail}`
+    : "Access denied. Your access key may not have permission for this operation.";
+  return new CLIError(
+    ErrorCode.INVALID_ACCESS_KEY,
+    message,
+    "Check your account tier and feature access at https://dashboard.alchemy.com/",
   );
 }
 
