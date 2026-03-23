@@ -51,8 +51,12 @@ export async function fetchWithTimeout(
       throw errNetwork(`Request timed out after ${globalTimeout}ms`);
     }
     const message = (err as Error).message ?? String(err);
+    // Node's fetch wraps DNS errors in a TypeError with the detail in .cause
+    const causeMessage = (err as { cause?: { message?: string } }).cause?.message ?? "";
+    const causeCode = (err as { cause?: { code?: string } }).cause?.code ?? "";
+    const fullErrorText = `${message} ${causeMessage} ${causeCode}`;
     // Detect DNS resolution failures — typically caused by an invalid network slug
-    if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(message)) {
+    if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(fullErrorText)) {
       // Extract the hostname from the URL for a clearer error message
       try {
         const hostname = new URL(url).hostname;
