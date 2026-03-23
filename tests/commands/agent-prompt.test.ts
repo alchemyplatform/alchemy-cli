@@ -119,6 +119,31 @@ describe("agent-prompt command", () => {
     expect(payload.errors.INVALID_ARGS.retryable).toBe(false);
   });
 
+  it("includes update-check guidance for automation", async () => {
+    const printHuman = vi.fn();
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman,
+    }));
+
+    const { registerAgentPrompt } = await import(
+      "../../src/commands/agent-prompt.js"
+    );
+    const program = new Command();
+    registerAgentPrompt(program);
+
+    await program.parseAsync(["node", "test", "agent-prompt"], {
+      from: "node",
+    });
+
+    const payload = printHuman.mock.calls[0][1];
+    expect(payload.executionPolicy).toContain(
+      "Run alchemy --json --no-interactive update-check when you need to detect available CLI upgrades",
+    );
+    expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
+  });
+
   it("includes auth entries for all method types", async () => {
     const printHuman = vi.fn();
     vi.doMock("../../src/lib/output.js", () => ({

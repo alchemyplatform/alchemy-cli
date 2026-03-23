@@ -11,6 +11,7 @@ import {
   maskIf,
   printKeyValueBox,
 } from "../lib/ui.js";
+import { getUpdateNoticeLines } from "../lib/update-check.js";
 import { selectOrCreateApp } from "./config.js";
 import { generateAndPersistWallet, importAndPersistWallet } from "./wallet.js";
 
@@ -115,7 +116,10 @@ async function runX402Onboarding(): Promise<void> {
   console.log(`  ${green("✓")} x402 enabled with wallet ${wallet.address}`);
 }
 
-export async function runOnboarding(_program: Command): Promise<boolean> {
+export async function runOnboarding(
+  _program: Command,
+  latestUpdate: string | null = null,
+): Promise<boolean> {
   process.stdout.write(brandedHelp({ force: true }));
   console.log("");
   console.log(`  ${brand("◆")} ${bold("Welcome to Alchemy CLI")}`);
@@ -124,6 +128,12 @@ export async function runOnboarding(_program: Command): Promise<boolean> {
   console.log(`  ${dim("  Choose one auth path to continue.")}`);
   console.log(`  ${dim("  Tip: select 'exit' to skip setup for now.")}`);
   console.log("");
+  if (latestUpdate) {
+    for (const line of getUpdateNoticeLines(latestUpdate)) {
+      console.log(line);
+    }
+    console.log("");
+  }
   const method = await promptSelect<OnboardingMethod>({
     message: "Choose an auth setup path",
     options: [

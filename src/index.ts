@@ -1,5 +1,5 @@
 import { Command, Help } from "commander";
-import { errSetupRequired, exitWithError, setReplMode } from "./lib/errors.js";
+import { EXIT_CODES, errSetupRequired, exitWithError } from "./lib/errors.js";
 import { setFlags, isJSONMode, quiet } from "./lib/output.js";
 import { formatCommanderError } from "./lib/error-format.js";
 import { load as loadConfig } from "./lib/config.js";
@@ -29,8 +29,10 @@ import { registerBundler } from "./commands/bundler.js";
 import { registerGasManager } from "./commands/gas-manager.js";
 import { registerSolana } from "./commands/solana.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
+import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
 import { getSetupStatus, isSetupComplete, shouldRunOnboarding } from "./lib/onboarding.js";
+import { getAvailableUpdate, printUpdateNotice } from "./lib/update-check.js";
 
 // ── ANSI helpers for help formatting ────────────────────────────────
 const hBrand = noColor
@@ -72,7 +74,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Admin",
-    commands: ["apps", "config", "setup", "agent-prompt", "version", "help"],
+    commands: ["apps", "config", "setup", "agent-prompt", "update-check", "version", "help"],
   },
 ] as const;
 
@@ -115,12 +117,27 @@ const findCommandByPath = (root: Command, path: string[]): Command | null => {
 
 declare const __CLI_VERSION__: string;
 
+let cachedAvailableUpdate: string | null | undefined;
+let updateShownDuringInteractiveStartup = false;
+
+function getAvailableUpdateOnce(): string | null {
+  if (cachedAvailableUpdate === undefined) {
+    cachedAvailableUpdate = getAvailableUpdate();
+  }
+  return cachedAvailableUpdate;
+}
+
+function resetUpdateNoticeState(): void {
+  cachedAvailableUpdate = undefined;
+  updateShownDuringInteractiveStartup = false;
+}
+
 program
   .name("alchemy")
   .description(
     "The Alchemy CLI lets you query blockchain data, call JSON-RPC methods, and manage your Alchemy configuration.",
   )
-  .version(__CLI_VERSION__)
+  .version(__CLI_VERSION__, "-v, --version", "display CLI version")
   .option("--api-key <key>", "Alchemy API key (env: ALCHEMY_API_KEY)")
   .option("--access-key <key>", "Alchemy access key (env: ALCHEMY_ACCESS_KEY)")
   .option(
@@ -131,13 +148,23 @@ program
   .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
   .option("--json", "Force JSON output")
   .option("-q, --quiet", "Suppress non-essential output")
-  .option("-v, --verbose", "Enable verbose output")
+  .option("--verbose", "Enable verbose output")
   .option("--no-color", "Disable color output")
   .option("--reveal", "Show secrets in plain text (TTY only)")
   .option("--timeout <ms>", "Request timeout in milliseconds", parseInt)
   .option("--debug", "Enable debug diagnostics")
   .option("--no-interactive", "Disable REPL and prompt-driven interactions")
   .addHelpCommand(false)
+  .exitOverride((err) => {
+    if (
+      err.code === "commander.help" ||
+      err.code === "commander.helpDisplayed" ||
+      err.code === "commander.version"
+    ) {
+      process.exit(0);
+    }
+    process.exit(EXIT_CODES.INVALID_ARGS);
+  })
   .configureOutput({
     outputError(str, write) {
       write(formatCommanderError(str));
@@ -301,7 +328,12 @@ program
   .hook("postAction", () => {
     if (!isJSONMode() && !quiet) {
       console.log("");
+      if (!updateShownDuringInteractiveStartup) {
+        const latest = getAvailableUpdateOnce();
+        if (latest) printUpdateNotice(latest);
+      }
     }
+    resetUpdateNoticeState();
   })
   .action(async () => {
     const cfg = loadConfig();
@@ -310,14 +342,21 @@ program
     }
 
     if (isInteractiveAllowed(program)) {
+      let latestForInteractiveStartup: string | null = null;
       if (shouldRunOnboarding(program, cfg)) {
         const { runOnboarding } = await import("./commands/onboarding.js");
-        const completed = await runOnboarding(program);
+        const latest = getAvailableUpdateOnce();
+        const completed = await runOnboarding(program, latest);
+        updateShownDuringInteractiveStartup = Boolean(latest);
+        latestForInteractiveStartup = null;
         if (!completed) {
           // User skipped or aborted onboarding while setup remains incomplete.
           // Do not enter REPL; return to shell without forcing interactive mode.
           return;
         }
+      } else {
+        latestForInteractiveStartup = getAvailableUpdateOnce();
+        updateShownDuringInteractiveStartup = Boolean(latestForInteractiveStartup);
       }
       const { startREPL } = await import("./commands/interactive.js");
       // In REPL mode, override exitOverride so errors don't kill the process
@@ -325,7 +364,7 @@ program
       program.configureOutput({
         writeErr: () => {},
       });
-      await startREPL(program);
+      await startREPL(program, latestForInteractiveStartup);
       return;
     }
     program.help();
@@ -363,6 +402,7 @@ registerSetup(program);
 registerConfig(program);
 registerSolana(program);
 registerAgentPrompt(program);
+registerUpdateCheck(program);
 registerVersion(program);
 program
   .command("help [command...]")

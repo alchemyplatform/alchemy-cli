@@ -127,6 +127,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       "Parse stdout as JSON on exit code 0",
       "Parse stderr as JSON on nonzero exit code",
       "Never run bare 'alchemy' without --json --no-interactive",
+      "Run alchemy --json --no-interactive update-check when you need to detect available CLI upgrades",
     ],
     preflight: {
       command: "alchemy --json setup status",
@@ -191,6 +192,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
     errors,
     examples: [
       "alchemy --json --no-interactive setup status",
+      "alchemy --json --no-interactive update-check",
       "alchemy --json --no-interactive balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
       "alchemy --json --no-interactive apps list --access-key $ALCHEMY_ACCESS_KEY",
       "alchemy --json --no-interactive rpc eth_blockNumber --api-key $ALCHEMY_API_KEY",

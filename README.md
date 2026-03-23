@@ -57,6 +57,9 @@ alchemy
 
 # Agent/script-friendly command
 alchemy balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --json --no-interactive
+
+# Agent checks whether a newer CLI version is available
+alchemy update-check --json --no-interactive
 ```
 
 #### Agent bootstrap
@@ -69,6 +72,8 @@ alchemy --json agent-prompt
 ```
 
 This returns a single JSON document with execution policy, preflight instructions, auth matrix, the full command tree with all arguments and options, error codes with recovery actions, and example invocations. No external docs required.
+
+Agents can also call `alchemy --json --no-interactive update-check` to retrieve the current CLI version, latest known version, and install command for upgrades.
 
 ## Command Reference
 
@@ -151,6 +156,7 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 | `apps origin-allowlist <id>` | Updates app origin allowlist | `alchemy apps origin-allowlist <app-id> --origins https://example.com` |
 | `apps ip-allowlist <id>` | Updates app IP allowlist | `alchemy apps ip-allowlist <app-id> --ips 1.2.3.4,5.6.7.8` |
 | `setup status` | Shows setup status + next commands | `alchemy setup status` |
+| `update-check` | Checks whether a newer CLI version is available | `alchemy update-check --json --no-interactive` |
 | `config set ...` | Sets config values | `alchemy config set api-key <key>` |
 | `config get <key>` | Gets one config value | `alchemy config get network` |
 | `config list` | Lists all config values | `alchemy config list` |
@@ -180,7 +186,7 @@ These apply to all commands.
 |---|---|---|
 | `--json` | — | Force JSON output |
 | `-q, --quiet` | — | Suppress non-essential output |
-| `-v, --verbose` | — | Enable verbose output |
+| `--verbose` | — | Enable verbose output |
 | `--no-color` | `NO_COLOR` | Disable color output |
 | `--reveal` | — | Show secrets in plain text (TTY only) |
 
@@ -317,6 +323,7 @@ Use `--no-interactive` to disable REPL/prompts in automation.
 
 - TTY: formatted human output
 - Non-TTY: JSON output (script-friendly)
+- `-v`, `--version`: prints the CLI version
 - `--json`: forces JSON output in any context
 - `--verbose` or `alchemy config set verbose true`: includes richer payload output on supported commands
 
