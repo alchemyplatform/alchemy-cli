@@ -141,20 +141,7 @@ export function formatCommanderError(message: string): string {
   if (lines.length === 0) return message;
 
   const [first, ...rest] = lines;
-  let detail = first.replace(/^error:\s*/i, "").trim();
-
-  // Commander says "too many arguments" when an unknown subcommand is passed
-  // to the root command. Rewrite to a more helpful message.
-  const tooManyMatch = detail.match(
-    /^too many arguments\.\s*Expected 0 arguments but got (\d+)/i,
-  );
-  if (tooManyMatch) {
-    // Extract the unknown command from argv (first non-flag arg after 'alchemy')
-    const unknownCmd = process.argv.slice(2).find((arg) => !arg.startsWith("-"));
-    detail = unknownCmd
-      ? `Unknown command '${unknownCmd}'. Run 'alchemy help' for available commands.`
-      : "Unknown command. Run 'alchemy help' for available commands.";
-  }
+  const detail = first.replace(/^error:\s*/i, "").trim();
 
   if (jsonMode) {
     const err: Record<string, unknown> = {
