@@ -47,7 +47,7 @@ For setup commands, env vars, and resolution order, see [Authentication Referenc
 After auth is configured, use the CLI differently depending on who is driving it:
 
 - **Humans (interactive terminal):** start with `alchemy` and use the terminal UI/setup flow; this is the recommended path for human usage
-- **Agents/scripts (automation):** always use `--json` and prefer non-interactive execution (`--no-interactive`)
+- **Agents/scripts (automation):** use `--json --no-interactive` to guarantee JSON output and disable prompts (JSON is auto-enabled when piped, but `--json` is a safe default)
 
 Quick usage examples:
 
@@ -184,7 +184,7 @@ These apply to all commands.
 
 | Flag | Env var | Description |
 |---|---|---|
-| `--json` | — | Force JSON output |
+| `--json` | — | Force JSON output (auto-enabled when piped) |
 | `-q, --quiet` | — | Suppress non-essential output |
 | `--verbose` | — | Enable verbose output |
 | `--no-color` | `NO_COLOR` | Disable color output |
@@ -321,11 +321,10 @@ Use `--no-interactive` to disable REPL/prompts in automation.
 
 ## Output Modes
 
-- TTY: formatted human output
-- Non-TTY: JSON output (script-friendly)
-- `-v`, `--version`: prints the CLI version
-- `--json`: forces JSON output in any context
-- `--verbose` or `alchemy config set verbose true`: includes richer payload output on supported commands
+- **TTY (terminal):** formatted human output (tables, colors, spinners)
+- **Non-TTY (piped/redirected):** JSON output automatically — no flag needed
+- `--json`: forces JSON output even in a terminal
+- `--verbose` or `alchemy config set verbose true`: logs request/response details (method, URL, status, timing) to stderr
 
 ## Error Format
 

@@ -146,7 +146,7 @@ program
   )
   .option("--x402", "Use x402 wallet-based gateway auth")
   .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
-  .option("--json", "Force JSON output")
+  .option("--json", "Force JSON output (auto-enabled when piped)")
   .option("-q, --quiet", "Suppress non-essential output")
   .option("--verbose", "Enable verbose output")
   .option("--no-color", "Disable color output")

@@ -158,7 +158,7 @@ describe("config command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
-  it("returns NOT_FOUND contract when config key is missing", async () => {
+  it("returns NOT_FOUND when config key has no value and no default", async () => {
     const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
     mockConfigModule({
       load: vi.fn().mockReturnValue({}),
@@ -171,5 +171,40 @@ describe("config command", () => {
 
     expect(exitWithError).toHaveBeenCalledTimes(1);
     expect(exitWithError.mock.calls[0][0]).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("returns effective default for network when not explicitly set", async () => {
+    const { exitWithError, printHuman } = installBaseCommandMocks({ jsonMode: false });
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({}),
+      get: vi.fn().mockReturnValue(undefined),
+    });
+    mockConfigDependencies({ interactive: false });
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "get", "network"]);
+
+    expect(exitWithError).not.toHaveBeenCalled();
+    expect(printHuman).toHaveBeenCalledTimes(1);
+    // Human text should contain the default value
+    expect(printHuman.mock.calls[0][0]).toContain("eth-mainnet");
+    // JSON payload should indicate it's a default
+    expect(printHuman.mock.calls[0][1]).toMatchObject({ key: "network", value: "eth-mainnet", default: true });
+  });
+
+  it("returns effective default for verbose when not explicitly set", async () => {
+    const { exitWithError, printHuman } = installBaseCommandMocks({ jsonMode: false });
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({}),
+      get: vi.fn().mockReturnValue(undefined),
+    });
+    mockConfigDependencies({ interactive: false });
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "get", "verbose"]);
+
+    expect(exitWithError).not.toHaveBeenCalled();
+    expect(printHuman).toHaveBeenCalledTimes(1);
+    expect(printHuman.mock.calls[0][1]).toMatchObject({ key: "verbose", value: "false", default: true });
   });
 });
