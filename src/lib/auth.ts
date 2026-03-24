@@ -6,6 +6,22 @@ import { URL } from "node:url";
 const AUTH_PORT = 16424;
 const AUTH_CALLBACK_PATH = "/callback";
 
+const SUCCESS_HTML = `<!DOCTYPE html>
+<html>
+<head><title>Alchemy CLI</title><style>
+  body { font-family: -apple-system, system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #0a0a0a; color: #fafafa; }
+  .card { text-align: center; padding: 3rem; }
+  .check { font-size: 3rem; margin-bottom: 1rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  p { color: #888; margin: 0; }
+</style></head>
+<body><div class="card">
+  <div class="check">&#x2713;</div>
+  <h1>Authenticated</h1>
+  <p>You can close this tab and return to your terminal.</p>
+</div></body>
+</html>`;
+
 // Environment-based auth URL
 function getAuthBaseUrl(): string {
   return process.env.ALCHEMY_AUTH_URL || "https://auth.alchemy.com";
@@ -27,11 +43,13 @@ export function openBrowser(url: string): void {
   exec(`${cmd} "${url}"`);
 }
 
-interface AuthResult {
-  token: string;
+interface CallbackResult {
+  code: string;
+  sendSuccess: () => void;
+  sendError: (message: string) => void;
 }
 
-export function waitForCallback(port: number, timeoutMs = 120_000): Promise<AuthResult> {
+export function waitForCallback(port: number, timeoutMs = 120_000): Promise<CallbackResult> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       server.close();
@@ -47,34 +65,28 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Auth
         return;
       }
 
-      const token = url.searchParams.get("authToken");
-      if (!token) {
+      const code = url.searchParams.get("code");
+      if (!code) {
         res.writeHead(400);
-        res.end("Missing auth token");
+        res.end("Missing auth code");
         return;
       }
 
-      // Serve success page
-      res.writeHead(200, { "Content-Type": "text/html" });
-      res.end(`<!DOCTYPE html>
-<html>
-<head><title>Alchemy CLI</title><style>
-  body { font-family: -apple-system, system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #0a0a0a; color: #fafafa; }
-  .card { text-align: center; padding: 3rem; }
-  .check { font-size: 3rem; margin-bottom: 1rem; }
-  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
-  p { color: #888; margin: 0; }
-</style></head>
-<body><div class="card">
-  <div class="check">&#x2713;</div>
-  <h1>Authenticated</h1>
-  <p>You can close this tab and return to your terminal.</p>
-</div></body>
-</html>`);
-
       clearTimeout(timer);
-      server.close();
-      resolve({ token });
+
+      resolve({
+        code,
+        sendSuccess: () => {
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end(SUCCESS_HTML);
+          server.close();
+        },
+        sendError: (message: string) => {
+          res.writeHead(500, { "Content-Type": "text/html" });
+          res.end(`<!DOCTYPE html><html><head><title>Alchemy CLI</title><style>body{font-family:-apple-system,system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#0a0a0a;color:#fafafa}.card{text-align:center;padding:3rem}.x{font-size:3rem;margin-bottom:1rem;color:#ef4444}h1{font-size:1.5rem;margin:0 0 .5rem}p{color:#888;margin:0}</style></head><body><div class="card"><div class="x">&#x2717;</div><h1>Authentication Failed</h1><p>${message}</p></div></body></html>`);
+          server.close();
+        },
+      });
     });
 
     server.on("error", (err: NodeJS.ErrnoException) => {
@@ -92,6 +104,33 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Auth
 
     server.listen(port);
   });
+}
+
+export async function exchangeCodeForToken(
+  code: string,
+  port: number,
+): Promise<string> {
+  const baseUrl = getAuthBaseUrl();
+  const redirectUri = `http://localhost:${port}${AUTH_CALLBACK_PATH}`;
+
+  const response = await fetch(`${baseUrl}/api/cli/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, redirect_uri: redirectUri }),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(
+      (body as { error?: string }).error || `Token exchange failed (HTTP ${response.status})`,
+    );
+  }
+
+  const data = (await response.json()) as { authToken: string };
+  if (!data.authToken) {
+    throw new Error("Token exchange response missing authToken");
+  }
+  return data.authToken;
 }
 
 export { AUTH_PORT };

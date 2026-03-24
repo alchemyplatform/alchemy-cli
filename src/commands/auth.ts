@@ -1,9 +1,9 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, getLoginUrl, openBrowser, waitForCallback } from "../lib/auth.js";
+import { AUTH_PORT, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken } from "../lib/auth.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
 import { printHuman, isJSONMode } from "../lib/output.js";
-import { green, dim, bold, brand, withSpinner, maskIf } from "../lib/ui.js";
+import { green, dim, bold, brand, maskIf } from "../lib/ui.js";
 
 export function registerAuth(program: Command) {
   const cmd = program
@@ -32,18 +32,28 @@ export function registerAuth(program: Command) {
         const callbackPromise = waitForCallback(port);
         openBrowser(loginUrl);
 
-        const result = await withSpinner(
-          "Waiting for authentication...",
-          "Authenticated",
-          () => callbackPromise,
-        );
+        if (!isJSONMode()) {
+          console.log(`  ${dim("Waiting for authentication...")}`);
+        }
+
+        const callback = await callbackPromise;
+
+        // Exchange code for token (backchannel)
+        let token: string;
+        try {
+          token = await exchangeCodeForToken(callback.code, port);
+          callback.sendSuccess();
+        } catch (err) {
+          callback.sendError("Failed to complete authentication. Please try again.");
+          throw err;
+        }
 
         // Save token to config
         const cfg = config.load();
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         config.save({
           ...cfg,
-          auth_token: result.token,
+          auth_token: token,
           auth_token_expires_at: expiresAt,
         });
 
