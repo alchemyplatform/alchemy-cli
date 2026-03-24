@@ -41,7 +41,7 @@ export async function withAuthRetry<T>(
     const token = await exchangeCodeForToken(callback.code, port);
     callback.sendSuccess();
 
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
     const freshCfg = load();
     save({ ...freshCfg, auth_token: token, auth_token_expires_at: expiresAt });
 

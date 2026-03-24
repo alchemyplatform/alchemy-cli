@@ -62,7 +62,7 @@ export function adminClientFromFlags(program: Command): AdminClient {
   if (accessKey) return new AdminClient(accessKey);
 
   const authToken = resolveAuthToken(cfg);
-  if (authToken) return new AdminClient(authToken);
+  if (authToken) return new AdminClient({ type: "auth_token", token: authToken });
 
   throw errAccessKeyRequired();
 }

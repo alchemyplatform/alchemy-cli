@@ -54,7 +54,7 @@ export function registerAuth(program: Command) {
 
         // Save token to config
         const cfg = config.load();
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
         config.save({
           ...cfg,
           auth_token: token,
@@ -149,14 +149,17 @@ export function registerAuth(program: Command) {
 async function selectAppAfterAuth(authToken: string): Promise<void> {
   let apps: App[];
   try {
-    const admin = new AdminClient(authToken);
+    const admin = new AdminClient({ type: "auth_token", token: authToken });
     const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
       admin.listAllApps(),
     );
     apps = result.apps;
   } catch (err) {
-    // Log the error in debug mode so users can diagnose issues
-    debug(`Failed to fetch apps: ${err instanceof Error ? err.message : String(err)}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    debug(`Failed to fetch apps: ${msg}`);
+    if (!isJSONMode()) {
+      console.error(`  ${dim(`Could not fetch apps: ${msg}`)}`);
+    }
     return;
   }
 
