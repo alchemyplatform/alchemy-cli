@@ -1,5 +1,5 @@
 import { Command, Help } from "commander";
-import { EXIT_CODES, errSetupRequired, exitWithError } from "./lib/errors.js";
+import { EXIT_CODES, errInvalidArgs, errSetupRequired, exitWithError } from "./lib/errors.js";
 import { setFlags, isJSONMode, quiet } from "./lib/output.js";
 import { formatCommanderError } from "./lib/error-format.js";
 import { load as loadConfig } from "./lib/config.js";
@@ -155,6 +155,7 @@ program
   .option("--debug", "Enable debug diagnostics")
   .option("--no-interactive", "Disable REPL and prompt-driven interactions")
   .addHelpCommand(false)
+  .allowExcessArguments(true)
   .exitOverride((err) => {
     if (
       err.code === "commander.help" ||
@@ -335,7 +336,18 @@ program
     }
     resetUpdateNoticeState();
   })
-  .action(async () => {
+  .action(async (_opts: unknown, cmd: Command) => {
+    // Commander routes here when no subcommand matches. If the user passed
+    // positional args (e.g. "alchemy abcd"), those are unknown commands.
+    const excessArgs = cmd.args;
+    if (excessArgs.length > 0) {
+      exitWithError(
+        errInvalidArgs(
+          `Unknown command '${excessArgs[0]}'. Run 'alchemy help' for available commands.`,
+        ),
+      );
+    }
+
     const cfg = loadConfig();
     if (!isSetupComplete(cfg) && !isInteractiveAllowed(program)) {
       throw errSetupRequired(getSetupStatus(cfg));

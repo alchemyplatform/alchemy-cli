@@ -150,6 +150,46 @@ describe("Client.call", () => {
     }
   });
 
+  it("throws RPC error when HTTP error body contains JSON-RPC error", async () => {
+    const url = await createTestServer((_req, res) => {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          error: { code: -32601, message: "The method fake_method does not exist" },
+          id: 1,
+        }),
+      );
+    });
+
+    const client = new TestClient(url);
+    try {
+      await client.call("fake_method");
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      expect((err as CLIError).code).toBe(ErrorCode.RPC_ERROR);
+      expect((err as CLIError).message).toContain("-32601");
+      expect((err as CLIError).hint).toBeDefined();
+    }
+  });
+
+  it("throws network error when HTTP error body is not JSON-RPC", async () => {
+    const url = await createTestServer((_req, res) => {
+      res.writeHead(500);
+      res.end("Internal Server Error");
+    });
+
+    const client = new TestClient(url);
+    try {
+      await client.call("eth_blockNumber");
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      expect((err as CLIError).code).toBe(ErrorCode.NETWORK_ERROR);
+    }
+  });
+
   it("throws on 429", async () => {
     const url = await createTestServer((_req, res) => {
       res.writeHead(429);

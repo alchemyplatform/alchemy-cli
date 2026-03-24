@@ -1,5 +1,6 @@
 import {
   errInvalidAccessKey,
+  errAccessDenied,
   errNotFound,
   errRateLimited,
   errAdminAPI,
@@ -128,7 +129,19 @@ export class AdminClient {
       ...(body !== undefined && { body: JSON.stringify(body) }),
     });
 
-    if (resp.status === 401 || resp.status === 403) throw errInvalidAccessKey();
+    if (resp.status === 401) throw errInvalidAccessKey();
+    if (resp.status === 403) {
+      const detail = await resp.text().catch(() => "");
+      // Try to extract a reason from the response body
+      let reason: string | undefined;
+      try {
+        const parsed = JSON.parse(detail);
+        reason = parsed?.message || parsed?.error?.message || parsed?.error || undefined;
+      } catch {
+        reason = detail || undefined;
+      }
+      throw errAccessDenied(typeof reason === "string" ? reason : undefined);
+    }
     if (resp.status === 404) {
       const text = await resp.text().catch(() => "");
       throw errNotFound(text || path);

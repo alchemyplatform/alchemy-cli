@@ -48,10 +48,14 @@ export class Client implements AlchemyClient {
     try {
       parsed = new URL(`https://${hostname}`);
     } catch {
-      throw errInvalidArgs(`Invalid network: ${network}`);
+      throw errInvalidArgs(
+        `Unknown network '${network}'. Run 'alchemy network list' to see available networks.`,
+      );
     }
     if (!parsed.hostname.endsWith(".g.alchemy.com")) {
-      throw errInvalidArgs(`Invalid network: ${network} — hostname must end with .g.alchemy.com`);
+      throw errInvalidArgs(
+        `Unknown network '${network}'. Run 'alchemy network list' to see available networks.`,
+      );
     }
   }
 
@@ -87,6 +91,18 @@ export class Client implements AlchemyClient {
     return errInvalidAPIKey(detail || undefined);
   }
 
+  private tryParseRPCError(text: string): CLIError | null {
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed?.error?.code !== undefined && parsed?.error?.message !== undefined) {
+        return errRPC(parsed.error.code, parsed.error.message);
+      }
+    } catch {
+      // Not JSON — fall through
+    }
+    return null;
+  }
+
   private async doFetch(url: string, init: RequestInit): Promise<Response> {
     return fetchWithTimeout(url, init);
   }
@@ -116,6 +132,9 @@ export class Client implements AlchemyClient {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
+      // Try to parse as JSON-RPC error before falling back to network error
+      const rpcError = this.tryParseRPCError(text);
+      if (rpcError) throw rpcError;
       throw errNetwork(`HTTP ${resp.status}: ${text}`);
     }
 
@@ -149,6 +168,8 @@ export class Client implements AlchemyClient {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
+      const rpcError = this.tryParseRPCError(text);
+      if (rpcError) throw rpcError;
       throw errNetwork(`HTTP ${resp.status}: ${text}`);
     }
 

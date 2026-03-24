@@ -1,4 +1,4 @@
-import { errInvalidArgs, errNetwork } from "./errors.js";
+import { CLIError, errInvalidArgs, errNetwork } from "./errors.js";
 import { timeout as globalTimeout } from "./output.js";
 
 export function isLocalhost(hostname: string): boolean {
@@ -50,6 +50,26 @@ export async function fetchWithTimeout(
     if (err instanceof DOMException && err.name === "TimeoutError") {
       throw errNetwork(`Request timed out after ${globalTimeout}ms`);
     }
-    throw errNetwork((err as Error).message);
+    const message = (err as Error).message ?? String(err);
+    // Node's fetch wraps DNS errors in a TypeError with the detail in .cause
+    const causeMessage = (err as { cause?: { message?: string } }).cause?.message ?? "";
+    const causeCode = (err as { cause?: { code?: string } }).cause?.code ?? "";
+    const fullErrorText = `${message} ${causeMessage} ${causeCode}`;
+    // Detect DNS resolution failures — typically caused by an invalid network slug
+    if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(fullErrorText)) {
+      // Extract the hostname from the URL for a clearer error message
+      try {
+        const hostname = new URL(url).hostname;
+        const networkSlug = hostname.replace(/\.g\.alchemy\.com$/, "");
+        if (networkSlug !== hostname) {
+          throw errInvalidArgs(
+            `Unknown network '${networkSlug}'. Run 'alchemy network list' to see available networks.`,
+          );
+        }
+      } catch (innerErr) {
+        if (innerErr instanceof CLIError) throw innerErr;
+      }
+    }
+    throw errNetwork(message);
   }
 }

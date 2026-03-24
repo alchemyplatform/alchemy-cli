@@ -69,6 +69,40 @@ describe("block command", () => {
     expect(exitWithError).toHaveBeenCalledTimes(1);
   });
 
+  it("block -1 rejects negative block numbers", async () => {
+    const exitWithError = vi.fn();
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      verbose: false,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      bold: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      printSyntaxJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/block-format.js", () => ({
+      formatBlockTimestamp: vi.fn(),
+      formatHexQuantity: vi.fn(),
+      formatGasSummary: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerBlock } = await import("../../src/commands/block.js");
+    const program = new Command();
+    registerBlock(program);
+
+    await program.parseAsync(["node", "test", "block", "-1"], { from: "node" });
+    expect(exitWithError).toHaveBeenCalledTimes(1);
+    const err = exitWithError.mock.calls[0][0];
+    expect(err.message).toContain("non-negative");
+  });
+
   it("block latest prints JSON payload in json mode", async () => {
     const call = vi.fn().mockResolvedValue({ number: "0x10", hash: "0xhash" });
     const printJSON = vi.fn();

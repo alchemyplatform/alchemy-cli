@@ -335,7 +335,7 @@ describe("AdminClient", () => {
     }
   });
 
-  it("throws INVALID_ACCESS_KEY on 403", async () => {
+  it("throws INVALID_ACCESS_KEY on 403 with access denied message", async () => {
     const url = await createTestServer((_req, res) => {
       res.writeHead(403);
       res.end();
@@ -348,6 +348,24 @@ describe("AdminClient", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(CLIError);
       expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
+      expect((err as CLIError).message).toContain("Access denied");
+    }
+  });
+
+  it("includes reason from 403 response body", async () => {
+    const url = await createTestServer((_req, res) => {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ message: "Feature not available on your current plan" }));
+    });
+
+    const client = new TestAdminClient(url);
+    try {
+      await client.listApps();
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
+      expect((err as CLIError).message).toContain("Feature not available");
     }
   });
 

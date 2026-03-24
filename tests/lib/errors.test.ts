@@ -153,6 +153,24 @@ describe("convenience constructors", () => {
   }
 });
 
+describe("errRPC hints", () => {
+  it("includes hint for known RPC error codes", () => {
+    const err = errRPC(-32601, "Method not found");
+    expect(err.hint).toBeDefined();
+    expect(err.hint).toContain("Method not supported");
+  });
+
+  it("includes hint for invalid params", () => {
+    const err = errRPC(-32602, "Invalid params");
+    expect(err.hint).toContain("Invalid parameters");
+  });
+
+  it("has no hint for unknown RPC error codes", () => {
+    const err = errRPC(-32000, "Execution reverted");
+    expect(err.hint).toBeUndefined();
+  });
+});
+
 describe("EXIT_CODES", () => {
   it("has a mapping for every ErrorCode", () => {
     for (const code of Object.values(ErrorCode)) {

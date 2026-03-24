@@ -41,6 +41,9 @@ Examples:
               "block must be a number, hex, or 'latest'",
             );
           }
+          if (num < 0) {
+            throw errInvalidArgs("Block number must be non-negative.");
+          }
           blockParam = `0x${num.toString(16)}`;
         }
 
