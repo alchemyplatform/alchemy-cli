@@ -76,7 +76,7 @@ export function registerAuth(program: Command) {
 
         // After auth, try to fetch apps and let user select one
         if (isInteractiveAllowed(program)) {
-          await selectAppAfterAuth(token);
+          await selectAppAfterAuth(result.token);
         }
 
         process.exit(0);
