@@ -9,6 +9,8 @@ import {
   errRateLimited,
 } from "./errors.js";
 import { parseBaseURLOverride, fetchWithTimeout } from "./client-utils.js";
+import { verbose as isVerbose } from "./output.js";
+import { redactSensitiveText } from "./redact.js";
 
 export interface RPCRequest {
   jsonrpc: string;
@@ -103,6 +105,12 @@ export class Client implements AlchemyClient {
     return null;
   }
 
+  private verboseLog(message: string): void {
+    if (isVerbose) {
+      process.stderr.write(`[verbose] ${message}\n`);
+    }
+  }
+
   private async doFetch(url: string, init: RequestInit): Promise<Response> {
     return fetchWithTimeout(url, init);
   }
@@ -115,6 +123,14 @@ export class Client implements AlchemyClient {
       id: 1,
     };
 
+    const redactedURL = redactSensitiveText(this.rpcURL());
+    this.verboseLog(`→ POST ${redactedURL}`);
+    this.verboseLog(`  method: ${method}`);
+    if (params.length > 0) {
+      this.verboseLog(`  params: ${JSON.stringify(params)}`);
+    }
+    const startTime = Date.now();
+
     const resp = await this.doFetch(this.rpcURL(), {
       method: "POST",
       headers: {
@@ -123,6 +139,8 @@ export class Client implements AlchemyClient {
       },
       body: JSON.stringify(body),
     });
+
+    this.verboseLog(`← ${resp.status} ${resp.statusText} (${Date.now() - startTime}ms)`);
 
     if (resp.status === 429) throw errRateLimited();
     if (resp.status === 401 || resp.status === 403) {
@@ -156,9 +174,15 @@ export class Client implements AlchemyClient {
       url.searchParams.set(k, v);
     }
 
+    const redactedURL = redactSensitiveText(url.toString());
+    this.verboseLog(`→ GET ${redactedURL}`);
+    const startTime = Date.now();
+
     const resp = await this.doFetch(url.toString(), {
       headers: { Accept: "application/json" },
     });
+
+    this.verboseLog(`← ${resp.status} ${resp.statusText} (${Date.now() - startTime}ms)`);
 
     if (resp.status === 429) throw errRateLimited();
     if (resp.status === 401 || resp.status === 403) {

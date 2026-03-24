@@ -360,13 +360,31 @@ export function registerConfig(program: Command) {
     .description("Get a config value (api-key, access-key, app, network, verbose, wallet-key-file, x402)")
     .action((key: string) => {
       const cfg = config.load();
-      const value = config.get(cfg, key);
+      let value = config.get(cfg, key);
+      let isDefault = false;
+
+      // Return effective defaults for keys that have well-known defaults
+      if (value === undefined) {
+        const defaults: Record<string, string> = {
+          network: "eth-mainnet",
+          verbose: "false",
+          x402: "false",
+        };
+        const normalizedKey = config.KEY_MAP[key] ?? key;
+        const defaultValue = defaults[normalizedKey] ?? defaults[key];
+        if (defaultValue !== undefined) {
+          value = defaultValue;
+          isDefault = true;
+        }
+      }
+
       if (value === undefined) {
         exitWithError(errNotFound(`config key '${key}'`));
       }
       const isSecret = key === "api-key" || key === "api_key" || key === "access-key" || key === "access_key";
       const display = isSecret ? maskIf(value!) : value!;
-      printHuman(display + "\n", { key, value: display });
+      const humanDisplay = isDefault ? `${display} ${dim("(default)")}` : display;
+      printHuman(humanDisplay + "\n", { key, value: display, ...(isDefault && { default: true }) });
     });
 
   // ── config list ────────────────────────────────────────────────────
