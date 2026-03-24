@@ -1,9 +1,13 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
 import { AUTH_PORT, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken } from "../lib/auth.js";
+import { AdminClient } from "../lib/admin-client.js";
+import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
-import { printHuman, isJSONMode } from "../lib/output.js";
-import { green, dim, bold, brand, maskIf } from "../lib/ui.js";
+import { printHuman, isJSONMode, debug } from "../lib/output.js";
+import { promptSelect } from "../lib/terminal-ui.js";
+import { isInteractiveAllowed } from "../lib/interaction.js";
+import { green, dim, bold, brand, maskIf, withSpinner } from "../lib/ui.js";
 
 export function registerAuth(program: Command) {
   const cmd = program
@@ -67,6 +71,13 @@ export function registerAuth(program: Command) {
             configPath: config.configPath(),
           },
         );
+
+        // After auth, try to fetch apps and let user select one
+        if (isInteractiveAllowed(program)) {
+          await selectAppAfterAuth(token);
+        }
+
+        process.exit(0);
       } catch (err) {
         exitWithError(
           err instanceof CLIError
@@ -133,4 +144,61 @@ export function registerAuth(program: Command) {
         exitWithError(err);
       }
     });
+}
+
+async function selectAppAfterAuth(authToken: string): Promise<void> {
+  let apps: App[];
+  try {
+    const admin = new AdminClient(authToken);
+    const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
+      admin.listAllApps(),
+    );
+    apps = result.apps;
+  } catch (err) {
+    // Log the error in debug mode so users can diagnose issues
+    debug(`Failed to fetch apps: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+
+  if (apps.length === 0) {
+    console.log(`  ${dim("No apps found. Create one at dashboard.alchemy.com")}`);
+    return;
+  }
+
+  let selectedApp: App;
+
+  if (apps.length === 1) {
+    selectedApp = apps[0];
+    console.log(`  ${green("✓")} Auto-selected app: ${bold(selectedApp.name)}`);
+  } else {
+    console.log("");
+    const appId = await promptSelect({
+      message: "Select an app",
+      options: apps.map((app) => ({
+        value: app.id,
+        label: app.name,
+        hint: `${app.chainNetworks.length} networks`,
+      })),
+      cancelMessage: "Skipped app selection.",
+    });
+
+    if (!appId) return;
+    selectedApp = apps.find((a) => a.id === appId)!;
+  }
+
+  // Save selected app to config
+  const cfg = config.load();
+  config.save({
+    ...cfg,
+    app: {
+      id: selectedApp.id,
+      name: selectedApp.name,
+      apiKey: selectedApp.apiKey,
+      webhookApiKey: selectedApp.webhookApiKey,
+    },
+  });
+
+  console.log(
+    `  ${dim("App")} ${selectedApp.name} ${dim("saved to config")}`,
+  );
 }

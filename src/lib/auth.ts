@@ -30,7 +30,7 @@ function getAuthBaseUrl(): string {
 export function getLoginUrl(port: number): string {
   const base = getAuthBaseUrl();
   const redirect = encodeURIComponent(`http://localhost:${port}${AUTH_CALLBACK_PATH}`);
-  return `${base}/login?redirect=${redirect}`;
+  return `${base}/login?redirectUrl=${redirect}`;
 }
 
 export function openBrowser(url: string): void {
