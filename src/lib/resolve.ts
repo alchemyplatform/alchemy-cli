@@ -6,7 +6,7 @@ import type { AlchemyClient } from "./client-interface.js";
 import { Client } from "./client.js";
 import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
-import { errAppRequired, errAuthRequired, errAccessKeyRequired, errWalletKeyRequired } from "./errors.js";
+import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errWalletKeyRequired } from "./errors.js";
 import { debug } from "./output.js";
 
 export function resolveAPIKey(program: Command, cfg?: Config): string | undefined {
@@ -85,6 +85,14 @@ export function clientFromFlags(program: Command, opts?: { defaultNetwork?: stri
   const cfg = load();
   const network = resolveNetwork(program, cfg, opts?.defaultNetwork);
   debug(`using network=${network}`);
+
+  // Reject --access-key on RPC commands — it's only for admin commands
+  const programOpts = program.opts();
+  if (programOpts.accessKey) {
+    throw errInvalidArgs(
+      "--access-key is for admin commands (apps, chains, webhooks). Use --api-key for RPC commands.",
+    );
+  }
 
   if (resolveX402(program, cfg)) {
     const walletKey = resolveWalletKey(program, cfg);

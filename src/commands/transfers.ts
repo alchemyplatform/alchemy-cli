@@ -5,6 +5,33 @@ import { exitWithError } from "../lib/errors.js";
 import { validateAddress, readStdinArg, splitCommaList } from "../lib/validators.js";
 import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 
+interface Transfer {
+  uniqueId: string;
+  [key: string]: unknown;
+}
+
+interface TransferResult {
+  transfers: Transfer[];
+  pageKey?: string;
+}
+
+function mergeTransferResults(sent: TransferResult, received: TransferResult): TransferResult {
+  const seen = new Set<string>();
+  const merged: Transfer[] = [];
+  for (const tx of [...sent.transfers, ...received.transfers]) {
+    if (!seen.has(tx.uniqueId)) {
+      seen.add(tx.uniqueId);
+      merged.push(tx);
+    }
+  }
+  merged.sort((a, b) => {
+    const blockA = Number(a.blockNum);
+    const blockB = Number(b.blockNum);
+    return blockA - blockB;
+  });
+  return { transfers: merged };
+}
+
 export function registerTransfers(program: Command) {
   program
     .command("transfers [address]")
@@ -40,31 +67,40 @@ Examples:
         if (opts.fromAddress) validateAddress(opts.fromAddress);
         if (opts.toAddress) validateAddress(opts.toAddress);
 
-        const filter: Record<string, unknown> = {
+        const baseFilter: Record<string, unknown> = {
           fromBlock: opts.fromBlock ?? "0x0",
           toBlock: opts.toBlock ?? "latest",
           withMetadata: true,
+          category: opts.category
+            ? splitCommaList(opts.category)
+            : ["external", "internal", "erc20", "erc721", "erc1155", "specialnft"],
         };
 
-        if (address && !opts.fromAddress && !opts.toAddress) {
-          filter.fromAddress = address;
-          filter.toAddress = address;
-        } else {
-          if (opts.fromAddress) filter.fromAddress = opts.fromAddress;
-          if (opts.toAddress) filter.toAddress = opts.toAddress;
-        }
-
-        filter.category = opts.category
-          ? splitCommaList(opts.category)
-          : ["external", "internal", "erc20", "erc721", "erc1155", "specialnft"];
-        if (opts.maxCount) filter.maxCount = opts.maxCount.startsWith("0x")
+        if (opts.maxCount) baseFilter.maxCount = opts.maxCount.startsWith("0x")
           ? opts.maxCount
           : `0x${Number.parseInt(opts.maxCount, 10).toString(16)}`;
-        if (opts.pageKey) filter.pageKey = opts.pageKey;
+        if (opts.pageKey) baseFilter.pageKey = opts.pageKey;
 
-        const result = await withSpinner("Fetching transfers…", "Transfers fetched", () =>
-          client.call("alchemy_getAssetTransfers", [filter]),
-        );
+        // When a bare address is given (no explicit --from/--to), fire two
+        // requests (from + to) and merge results. The API treats fromAddress
+        // and toAddress as AND, so a single request with both would only
+        // return self-transfers.
+        const needsMerge = !!(address && !opts.fromAddress && !opts.toAddress);
+
+        const result = await withSpinner("Fetching transfers…", "Transfers fetched", async () => {
+          if (needsMerge) {
+            const [sent, received] = await Promise.all([
+              client.call("alchemy_getAssetTransfers", [{ ...baseFilter, fromAddress: address }]),
+              client.call("alchemy_getAssetTransfers", [{ ...baseFilter, toAddress: address }]),
+            ]);
+            return mergeTransferResults(sent as TransferResult, received as TransferResult);
+          }
+
+          const filter = { ...baseFilter };
+          if (opts.fromAddress) filter.fromAddress = opts.fromAddress;
+          if (opts.toAddress) filter.toAddress = opts.toAddress;
+          return client.call("alchemy_getAssetTransfers", [filter]);
+        });
 
         if (isJSONMode()) {
           printJSON(result);

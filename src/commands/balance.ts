@@ -37,7 +37,7 @@ Examples:
           printJSON({
             address,
             wei: wei.toString(),
-            eth: weiToEth(wei),
+            balance: weiToEth(wei),
             symbol,
             network,
           });
