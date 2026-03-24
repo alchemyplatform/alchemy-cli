@@ -242,3 +242,42 @@ export function getRPCNetworks(): RPCNetwork[] {
 export function getRPCNetworkIds(): string[] {
   return [...RPC_NETWORK_IDS];
 }
+
+const NATIVE_TOKEN_SYMBOLS: Record<string, string> = {
+  eth: "ETH",
+  arb: "ETH",
+  arbnova: "ETH",
+  opt: "ETH",
+  base: "ETH",
+  zksync: "ETH",
+  scroll: "ETH",
+  blast: "ETH",
+  linea: "ETH",
+  zora: "ETH",
+  shape: "ETH",
+  polygon: "POL",
+  polygonzkevm: "ETH",
+  bnb: "BNB",
+  opbnb: "BNB",
+  avax: "AVAX",
+  solana: "SOL",
+  starknet: "ETH",
+  fantom: "FTM",
+  metis: "METIS",
+  mantle: "MNT",
+  celo: "CELO",
+  gnosis: "xDAI",
+  frax: "frxETH",
+  worldchain: "ETH",
+  berachain: "BERA",
+  flow: "FLOW",
+  rootstock: "RBTC",
+  zetachain: "ZETA",
+  sui: "SUI",
+};
+
+export function nativeTokenSymbol(networkId: string): string {
+  // Extract the chain family prefix from the network slug (e.g. "polygon-mainnet" → "polygon")
+  const prefix = networkId.replace(/-(mainnet|testnet|sepolia|holesky|hoodi|devnet|amoy|fuji|cardona|saigon|chiado|signet|mocha|blaze|curtis|bepolia).*$/, "");
+  return NATIVE_TOKEN_SYMBOLS[prefix] ?? "ETH";
+}

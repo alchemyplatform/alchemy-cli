@@ -40,6 +40,9 @@ describe("balance command", () => {
       readStdinArg,
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "ETH",
+    }));
 
     const { registerBalance } = await import("../../src/commands/balance.js");
     const program = new Command();
@@ -53,7 +56,8 @@ describe("balance command", () => {
     expect(printJSON).toHaveBeenCalledWith({
       address: ADDRESS,
       wei: "16",
-      eth: "0.000000000000000016",
+      balance: "0.000000000000000016",
+      symbol: "ETH",
       network: "eth-mainnet",
     });
     expect(exitWithError).not.toHaveBeenCalled();
@@ -90,6 +94,9 @@ describe("balance command", () => {
       readStdinArg: vi.fn().mockResolvedValue(ADDRESS),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "ETH",
+    }));
 
     const { registerBalance } = await import("../../src/commands/balance.js");
     const program = new Command();

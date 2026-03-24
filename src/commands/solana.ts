@@ -12,7 +12,7 @@ export function registerSolana(program: Command) {
     .description("Call a Solana JSON-RPC method")
     .action(async (method: string, params: string[]) => {
       try {
-        const client = clientFromFlags(program);
+        const client = clientFromFlags(program, { defaultNetwork: "solana-mainnet" });
         const result = await withSpinner(`Calling ${method}…`, `Called ${method}`, () =>
           client.call(method, parseCLIParams(params)),
         );
@@ -29,7 +29,7 @@ export function registerSolana(program: Command) {
     .description("Call DAS method (e.g. getAssetsByOwner)")
     .action(async (method: string, params: string[]) => {
       try {
-        const client = clientFromFlags(program);
+        const client = clientFromFlags(program, { defaultNetwork: "solana-mainnet" });
         const result = await withSpinner(`Calling ${method}…`, `Called ${method}`, () =>
           client.call(method, parseCLIParams(params)),
         );

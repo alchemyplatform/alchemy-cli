@@ -6,7 +6,7 @@ import type { AlchemyClient } from "./client-interface.js";
 import { Client } from "./client.js";
 import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
-import { errAppRequired, errAuthRequired, errAccessKeyRequired, errWalletKeyRequired } from "./errors.js";
+import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errWalletKeyRequired } from "./errors.js";
 import { debug } from "./output.js";
 
 export function resolveAPIKey(program: Command, cfg?: Config): string | undefined {
@@ -29,13 +29,13 @@ export function resolveAccessKey(program: Command, cfg?: Config): string | undef
   return undefined;
 }
 
-export function resolveNetwork(program: Command, cfg?: Config): string {
+export function resolveNetwork(program: Command, cfg?: Config, defaultNetwork?: string): string {
   const opts = program.opts();
   if (opts.network) return opts.network;
   if (process.env.ALCHEMY_NETWORK) return process.env.ALCHEMY_NETWORK;
   const config = cfg ?? load();
   if (config.network) return config.network;
-  return "eth-mainnet";
+  return defaultNetwork ?? "eth-mainnet";
 }
 
 export function resolveAppId(program: Command, cfg?: Config): string | undefined {
@@ -81,10 +81,18 @@ export function resolveWalletKey(program: Command, cfg?: Config): string | undef
   return undefined;
 }
 
-export function clientFromFlags(program: Command): AlchemyClient {
+export function clientFromFlags(program: Command, opts?: { defaultNetwork?: string }): AlchemyClient {
   const cfg = load();
-  const network = resolveNetwork(program, cfg);
+  const network = resolveNetwork(program, cfg, opts?.defaultNetwork);
   debug(`using network=${network}`);
+
+  // Reject --access-key on RPC commands — it's only for admin commands
+  const programOpts = program.opts();
+  if (programOpts.accessKey) {
+    throw errInvalidArgs(
+      "--access-key is for admin commands (apps, chains, webhooks). Use --api-key for RPC commands.",
+    );
+  }
 
   if (resolveX402(program, cfg)) {
     const walletKey = resolveWalletKey(program, cfg);

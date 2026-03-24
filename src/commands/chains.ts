@@ -31,9 +31,18 @@ export function registerChains(program: Command) {
           return;
         }
 
+        const formatChainId = (value: string | null): string => {
+          if (!value) return dim("—");
+          // API returns chain IDs as decimal strings
+          const num = parseInt(value, 10);
+          if (isNaN(num)) return value;
+          return `${num} (0x${num.toString(16)})`;
+        };
+
         const rows = chains.map((c) => [
           c.id,
           c.name,
+          formatChainId(c.networkChainId),
           c.isTestnet ? dim("yes") : "no",
           c.availability === "public"
             ? green(c.availability)
@@ -41,7 +50,7 @@ export function registerChains(program: Command) {
           c.currency,
         ]);
 
-        printTable(["ID", "Name", "Testnet", "Availability", "Currency"], rows);
+        printTable(["ID", "Name", "Chain ID", "Testnet", "Availability", "Currency"], rows);
 
         if (verbose) {
           console.log("");
