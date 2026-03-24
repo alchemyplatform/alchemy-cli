@@ -29,13 +29,13 @@ export function resolveAccessKey(program: Command, cfg?: Config): string | undef
   return undefined;
 }
 
-export function resolveNetwork(program: Command, cfg?: Config): string {
+export function resolveNetwork(program: Command, cfg?: Config, defaultNetwork?: string): string {
   const opts = program.opts();
   if (opts.network) return opts.network;
   if (process.env.ALCHEMY_NETWORK) return process.env.ALCHEMY_NETWORK;
   const config = cfg ?? load();
   if (config.network) return config.network;
-  return "eth-mainnet";
+  return defaultNetwork ?? "eth-mainnet";
 }
 
 export function resolveAppId(program: Command, cfg?: Config): string | undefined {
@@ -81,9 +81,9 @@ export function resolveWalletKey(program: Command, cfg?: Config): string | undef
   return undefined;
 }
 
-export function clientFromFlags(program: Command): AlchemyClient {
+export function clientFromFlags(program: Command, opts?: { defaultNetwork?: string }): AlchemyClient {
   const cfg = load();
-  const network = resolveNetwork(program, cfg);
+  const network = resolveNetwork(program, cfg, opts?.defaultNetwork);
   debug(`using network=${network}`);
 
   if (resolveX402(program, cfg)) {

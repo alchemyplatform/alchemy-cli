@@ -402,15 +402,23 @@ export async function startREPL(
   };
   stdin.on("keypress", onKeypress);
 
-  const prompt = (): void => {
-    // Some command handlers (or their dependencies) may pause/unref stdin.
-    // Ensure the REPL keeps the TTY stream alive between commands and
-    // restore raw mode so arrow keys are interpreted by readline.
+  const restoreStdinState = (): void => {
+    // Some command handlers (or their dependencies) may pause/unref stdin
+    // or disable raw mode. Aggressively restore TTY state so readline can
+    // process arrow keys and autocomplete correctly after errors.
     stdin.resume();
     (stdin as NodeJS.ReadStream & { ref?: () => void }).ref?.();
     if (stdin.isTTY && typeof stdin.setRawMode === "function") {
-      stdin.setRawMode(true);
+      try {
+        stdin.setRawMode(true);
+      } catch {
+        // stdin may have been destroyed — ignore
+      }
     }
+  };
+
+  const prompt = (): void => {
+    restoreStdinState();
     rl.prompt();
   };
 
@@ -452,6 +460,8 @@ export async function startREPL(
         });
       } catch {
         // Commander help/errors are already handled by exitOverride
+      } finally {
+        restoreStdinState();
       }
       printPostOutputSpacing();
       prompt();
@@ -471,6 +481,8 @@ export async function startREPL(
       });
     } catch {
       // Commander errors are already handled by exitOverride
+    } finally {
+      restoreStdinState();
     }
 
     printPostOutputSpacing();

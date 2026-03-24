@@ -16,6 +16,22 @@ export function registerTransfers(program: Command) {
     .option("--category <list>", "Comma-separated categories (erc20,erc721,erc1155,external,internal,specialnft)")
     .option("--max-count <hexOrDecimal>", "Max records to return")
     .option("--page-key <key>", "Pagination key")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  # All transfers involving an address (both from and to)
+  alchemy transfers 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+
+  # Only incoming transfers to an address
+  alchemy transfers --to-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+
+  # Only outgoing ERC-20 transfers from an address
+  alchemy transfers --from-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --category erc20
+
+  # Transfers within a block range
+  alchemy transfers 0xd8dA... --from-block 0x100000 --to-block latest`,
+    )
     .action(async (addressArg: string | undefined, opts) => {
       try {
         const client = clientFromFlags(program);
@@ -38,7 +54,9 @@ export function registerTransfers(program: Command) {
           if (opts.toAddress) filter.toAddress = opts.toAddress;
         }
 
-        if (opts.category) filter.category = splitCommaList(opts.category);
+        filter.category = opts.category
+          ? splitCommaList(opts.category)
+          : ["external", "internal", "erc20", "erc721", "erc1155", "specialnft"];
         if (opts.maxCount) filter.maxCount = opts.maxCount.startsWith("0x")
           ? opts.maxCount
           : `0x${Number.parseInt(opts.maxCount, 10).toString(16)}`;

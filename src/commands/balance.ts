@@ -4,12 +4,13 @@ import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
 import { green, withSpinner, weiToEth, printKeyValueBox } from "../lib/ui.js";
 import { validateAddress, readStdinArg } from "../lib/validators.js";
+import { nativeTokenSymbol } from "../lib/networks.js";
 
 export function registerBalance(program: Command) {
   program
     .command("balance [address]")
     .alias("bal")
-    .description("Get the ETH balance of an address")
+    .description("Get the native token balance of an address")
     .addHelpText(
       "after",
       `
@@ -30,18 +31,20 @@ Examples:
 
         const wei = BigInt(result);
         const network = resolveNetwork(program);
+        const symbol = nativeTokenSymbol(network);
 
         if (isJSONMode()) {
           printJSON({
             address,
             wei: wei.toString(),
             eth: weiToEth(wei),
+            symbol,
             network,
           });
         } else {
           printKeyValueBox([
             ["Address", address],
-            ["Balance", green(weiToEth(wei) + " ETH")],
+            ["Balance", green(`${weiToEth(wei)} ${symbol}`)],
             ["Network", network],
           ]);
 
