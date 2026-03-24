@@ -17,7 +17,8 @@ import {
 
 export function registerBlock(program: Command) {
   program
-    .command("block <number>")
+    .command("block")
+    .argument("<number>", "Block number, hex (0x...), or tag (latest, earliest, pending)")
     .description("Get block details by number")
     .addHelpText(
       "after",

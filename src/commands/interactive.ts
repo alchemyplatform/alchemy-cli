@@ -452,14 +452,46 @@ export async function startREPL(
     // Friendly REPL help shortcuts:
     // - `help` -> global help
     // - `help <command ...>` -> scoped command help
-    if (words[0] === "help") {
-      const target = words.slice(1);
+    const isHelpRequest = words[0] === "help" || words.includes("--help") || words.includes("-h");
+    if (isHelpRequest) {
+      // Normalize: "help balance" → ["balance", "--help"], "balance --help" → ["balance", "--help"]
+      const target = words[0] === "help"
+        ? [...words.slice(1).filter(w => w !== "--help" && w !== "-h"), "--help"]
+        : [...words.filter(w => w !== "--help" && w !== "-h"), "--help"];
       try {
-        await runWithIndentedOutput(async () => {
-          await program.parseAsync(["node", "alchemy", ...target, "--help"]);
-        });
+        // Capture help output, strip "alchemy " prefix so it matches
+        // the REPL context where commands are typed without the prefix,
+        // then print the result with indentation.
+        let helpText = "";
+        const origWrite = stdout.write.bind(stdout);
+        stdout.write = ((chunk: Uint8Array | string): boolean => {
+          helpText += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+          return true;
+        }) as typeof stdout.write;
+        try {
+          await program.parseAsync(["node", "alchemy", ...target]);
+        } catch {
+          // Commander throws after writing help — expected
+        } finally {
+          stdout.write = origWrite as typeof stdout.write;
+        }
+        // Strip "alchemy " prefix (possibly ANSI-wrapped) and remove the
+        // "Interactive mode" quick-start line since we're already in the REPL.
+        if (helpText) {
+          const ansiOpt = "(?:\\x1b\\[[0-9;]*m)*";
+          const alchemyPrefixRe = new RegExp(
+            `(^|Usage: |  )${ansiOpt}alchemy${ansiOpt} `,
+            "gm",
+          );
+          const stripped = helpText
+            .replace(alchemyPrefixRe, "$1")
+            .replace(/^.*Interactive mode with guided setup.*\n?/gm, "");
+          await runWithIndentedOutput(async () => {
+            process.stdout.write(stripped);
+          });
+        }
       } catch {
-        // Commander help/errors are already handled by exitOverride
+        // Unexpected errors
       } finally {
         restoreStdinState();
       }

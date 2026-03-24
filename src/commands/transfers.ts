@@ -34,7 +34,8 @@ function mergeTransferResults(sent: TransferResult, received: TransferResult): T
 
 export function registerTransfers(program: Command) {
   program
-    .command("transfers [address]")
+    .command("transfers")
+    .argument("[address]", "Wallet address — queries both sent and received transfers")
     .description("Get transfer history (alchemy_getAssetTransfers)")
     .option("--from-address <address>", "Filter sender address")
     .option("--to-address <address>", "Filter recipient address")

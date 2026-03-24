@@ -295,6 +295,14 @@ program
     if (isJSONMode()) return "";
     return [
       "",
+      `${hBrand("◆")} ${hBold("Quick Start")}`,
+      `  ${hDim("────────────────────────────────────")}`,
+      `  ${hBrand("alchemy")}                              ${hDim("Interactive mode with guided setup")}`,
+      `  ${hBrand("alchemy balance")} ${hDim("<address>")}             ${hDim("Get native token balance")}`,
+      `  ${hBrand("alchemy block latest")}                  ${hDim("Latest block summary")}`,
+      `  ${hBrand("alchemy rpc eth_chainId")}               ${hDim("Raw JSON-RPC call")}`,
+      `  ${hBrand("alchemy config list")}                   ${hDim("View current configuration")}`,
+      "",
       `${hBrand("◆")} ${hBold("Exit Codes")}`,
       `  ${hDim("────────────────────────────────────")}`,
       `  ${hBrand("0")}     Success`,

@@ -87,7 +87,8 @@ export function registerWallet(program: Command) {
     });
 
   cmd
-    .command("import <path>")
+    .command("import")
+    .argument("<path>", "Path to private key file")
     .description("Import a wallet from a private key file")
     .action((path: string) => {
       try {

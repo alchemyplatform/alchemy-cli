@@ -8,7 +8,8 @@ import { nativeTokenSymbol } from "../lib/networks.js";
 
 export function registerBalance(program: Command) {
   program
-    .command("balance [address]")
+    .command("balance")
+    .argument("[address]", "Wallet address (0x...) or pipe via stdin")
     .alias("bal")
     .description("Get the native token balance of an address")
     .addHelpText(
