@@ -56,7 +56,7 @@ describe("balance command", () => {
     expect(printJSON).toHaveBeenCalledWith({
       address: ADDRESS,
       wei: "16",
-      eth: "0.000000000000000016",
+      balance: "0.000000000000000016",
       symbol: "ETH",
       network: "eth-mainnet",
     });
