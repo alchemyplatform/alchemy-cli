@@ -5,6 +5,8 @@ import { URL } from "node:url";
 
 const AUTH_PORT = 16424;
 const AUTH_CALLBACK_PATH = "/callback";
+/** Default token TTL: 90 days in seconds. */
+const DEFAULT_EXPIRES_IN_SECONDS = 90 * 24 * 60 * 60;
 
 const SUCCESS_HTML = `<!DOCTYPE html>
 <html>
@@ -106,31 +108,49 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
   });
 }
 
+export interface TokenExchangeResult {
+  token: string;
+  expiresAt: string;
+}
+
 export async function exchangeCodeForToken(
   code: string,
   port: number,
-): Promise<string> {
+  options?: { expiresInSeconds?: number },
+): Promise<TokenExchangeResult> {
   const baseUrl = getAuthBaseUrl();
   const redirectUri = `http://localhost:${port}${AUTH_CALLBACK_PATH}`;
+
+  const body: Record<string, unknown> = {
+    code,
+    redirect_uri: redirectUri,
+  };
+  if (options?.expiresInSeconds) {
+    body.expires_in_seconds = options.expiresInSeconds;
+  }
 
   const response = await fetch(`${baseUrl}/api/cli/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code, redirect_uri: redirectUri }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
+    const errBody = await response.json().catch(() => ({}));
     throw new Error(
-      (body as { error?: string }).error || `Token exchange failed (HTTP ${response.status})`,
+      (errBody as { error?: string }).error || `Token exchange failed (HTTP ${response.status})`,
     );
   }
 
-  const data = (await response.json()) as { authToken: string };
+  const data = (await response.json()) as {
+    authToken: string;
+    expiresAt: string;
+    expiresInSeconds: number;
+  };
   if (!data.authToken) {
     throw new Error("Token exchange response missing authToken");
   }
-  return data.authToken;
+  return { token: data.authToken, expiresAt: data.expiresAt };
 }
 
-export { AUTH_PORT };
+export { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS };

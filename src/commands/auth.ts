@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken } from "../lib/auth.js";
+import { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -43,9 +43,11 @@ export function registerAuth(program: Command) {
         const callback = await callbackPromise;
 
         // Exchange code for token (backchannel)
-        let token: string;
+        let result: { token: string; expiresAt: string };
         try {
-          token = await exchangeCodeForToken(callback.code, port);
+          result = await exchangeCodeForToken(callback.code, port, {
+            expiresInSeconds: DEFAULT_EXPIRES_IN_SECONDS,
+          });
           callback.sendSuccess();
         } catch (err) {
           callback.sendError("Failed to complete authentication. Please try again.");
@@ -54,12 +56,12 @@ export function registerAuth(program: Command) {
 
         // Save token to config
         const cfg = config.load();
-        const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
         config.save({
           ...cfg,
-          auth_token: token,
-          auth_token_expires_at: expiresAt,
+          auth_token: result.token,
+          auth_token_expires_at: result.expiresAt,
         });
+        const expiresAt = result.expiresAt;
 
         printHuman(
           `  ${green("✓")} Logged in successfully\n` +

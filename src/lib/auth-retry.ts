@@ -1,5 +1,5 @@
 import { load, save, type Config } from "./config.js";
-import { AUTH_PORT, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken } from "./auth.js";
+import { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken } from "./auth.js";
 import { isInteractiveAllowed as checkInteractive } from "./interaction.js";
 import { dim } from "./ui.js";
 import { isJSONMode } from "./output.js";
@@ -38,15 +38,16 @@ export async function withAuthRetry<T>(
     openBrowser(loginUrl);
 
     const callback = await callbackPromise;
-    const token = await exchangeCodeForToken(callback.code, port);
+    const result = await exchangeCodeForToken(callback.code, port, {
+      expiresInSeconds: DEFAULT_EXPIRES_IN_SECONDS,
+    });
     callback.sendSuccess();
 
-    const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
     const freshCfg = load();
-    save({ ...freshCfg, auth_token: token, auth_token_expires_at: expiresAt });
+    save({ ...freshCfg, auth_token: result.token, auth_token_expires_at: result.expiresAt });
 
     // Retry with new token
-    return fn(token);
+    return fn(result.token);
   }
 }
 
