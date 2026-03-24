@@ -455,11 +455,33 @@ export async function startREPL(
     if (words[0] === "help") {
       const target = words.slice(1);
       try {
-        await runWithIndentedOutput(async () => {
+        // Capture help output, strip "alchemy " prefix so it matches
+        // the REPL context where commands are typed without the prefix,
+        // then print the result with indentation.
+        let helpText = "";
+        const origWrite = stdout.write.bind(stdout);
+        stdout.write = ((chunk: Uint8Array | string): boolean => {
+          helpText += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+          return true;
+        }) as typeof stdout.write;
+        try {
           await program.parseAsync(["node", "alchemy", ...target, "--help"]);
-        });
+        } catch {
+          // Commander throws after writing help — expected
+        } finally {
+          stdout.write = origWrite as typeof stdout.write;
+        }
+        // Strip "alchemy " from Usage lines and example lines
+        if (helpText) {
+          const stripped = helpText
+            .replace(/^(Usage: )alchemy /gm, "$1")
+            .replace(/^( {2,})alchemy /gm, "$1");
+          await runWithIndentedOutput(async () => {
+            process.stdout.write(stripped);
+          });
+        }
       } catch {
-        // Commander help/errors are already handled by exitOverride
+        // Unexpected errors
       } finally {
         restoreStdinState();
       }
