@@ -2,7 +2,7 @@ import type { Config } from "./config.js";
 import type { Command } from "commander";
 import { isInteractiveAllowed } from "./interaction.js";
 
-export type SetupMethod = "api_key" | "access_key_app" | "x402_wallet";
+export type SetupMethod = "api_key" | "access_key_app" | "x402_wallet" | "auth_token";
 
 export interface SetupStatus {
   complete: boolean;
@@ -23,10 +23,19 @@ function hasX402Wallet(cfg: Config): boolean {
   return cfg.x402 === true && Boolean(cfg.wallet_key_file?.trim());
 }
 
+function hasAuthToken(cfg: Config): boolean {
+  if (!cfg.auth_token?.trim()) return false;
+  if (cfg.auth_token_expires_at) {
+    return new Date(cfg.auth_token_expires_at) > new Date();
+  }
+  return true;
+}
+
 export function getSetupMethod(cfg: Config): SetupMethod | null {
   if (hasAPIKey(cfg)) return "api_key";
   if (hasAccessKeyAndApp(cfg)) return "access_key_app";
   if (hasX402Wallet(cfg)) return "x402_wallet";
+  if (hasAuthToken(cfg)) return "auth_token";
   return null;
 }
 
@@ -48,8 +57,9 @@ export function getSetupStatus(cfg: Config): SetupStatus {
   return {
     complete: false,
     satisfiedBy: null,
-    missing: ["Provide one auth path: api-key OR access-key+app OR x402+wallet-key-file"],
+    missing: ["Provide one auth path: alchemy auth OR api-key OR access-key+app OR x402+wallet-key-file"],
     nextCommands: [
+      "alchemy auth",
       "alchemy config set api-key <key>",
       "alchemy config set access-key <key> && alchemy config set app <app-id>",
       "alchemy wallet generate && alchemy config set x402 true",
