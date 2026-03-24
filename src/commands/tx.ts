@@ -15,7 +15,8 @@ import {
 
 export function registerTx(program: Command) {
   program
-    .command("tx [hash]")
+    .command("tx")
+    .argument("[hash]", "Transaction hash (0x...) or pipe via stdin")
     .description("Get transaction details by hash")
     .addHelpText(
       "after",

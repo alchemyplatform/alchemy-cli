@@ -15,7 +15,9 @@ function normalizeTraceMethod(method: string): string {
 
 export function registerTrace(program: Command) {
   program
-    .command("trace <method> [params...]")
+    .command("trace")
+    .argument("<method>", "Trace method name (e.g. trace_transaction)")
+    .argument("[params...]", "Method parameters as JSON values")
     .description("Call a trace_* method")
     .action(async (method: string, params: string[]) => {
       try {

@@ -6,7 +6,9 @@ import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 
 export function registerRPC(program: Command) {
   program
-    .command("rpc <method> [params...]")
+    .command("rpc")
+    .argument("<method>", "JSON-RPC method name (e.g. eth_blockNumber)")
+    .argument("[params...]", "Method parameters as JSON values")
     .description("Make a raw JSON-RPC call")
     .addHelpText(
       "after",

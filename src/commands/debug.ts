@@ -11,7 +11,9 @@ function normalizeDebugMethod(method: string): string {
 
 export function registerDebug(program: Command) {
   program
-    .command("debug <method> [params...]")
+    .command("debug")
+    .argument("<method>", "Debug method name (e.g. debug_traceTransaction)")
+    .argument("[params...]", "Method parameters as JSON values")
     .description("Call a debug_* method")
     .action(async (method: string, params: string[]) => {
       try {

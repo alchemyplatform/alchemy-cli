@@ -452,8 +452,12 @@ export async function startREPL(
     // Friendly REPL help shortcuts:
     // - `help` -> global help
     // - `help <command ...>` -> scoped command help
-    if (words[0] === "help") {
-      const target = words.slice(1);
+    const isHelpRequest = words[0] === "help" || words.includes("--help") || words.includes("-h");
+    if (isHelpRequest) {
+      // Normalize: "help balance" → ["balance", "--help"], "balance --help" → ["balance", "--help"]
+      const target = words[0] === "help"
+        ? [...words.slice(1).filter(w => w !== "--help" && w !== "-h"), "--help"]
+        : [...words.filter(w => w !== "--help" && w !== "-h"), "--help"];
       try {
         // Capture help output, strip "alchemy " prefix so it matches
         // the REPL context where commands are typed without the prefix,
@@ -465,17 +469,23 @@ export async function startREPL(
           return true;
         }) as typeof stdout.write;
         try {
-          await program.parseAsync(["node", "alchemy", ...target, "--help"]);
+          await program.parseAsync(["node", "alchemy", ...target]);
         } catch {
           // Commander throws after writing help — expected
         } finally {
           stdout.write = origWrite as typeof stdout.write;
         }
-        // Strip "alchemy " from Usage lines and example lines
+        // Strip "alchemy " prefix (possibly ANSI-wrapped) and remove the
+        // "Interactive mode" quick-start line since we're already in the REPL.
         if (helpText) {
+          const ansiOpt = "(?:\\x1b\\[[0-9;]*m)*";
+          const alchemyPrefixRe = new RegExp(
+            `(^|Usage: |  )${ansiOpt}alchemy${ansiOpt} `,
+            "gm",
+          );
           const stripped = helpText
-            .replace(/^(Usage: )alchemy /gm, "$1")
-            .replace(/^( {2,})alchemy /gm, "$1");
+            .replace(alchemyPrefixRe, "$1")
+            .replace(/^.*Interactive mode with guided setup.*\n?/gm, "");
           await runWithIndentedOutput(async () => {
             process.stdout.write(stripped);
           });
