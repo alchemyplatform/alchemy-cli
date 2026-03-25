@@ -16,7 +16,7 @@ describe("nfts command", () => {
       pageKey: "next-page",
     });
     const printJSON = vi.fn();
-    const validateAddress = vi.fn();
+    const resolveAddress = vi.fn().mockResolvedValue(ADDRESS);
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -38,8 +38,15 @@ describe("nfts command", () => {
       emptyState: vi.fn(),
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
-      validateAddress,
+      validateAddress: vi.fn(),
+      resolveAddress,
       readStdinArg: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn().mockResolvedValue("stop"),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
@@ -61,7 +68,7 @@ describe("nfts command", () => {
       { from: "node" },
     );
 
-    expect(validateAddress).toHaveBeenCalledWith(ADDRESS);
+    expect(resolveAddress).toHaveBeenCalledWith(ADDRESS, expect.anything());
     expect(callEnhanced).toHaveBeenCalledWith("getNFTsForOwner", {
       owner: ADDRESS,
       withMetadata: "true",
@@ -105,7 +112,14 @@ describe("nfts command", () => {
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
+      resolveAddress: vi.fn().mockResolvedValue(ADDRESS),
       readStdinArg: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn().mockResolvedValue("stop"),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 

@@ -3,7 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
 import { dim, withSpinner, printTable, emptyState, printKeyValueBox, printSyntaxJSON } from "../lib/ui.js";
-import { validateAddress, readStdinArg } from "../lib/validators.js";
+import { validateAddress, resolveAddress, readStdinArg } from "../lib/validators.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { promptSelect } from "../lib/terminal-ui.js";
 
@@ -54,7 +54,7 @@ export function registerTokens(program: Command) {
   const cmd = program
     .command("tokens")
     .description("Token API wrappers")
-    .argument("[address]", "Wallet address (default action: list balances)")
+    .argument("[address]", "Wallet address or ENS name (default action: list balances)")
     .option("--page-key <key>", "Pagination key from a previous response")
     .addHelpText(
       "after",
@@ -67,15 +67,15 @@ Examples:
     )
     .action(async (addressArg: string | undefined, opts: { pageKey?: string }) => {
       try {
-        const address = addressArg ?? (await readStdinArg("address"));
-        validateAddress(address);
+        const addressInput = addressArg ?? (await readStdinArg("address"));
+        const client = clientFromFlags(program);
+        const address = await resolveAddress(addressInput, client);
 
         const params: unknown[] = [address];
         if (opts.pageKey) {
           params.push("erc20", { pageKey: opts.pageKey });
         }
 
-        const client = clientFromFlags(program);
         const result = await withSpinner("Fetching token balances…", "Token balances fetched", () =>
           client.call("alchemy_getTokenBalances", params),
         ) as TokenResponse;

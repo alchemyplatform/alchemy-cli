@@ -21,7 +21,6 @@ describe("tokens command", () => {
     const printKeyValueBox = vi.fn();
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const emptyState = vi.fn();
-    const validateAddress = vi.fn();
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -44,8 +43,15 @@ describe("tokens command", () => {
       emptyState,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
-      validateAddress,
+      validateAddress: vi.fn(),
+      resolveAddress: vi.fn().mockResolvedValue(ADDRESS),
       readStdinArg: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn().mockResolvedValue("stop"),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
@@ -105,7 +111,14 @@ describe("tokens command", () => {
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
+      resolveAddress: vi.fn().mockResolvedValue(ADDRESS),
       readStdinArg: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn().mockResolvedValue("stop"),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 

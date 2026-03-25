@@ -3,7 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
 import { dim, withSpinner, printTable, emptyState, printSyntaxJSON } from "../lib/ui.js";
-import { validateAddress, readStdinArg } from "../lib/validators.js";
+import { validateAddress, resolveAddress, readStdinArg } from "../lib/validators.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { promptSelect } from "../lib/terminal-ui.js";
 
@@ -46,7 +46,7 @@ export function registerNFTs(program: Command) {
   const cmd = program
     .command("nfts")
     .description("NFT API wrappers")
-    .argument("[address]", "Wallet address (default action: list owned NFTs)")
+    .argument("[address]", "Wallet address or ENS name (default action: list owned NFTs)")
     .option("--limit <n>", "Maximum number of NFTs to return per page", parseInt)
     .option("--page-key <key>", "Pagination key from a previous response")
     .addHelpText(
@@ -60,8 +60,9 @@ Examples:
     )
     .action(async (addressArg: string | undefined, opts: { limit?: number; pageKey?: string }) => {
       try {
-        const address = addressArg ?? (await readStdinArg("address"));
-        validateAddress(address);
+        const addressInput = addressArg ?? (await readStdinArg("address"));
+        const client = clientFromFlags(program);
+        const address = await resolveAddress(addressInput, client);
 
         const params: Record<string, string> = {
           owner: address,
@@ -70,7 +71,6 @@ Examples:
         if (opts.limit) params.pageSize = String(opts.limit);
         if (opts.pageKey) params.pageKey = opts.pageKey;
 
-        const client = clientFromFlags(program);
         const result = await withSpinner("Fetching NFTs…", "NFTs fetched", () =>
           client.callEnhanced("getNFTsForOwner", params),
         ) as NFTResponse;

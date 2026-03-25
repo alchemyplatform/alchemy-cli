@@ -1,4 +1,6 @@
 import { errInvalidArgs } from "./errors.js";
+import { isENSName, resolveENS } from "./ens.js";
+import type { AlchemyClient } from "./client-interface.js";
 
 export function splitCommaList(input: string): string[] {
   return input.split(",").map((s) => s.trim()).filter(Boolean);
@@ -31,6 +33,19 @@ export function validateAddress(address: string): void {
       `Invalid address "${address}". Expected 0x-prefixed 40-hex-character address.`,
     );
   }
+}
+
+/**
+ * Resolve an address argument: if it's an ENS name (.eth), resolve it via
+ * the Universal Resolver. Otherwise validate it as a hex address.
+ * Returns the resolved 0x address.
+ */
+export async function resolveAddress(input: string, client: AlchemyClient): Promise<string> {
+  if (isENSName(input)) {
+    return resolveENS(input, client);
+  }
+  validateAddress(input);
+  return input;
 }
 
 export function validateTxHash(hash: string): void {
