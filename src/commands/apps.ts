@@ -33,27 +33,21 @@ function printFetchSummary(
   console.log(`\n  ${dim(`Fetched ${appsCount} apps across ${pagesCount} pages${suffix}`)}`);
 }
 
-type PaginationAction = "next" | "all" | "stop";
+type PaginationAction = "next" | "next5" | "stop";
 
 async function promptPaginationAction(): Promise<PaginationAction> {
   const action = await promptSelect({
     message: "More apps available",
     options: [
       { label: "Load next page", value: "next" },
-      { label: "Load all remaining pages", value: "all" },
+      { label: "Load next 5 pages", value: "next5" },
       { label: "Stop here", value: "stop" },
     ],
     initialValue: "next",
     cancelMessage: "Stopped pagination.",
   });
-  if (action === null) {
-    return "stop";
-  }
-
-  if (action === "next" || action === "all" || action === "stop") {
-    return action;
-  }
-  return "stop";
+  if (action === null) return "stop";
+  return action as PaginationAction;
 }
 
 function matchesSearch(app: App, query: string): boolean {
@@ -178,7 +172,7 @@ export function registerApps(program: Command) {
         const interactivePagination = isInteractiveAllowed(program) && !opts.all;
         if (interactivePagination) {
           let page = result;
-          let autoFetchRemaining = false;
+          let batchRemaining = 0;
           let pagesFetched = 0;
           let appsFetched = 0;
 
@@ -198,7 +192,7 @@ export function registerApps(program: Command) {
               return;
             }
 
-            if (!autoFetchRemaining) {
+            if (batchRemaining <= 0) {
               printFetchSummary(appsFetched, pagesFetched, { suffix: "so far" });
               const action = await promptPaginationAction();
               if (action === "stop") {
@@ -206,9 +200,11 @@ export function registerApps(program: Command) {
                 printFetchSummary(appsFetched, pagesFetched);
                 return;
               }
-              if (action === "all") {
-                autoFetchRemaining = true;
+              if (action === "next5") {
+                batchRemaining = 4; // current fetch counts as 1 of 5
               }
+            } else {
+              batchRemaining -= 1;
             }
 
             page = await withSpinner("Fetching next page…", "Page fetched", () =>

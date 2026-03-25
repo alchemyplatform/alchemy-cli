@@ -27,17 +27,10 @@ describe("transfers command", () => {
       "10",
     ]);
 
-    expect(call).toHaveBeenCalledTimes(2);
+    expect(call).toHaveBeenCalledTimes(1);
     expect(call).toHaveBeenCalledWith("alchemy_getAssetTransfers", [
       expect.objectContaining({
         fromAddress: ADDRESS,
-        category: ["erc20", "erc721"],
-        maxCount: "0xa",
-      }),
-    ]);
-    expect(call).toHaveBeenCalledWith("alchemy_getAssetTransfers", [
-      expect.objectContaining({
-        toAddress: ADDRESS,
         category: ["erc20", "erc721"],
         maxCount: "0xa",
       }),

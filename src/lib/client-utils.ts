@@ -37,6 +37,8 @@ export function parseBaseURLOverride(envVarName: string): URL | null {
   return parsed;
 }
 
+const BREADCRUMB_HEADER = "alchemy-cli";
+
 export async function fetchWithTimeout(
   url: string,
   init: RequestInit,
@@ -44,6 +46,10 @@ export async function fetchWithTimeout(
   try {
     return await fetch(url, {
       ...init,
+      headers: {
+        ...init.headers,
+        "x-alchemy-client-breadcrumb": BREADCRUMB_HEADER,
+      },
       ...(globalTimeout && { signal: AbortSignal.timeout(globalTimeout) }),
     });
   } catch (err) {

@@ -5,6 +5,7 @@ import { isJSONMode, printJSON, verbose } from "../lib/output.js";
 import {
   formatBlockTimestamp,
   formatHexQuantity,
+  formatHexWithRaw,
   formatGasSummary,
 } from "../lib/block-format.js";
 import {
@@ -62,7 +63,7 @@ Examples:
 
         const pairs: Array<[string, string]> = [];
         if (block.number) {
-          const formatted = formatHexQuantity(block.number);
+          const formatted = formatHexWithRaw(block.number);
           pairs.push(["Block", bold(formatted ?? String(block.number))]);
         }
         if (block.hash) pairs.push(["Hash", String(block.hash)]);
@@ -80,11 +81,11 @@ Examples:
           pairs.push(["Gas", gasSummary]);
         } else {
           if (block.gasUsed) {
-            const formatted = formatHexQuantity(block.gasUsed);
+            const formatted = formatHexWithRaw(block.gasUsed);
             pairs.push(["Gas Used", formatted ?? String(block.gasUsed)]);
           }
           if (block.gasLimit) {
-            const formatted = formatHexQuantity(block.gasLimit);
+            const formatted = formatHexWithRaw(block.gasLimit);
             pairs.push(["Gas Limit", formatted ?? String(block.gasLimit)]);
           }
         }

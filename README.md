@@ -18,6 +18,23 @@ Or run without installing globally:
 npx @alchemy/cli <command>
 ```
 
+## Shell Completions
+
+Enable Tab completion for all commands and subcommands:
+
+```bash
+# zsh (add to ~/.zshrc)
+echo 'eval "$(alchemy completions zsh)"' >> ~/.zshrc
+source ~/.zshrc
+
+# bash (add to ~/.bashrc)
+echo 'eval "$(alchemy completions bash)"' >> ~/.bashrc
+source ~/.bashrc
+
+# fish
+alchemy completions fish > ~/.config/fish/completions/alchemy.fish
+```
+
 ## Getting Started
 
 ### Authentication Quick Start
@@ -86,7 +103,10 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 |---|---|---|
 | `balance [address]` (`bal [address]`) | Gets ETH balance for an address | `alchemy bal 0x...` |
 | `tx [hash]` | Gets transaction + receipt by hash | `alchemy tx 0x...` |
+| `receipt [hash]` | Gets transaction receipt (status, gas, logs) | `alchemy receipt 0x...` |
 | `block <number>` | Gets block details (`latest`, decimal, or hex) | `alchemy block latest` |
+| `gas` | Gets current gas prices (base fee + priority fee) | `alchemy gas -n polygon-mainnet` |
+| `logs` | Queries event logs (`eth_getLogs`) | `alchemy logs --address 0x... --from-block 18000000 --to-block 18000010` |
 | `rpc <method> [params...]` | Makes raw JSON-RPC call | `alchemy rpc eth_blockNumber` |
 | `trace <method> [params...]` | Calls Trace API methods | `alchemy trace call '{"to":"0x..."}' '["trace"]' latest` |
 | `debug <method> [params...]` | Calls Debug API methods | `alchemy debug traceTransaction "0x..."` |
@@ -161,6 +181,7 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 | `config get <key>` | Gets one config value | `alchemy config get network` |
 | `config list` | Lists all config values | `alchemy config list` |
 | `config reset [key]` | Resets one or all config values | `alchemy config reset --yes` |
+| `completions <shell>` | Generates shell completion scripts (bash/zsh/fish) | `eval "$(alchemy completions zsh)"` |
 | `agent-prompt` | Emits complete agent/automation usage instructions | `alchemy --json agent-prompt` |
 | `version` | Prints CLI version | `alchemy version` |
 
