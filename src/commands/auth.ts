@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, getLoginUrl, performBrowserLogin } from "../lib/auth.js";
+import { AUTH_PORT, getLoginUrl, performBrowserLogin, revokeToken } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -32,6 +32,16 @@ export function registerAuth(program: Command) {
               { status: "already_authenticated" },
             );
             return;
+          }
+        }
+
+        // If --force, revoke the existing token server-side before re-authenticating
+        if (opts.force) {
+          const cfg = config.load();
+          if (cfg.auth_token) {
+            await revokeToken(cfg.auth_token);
+            const { auth_token: _, auth_token_expires_at: __, ...rest } = cfg as Record<string, unknown>;
+            config.save(rest as config.Config);
           }
         }
 
@@ -125,15 +135,37 @@ export function registerAuth(program: Command) {
   cmd
     .command("logout")
     .description("Clear saved authentication token")
-    .action(() => {
+    .action(async () => {
       try {
         const cfg = config.load();
+        let revokeResult: Awaited<ReturnType<typeof revokeToken>> | undefined;
+        if (cfg.auth_token) {
+          revokeResult = await revokeToken(cfg.auth_token);
+        }
         const { auth_token: _, auth_token_expires_at: __, ...rest } = cfg as Record<string, unknown>;
         config.save(rest as config.Config);
-        printHuman(
-          `  ${green("✓")} Logged out\n`,
-          { status: "logged_out" },
-        );
+
+        if (!cfg.auth_token) {
+          printHuman(
+            `  ${dim("No active session.")}\n`,
+            { status: "no_session" },
+          );
+        } else if (revokeResult === "already_invalid") {
+          printHuman(
+            `  ${green("✓")} Logged out ${dim("(token was already invalidated)")}\n`,
+            { status: "logged_out", tokenAlreadyInvalid: true },
+          );
+        } else if (revokeResult === "server_error" || revokeResult === "network_error") {
+          printHuman(
+            `  ${green("✓")} Logged out locally ${dim("(could not reach server to revoke token)")}\n`,
+            { status: "logged_out", serverRevoked: false },
+          );
+        } else {
+          printHuman(
+            `  ${green("✓")} Logged out\n`,
+            { status: "logged_out" },
+          );
+        }
       } catch (err) {
         exitWithError(err);
       }
