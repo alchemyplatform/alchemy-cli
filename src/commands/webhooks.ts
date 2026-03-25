@@ -21,7 +21,18 @@ function resolveWebhookApiKey(
 }
 
 export function registerWebhooks(program: Command) {
-  const cmd = program.command("webhooks").description("Notify API wrappers");
+  const cmd = program
+    .command("webhooks")
+    .description("Notify API wrappers")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  alchemy webhooks list
+  alchemy webhooks create --body '{"network":"ETH_MAINNET","webhook_type":"ADDRESS_ACTIVITY","webhook_url":"https://..."}'
+  alchemy webhooks delete wh_abc123
+  alchemy webhooks addresses wh_abc123`,
+    );
   cmd
     .option("--webhook-api-key <key>", "Webhook API key")
     .option("--notify-token <token>", "Deprecated alias for webhook API key");

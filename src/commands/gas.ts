@@ -5,6 +5,18 @@ import { exitWithError } from "../lib/errors.js";
 import { withSpinner, printKeyValueBox } from "../lib/ui.js";
 import { formatGwei, formatGweiWithRaw } from "../lib/block-format.js";
 
+/**
+ * Convert wei (BigInt) to gwei (number). Uses BigInt arithmetic for the
+ * integer part to avoid floating-point precision loss when the value
+ * exceeds Number.MAX_SAFE_INTEGER, then adds back the fractional part.
+ */
+function weiToGwei(wei: bigint): number {
+  const GWEI = 1_000_000_000n;
+  const whole = wei / GWEI;
+  const remainder = wei % GWEI;
+  return Number(whole) + Number(remainder) / 1e9;
+}
+
 export function registerGas(program: Command) {
   program
     .command("gas")
@@ -35,13 +47,12 @@ Examples:
 
         const network = resolveNetwork(program);
         const gasPriceWei = BigInt(gasPrice);
-        const gasPriceGwei = Number(gasPriceWei) / 1e9;
+        const gasPriceGwei = weiToGwei(gasPriceWei);
 
         let priorityFeeGwei: number | null = null;
-        let priorityFeeWei: bigint | null = null;
         if (maxPriorityFee) {
-          priorityFeeWei = BigInt(maxPriorityFee);
-          priorityFeeGwei = Number(priorityFeeWei) / 1e9;
+          const priorityFeeWei = BigInt(maxPriorityFee);
+          priorityFeeGwei = weiToGwei(priorityFeeWei);
         }
 
         if (isJSONMode()) {
@@ -50,9 +61,9 @@ Examples:
             gasPriceGwei: formatGwei(gasPriceGwei),
             network,
           };
-          if (maxPriorityFee) {
+          if (maxPriorityFee && priorityFeeGwei !== null) {
             json.maxPriorityFeePerGas = maxPriorityFee;
-            json.maxPriorityFeePerGasGwei = formatGwei(priorityFeeGwei!);
+            json.maxPriorityFeePerGasGwei = formatGwei(priorityFeeGwei);
           }
           printJSON(json);
         } else {

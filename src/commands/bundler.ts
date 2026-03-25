@@ -17,7 +17,17 @@ async function runBundlerMethod(
 }
 
 export function registerBundler(program: Command) {
-  const cmd = program.command("bundler").description("Wallet Bundler API wrappers");
+  const cmd = program
+    .command("bundler")
+    .description("Wallet Bundler API wrappers")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  alchemy bundler send-user-operation --user-op '{"sender":"0x...","nonce":"0x0",...}' --entry-point 0x5FF1...
+  alchemy bundler estimate-user-operation-gas --user-op '{"sender":"0x...",...}' --entry-point 0x5FF1...
+  alchemy bundler get-user-operation-receipt --user-op-hash 0xabc...`,
+    );
 
   cmd
     .command("send-user-operation")

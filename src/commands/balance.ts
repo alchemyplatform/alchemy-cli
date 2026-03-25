@@ -31,7 +31,7 @@ Examples:
         if (blockParam !== "latest" && blockParam !== "earliest" && blockParam !== "pending") {
           if (!blockParam.startsWith("0x")) {
             const num = parseInt(blockParam, 10);
-            if (isNaN(num) || num < 0) {
+            if (isNaN(num) || num < 0 || !Number.isSafeInteger(num)) {
               throw errInvalidArgs("Block must be a number, hex, or tag (latest, earliest, pending).");
             }
             blockParam = `0x${num.toString(16)}`;
@@ -66,7 +66,7 @@ Examples:
             console.log("");
             printJSON({
               rpcMethod: "eth_getBalance",
-              rpcParams: [address, "latest"],
+              rpcParams: [address, blockParam],
               rpcResult: result,
             });
           }

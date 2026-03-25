@@ -3,7 +3,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
 import { validateAddress, readStdinArg, splitCommaList } from "../lib/validators.js";
-import { dim, withSpinner, printTable } from "../lib/ui.js";
+import { dim, withSpinner, printTable, emptyState } from "../lib/ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { promptSelect } from "../lib/terminal-ui.js";
 
@@ -127,7 +127,7 @@ Examples:
         let totalShown = result.transfers.length;
 
         if (totalShown === 0) {
-          console.log(dim("No transfers found."));
+          emptyState("No transfers found.");
           return;
         }
 

@@ -63,7 +63,17 @@ export function importAndPersistWallet(path: string): { address: string; keyFile
 }
 
 export function registerWallet(program: Command) {
-  const cmd = program.command("wallet").description("Manage x402 wallet");
+  const cmd = program
+    .command("wallet")
+    .description("Manage x402 wallet")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  alchemy wallet generate
+  alchemy wallet import ./my-private-key.txt
+  alchemy wallet address`,
+    );
 
   cmd
     .command("generate")

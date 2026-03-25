@@ -17,7 +17,16 @@ async function runGasMethod(
 }
 
 export function registerGasManager(program: Command) {
-  const cmd = program.command("gas-manager").description("Gas Manager API wrappers");
+  const cmd = program
+    .command("gas-manager")
+    .description("Gas Manager API wrappers")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  alchemy gas-manager request-gas-and-paymaster --body '{"policyId":"...","userOperation":{...},"entryPoint":"0x..."}'
+  alchemy gas-manager request-paymaster-token-quote --body '{"policyId":"...","userOperation":{...},"entryPoint":"0x..."}'`,
+    );
 
   cmd
     .command("request-gas-and-paymaster")

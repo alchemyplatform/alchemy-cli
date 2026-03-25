@@ -21,7 +21,17 @@ async function runSimulateCall(
 }
 
 export function registerSimulate(program: Command) {
-  const cmd = program.command("simulate").description("Simulation API wrappers");
+  const cmd = program
+    .command("simulate")
+    .description("Simulation API wrappers")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  alchemy simulate asset-changes --tx '{"from":"0x...","to":"0x...","value":"0x0","data":"0x..."}'
+  alchemy simulate execution --tx '{"from":"0x...","to":"0x...","value":"0x0","data":"0x..."}'
+  alchemy simulate asset-changes-bundle --txs '[{"from":"0x...","to":"0x..."}]'`,
+    );
 
   cmd
     .command("asset-changes")

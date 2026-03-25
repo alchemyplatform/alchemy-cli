@@ -28,12 +28,6 @@ export function parseBaseURLOverride(envVarName: string): URL | null {
     );
   }
 
-  if (parsed.protocol === "http:" && !isLocalhost(parsed.hostname)) {
-    throw errInvalidArgs(
-      `${envVarName} can only use non-HTTPS for localhost targets.`,
-    );
-  }
-
   return parsed;
 }
 

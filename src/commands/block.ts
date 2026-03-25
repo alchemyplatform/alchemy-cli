@@ -38,9 +38,9 @@ Examples:
           blockParam = blockId;
         } else {
           const num = parseInt(blockId, 10);
-          if (isNaN(num)) {
+          if (isNaN(num) || !Number.isSafeInteger(num)) {
             throw errInvalidArgs(
-              "block must be a number, hex, or 'latest'",
+              "Block must be a number, hex, or tag (latest, earliest, pending).",
             );
           }
           if (num < 0) {

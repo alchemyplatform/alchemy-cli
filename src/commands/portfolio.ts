@@ -4,6 +4,7 @@ import { printJSON, isJSONMode } from "../lib/output.js";
 import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 import { callApiData } from "../lib/rest.js";
 import { resolveAPIKey } from "../lib/resolve.js";
+import { parseRequiredJSON } from "../lib/params.js";
 
 async function runDataCall(
   apiKey: string | undefined,
@@ -17,7 +18,18 @@ async function runDataCall(
 }
 
 export function registerPortfolio(program: Command) {
-  const cmd = program.command("portfolio").description("Portfolio API wrappers");
+  const cmd = program
+    .command("portfolio")
+    .description("Portfolio API wrappers")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  alchemy portfolio tokens --body '{"addresses":[{"address":"0x...","networks":["eth-mainnet"]}]}'
+  alchemy portfolio token-balances --body '{"addresses":[{"address":"0x...","networks":["eth-mainnet"]}]}'
+  alchemy portfolio nfts --body '{"addresses":[{"address":"0x...","networks":["eth-mainnet"]}]}'
+  alchemy portfolio transactions --body '{"addresses":[{"address":"0x...","networks":["eth-mainnet"]}]}'`,
+    );
 
   cmd
     .command("tokens")
@@ -30,7 +42,7 @@ export function registerPortfolio(program: Command) {
           apiKey,
           "token portfolio",
           "/assets/tokens/by-address",
-          JSON.parse(opts.body),
+          parseRequiredJSON(opts.body, "--body"),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);
@@ -50,7 +62,7 @@ export function registerPortfolio(program: Command) {
           apiKey,
           "token balances",
           "/assets/tokens/balances/by-address",
-          JSON.parse(opts.body),
+          parseRequiredJSON(opts.body, "--body"),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);
@@ -70,7 +82,7 @@ export function registerPortfolio(program: Command) {
           apiKey,
           "NFT portfolio",
           "/assets/nfts/by-address",
-          JSON.parse(opts.body),
+          parseRequiredJSON(opts.body, "--body"),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);
@@ -90,7 +102,7 @@ export function registerPortfolio(program: Command) {
           apiKey,
           "NFT contracts",
           "/assets/nfts/contracts/by-address",
-          JSON.parse(opts.body),
+          parseRequiredJSON(opts.body, "--body"),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);
@@ -110,7 +122,7 @@ export function registerPortfolio(program: Command) {
           apiKey,
           "transaction history",
           "/transactions/history/by-address",
-          JSON.parse(opts.body),
+          parseRequiredJSON(opts.body, "--body"),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);
