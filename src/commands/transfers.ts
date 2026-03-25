@@ -3,7 +3,55 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
 import { validateAddress, readStdinArg, splitCommaList } from "../lib/validators.js";
-import { dim, withSpinner, printSyntaxJSON } from "../lib/ui.js";
+import { dim, withSpinner, printTable } from "../lib/ui.js";
+import { isInteractiveAllowed } from "../lib/interaction.js";
+import { promptSelect } from "../lib/terminal-ui.js";
+
+interface Transfer {
+  from: string;
+  to: string | null;
+  value: number | null;
+  asset: string | null;
+  category: string;
+  blockNum: string;
+  hash: string;
+  metadata?: { blockTimestamp?: string };
+}
+
+interface TransferResult {
+  transfers: Transfer[];
+  pageKey?: string;
+}
+
+type PaginationAction = "next" | "stop";
+
+async function promptTransfersPagination(shown: number): Promise<PaginationAction> {
+  const action = await promptSelect({
+    message: `${shown} transfers loaded — more available`,
+    options: [
+      { label: "Load next page", value: "next" },
+      { label: "Stop here", value: "stop" },
+    ],
+    initialValue: "next",
+    cancelMessage: "Stopped pagination.",
+  });
+  if (action === null) return "stop";
+  return action as PaginationAction;
+}
+
+const TABLE_HEADERS = ["Block", "From", "To", "Value", "Asset", "Category"];
+
+function formatTransferRows(transfers: Transfer[]): string[][] {
+  return transfers.map((t) => {
+    const block = t.blockNum ? String(parseInt(t.blockNum, 16)) : dim("—");
+    const from = t.from ? `${t.from.slice(0, 8)}…${t.from.slice(-4)}` : dim("—");
+    const to = t.to ? `${t.to.slice(0, 8)}…${t.to.slice(-4)}` : dim("contract creation");
+    const value = t.value !== null && t.value !== undefined ? String(t.value) : dim("—");
+    const asset = t.asset ?? dim("—");
+    const category = t.category;
+    return [block, from, to, value, asset, category];
+  });
+}
 
 export function registerTransfers(program: Command) {
   program
@@ -15,7 +63,7 @@ export function registerTransfers(program: Command) {
     .option("--from-block <block>", "Start block (default: 0x0)")
     .option("--to-block <block>", "End block (default: latest)")
     .option("--category <list>", "Comma-separated categories (erc20,erc721,erc1155,external,internal,specialnft)")
-    .option("--max-count <hexOrDecimal>", "Max records to return")
+    .option("--max-count <hexOrDecimal>", "Max records to return per page")
     .option("--page-key <key>", "Pagination key")
     .addHelpText(
       "after",
@@ -55,15 +103,12 @@ Examples:
             ? opts.maxCount
             : `0x${Number.parseInt(opts.maxCount, 10).toString(16)}`;
         } else if (!isJSONMode()) {
-          // Default to 25 in human mode to keep terminal output manageable
           baseFilter.maxCount = "0x19";
         }
         if (opts.pageKey) baseFilter.pageKey = opts.pageKey;
 
         const filter = { ...baseFilter };
         if (address && !opts.fromAddress && !opts.toAddress) {
-          // Bare address defaults to outgoing transfers (fromAddress).
-          // Use --to-address for incoming, or both flags for bidirectional.
           filter.fromAddress = address;
         } else {
           if (opts.fromAddress) filter.fromAddress = opts.fromAddress;
@@ -72,16 +117,49 @@ Examples:
 
         const result = await withSpinner("Fetching transfers…", "Transfers fetched", () =>
           client.call("alchemy_getAssetTransfers", [filter]),
-        );
+        ) as TransferResult;
 
         if (isJSONMode()) {
           printJSON(result);
-        } else {
-          printSyntaxJSON(result);
-          const pageKey = (result as Record<string, unknown>)?.pageKey;
-          if (pageKey) {
-            console.log(`\n  ${dim(`More results available. Use --page-key ${pageKey} to see the next page.`)}`);
+          return;
+        }
+
+        let totalShown = result.transfers.length;
+
+        if (totalShown === 0) {
+          console.log(dim("No transfers found."));
+          return;
+        }
+
+        console.log(`${totalShown} transfer${totalShown === 1 ? "" : "s"}\n`);
+        printTable(TABLE_HEADERS, formatTransferRows(result.transfers));
+
+        const interactive = isInteractiveAllowed(program);
+        let pageKey = result.pageKey;
+
+        while (pageKey && interactive) {
+          const action = await promptTransfersPagination(totalShown);
+          if (action === "stop") {
+            console.log(`\n  ${dim(`Next page key: ${pageKey}`)}`);
+            break;
           }
+
+          filter.pageKey = pageKey;
+          const nextResult = await withSpinner("Fetching next page…", "Page fetched", () =>
+            client.call("alchemy_getAssetTransfers", [filter]),
+          ) as TransferResult;
+
+          if (nextResult.transfers.length > 0) {
+            totalShown += nextResult.transfers.length;
+            console.log(`\n${totalShown} transfers total\n`);
+            printTable(TABLE_HEADERS, formatTransferRows(nextResult.transfers));
+          }
+
+          pageKey = nextResult.pageKey;
+        }
+
+        if (pageKey && !interactive) {
+          console.log(`\n  ${dim(`More results available. Use --page-key ${pageKey} to see the next page.`)}`);
         }
       } catch (err) {
         exitWithError(err);

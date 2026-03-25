@@ -4,6 +4,8 @@ import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
 import { dim, withSpinner, printTable, emptyState, printKeyValueBox, printSyntaxJSON } from "../lib/ui.js";
 import { validateAddress, readStdinArg } from "../lib/validators.js";
+import { isInteractiveAllowed } from "../lib/interaction.js";
+import { promptSelect } from "../lib/terminal-ui.js";
 
 interface TokenResponse {
   address: string;
@@ -12,6 +14,40 @@ interface TokenResponse {
     tokenBalance: string;
   }>;
   pageKey?: string;
+}
+
+type PaginationAction = "next" | "stop";
+
+async function promptTokensPagination(): Promise<PaginationAction> {
+  const action = await promptSelect({
+    message: "More token balances available",
+    options: [
+      { label: "Load next page", value: "next" },
+      { label: "Stop here", value: "stop" },
+    ],
+    initialValue: "next",
+    cancelMessage: "Stopped pagination.",
+  });
+  if (action === null) return "stop";
+  return action as PaginationAction;
+}
+
+function formatTokenRows(balances: TokenResponse["tokenBalances"]): string[][] {
+  const nonZero = balances.filter(
+    (tb) =>
+      tb.tokenBalance !== "0x0" &&
+      tb.tokenBalance !==
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+  );
+  return nonZero.map((tb) => {
+    let decimalBalance = dim("unparseable");
+    try {
+      decimalBalance = BigInt(tb.tokenBalance).toString();
+    } catch {
+      // Keep fallback when provider returns unexpected non-hex content.
+    }
+    return [tb.contractAddress, decimalBalance, tb.tokenBalance];
+  });
 }
 
 export function registerTokens(program: Command) {
@@ -49,43 +85,58 @@ Examples:
           return;
         }
 
-        const nonZero = result.tokenBalances.filter(
-          (tb) =>
-            tb.tokenBalance !== "0x0" &&
-            tb.tokenBalance !==
-              "0x0000000000000000000000000000000000000000000000000000000000000000",
-        );
+        const rows = formatTokenRows(result.tokenBalances);
 
-        if (nonZero.length === 0) {
+        if (rows.length === 0) {
           emptyState("No token balances found.");
           return;
         }
 
-        const rows = nonZero.map((tb) => {
-          let decimalBalance = dim("unparseable");
-          try {
-            decimalBalance = BigInt(tb.tokenBalance).toString();
-          } catch {
-            // Keep fallback when provider returns unexpected non-hex content.
-          }
-          return [tb.contractAddress, decimalBalance, tb.tokenBalance];
-        });
-
         printKeyValueBox([
           ["Address", address],
           ["Network", client.network],
-          ["Non-zero tokens", String(nonZero.length)],
+          ["Non-zero tokens", String(rows.length)],
         ]);
         printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
-        console.log(`\n  ${dim(`Showing ${nonZero.length} of ${result.tokenBalances.length} contracts (non-zero only).`)}`);
+        console.log(`\n  ${dim(`Showing ${rows.length} of ${result.tokenBalances.length} contracts (non-zero only).`)}`);
 
         if (verbose) {
           console.log("");
           printJSON(result);
         }
 
-        if (result.pageKey) {
-          console.log(`\n  ${dim(`More results available. Use --page-key ${result.pageKey} to see the next page.`)}`);
+        const interactive = isInteractiveAllowed(program);
+        let pageKey = result.pageKey;
+
+        while (pageKey && interactive) {
+          const action = await promptTokensPagination();
+          if (action === "stop") {
+            console.log(`\n  ${dim(`Next page key: ${pageKey}`)}`);
+            break;
+          }
+
+          const nextResult = await withSpinner("Fetching next page…", "Page fetched", () =>
+            client.call("alchemy_getTokenBalances", [address, "erc20", { pageKey }]),
+          ) as TokenResponse;
+
+          if (isJSONMode()) {
+            printJSON(nextResult);
+            return;
+          }
+
+          const nextRows = formatTokenRows(nextResult.tokenBalances);
+          if (nextRows.length > 0) {
+            printTable(["Contract", "Balance (base units)", "Raw (hex)"], nextRows);
+            console.log(`\n  ${dim(`Showing ${nextRows.length} of ${nextResult.tokenBalances.length} contracts (non-zero only).`)}`);
+          } else {
+            console.log(`\n  ${dim(`Page returned ${nextResult.tokenBalances.length} contracts, all zero balance.`)}`);
+          }
+
+          pageKey = nextResult.pageKey;
+        }
+
+        if (pageKey && !interactive) {
+          console.log(`\n  ${dim(`More results available. Use --page-key ${pageKey} to see the next page.`)}`);
         }
       } catch (err) {
         exitWithError(err);

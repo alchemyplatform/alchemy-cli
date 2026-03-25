@@ -13,7 +13,7 @@ import {
   etherscanTxURL,
   printKeyValueBox,
 } from "../lib/ui.js";
-import { formatHexQuantity } from "../lib/block-format.js";
+import { formatHexQuantity, formatGwei } from "../lib/block-format.js";
 
 export function registerReceipt(program: Command) {
   program
@@ -75,7 +75,7 @@ Examples:
           const hex = String(receipt.effectiveGasPrice);
           const wei = BigInt(hex);
           const gwei = Number(wei) / 1e9;
-          pairs.push(["Gas Price", `${gwei.toFixed(2)} gwei ${dim(`(${hex})`)}`]);
+          pairs.push(["Gas Price", `${formatGwei(gwei)} gwei ${dim(`(${hex})`)}`]);
         }
 
         if (Array.isArray(receipt.logs)) {

@@ -47,6 +47,14 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
     exitWithError,
   }));
 
+  vi.doMock("../../src/lib/interaction.js", () => ({
+    isInteractiveAllowed: () => false,
+  }));
+
+  vi.doMock("../../src/lib/terminal-ui.js", () => ({
+    promptSelect: vi.fn().mockResolvedValue("stop"),
+  }));
+
   return {
     printJSON,
     printHuman,

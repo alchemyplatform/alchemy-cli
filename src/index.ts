@@ -29,6 +29,9 @@ import { registerWebhooks } from "./commands/webhooks.js";
 import { registerBundler } from "./commands/bundler.js";
 import { registerGasManager } from "./commands/gas-manager.js";
 import { registerSolana } from "./commands/solana.js";
+import { registerGas } from "./commands/gas.js";
+import { registerLogs } from "./commands/logs.js";
+import { registerCompletions } from "./commands/completions.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
@@ -59,7 +62,7 @@ const ROOT_OPTION_GROUPS = [
 const ROOT_COMMAND_PILLARS = [
   {
     label: "Node",
-    commands: ["balance", "tx", "block", "rpc", "trace", "debug"],
+    commands: ["balance", "tx", "block", "rpc", "trace", "debug", "gas", "logs"],
   },
   {
     label: "Data",
@@ -75,7 +78,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Admin",
-    commands: ["apps", "config", "setup", "agent-prompt", "update-check", "version", "help"],
+    commands: ["apps", "config", "setup", "completions", "agent-prompt", "update-check", "version", "help"],
   },
 ] as const;
 
@@ -399,6 +402,8 @@ registerReceipt(program);
 registerBlock(program);
 registerTrace(program);
 registerDebug(program);
+registerGas(program);
+registerLogs(program);
 
 // Data
 registerTokens(program);
@@ -424,6 +429,7 @@ registerSetup(program);
 registerConfig(program);
 registerSolana(program);
 registerAgentPrompt(program);
+registerCompletions(program);
 registerUpdateCheck(program);
 registerVersion(program);
 program

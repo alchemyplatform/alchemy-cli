@@ -4,6 +4,8 @@ import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
 import { dim, withSpinner, printTable, emptyState, printSyntaxJSON } from "../lib/ui.js";
 import { validateAddress, readStdinArg } from "../lib/validators.js";
+import { isInteractiveAllowed } from "../lib/interaction.js";
+import { promptSelect } from "../lib/terminal-ui.js";
 
 interface NFTResponse {
   ownedNfts: Array<{
@@ -16,12 +18,36 @@ interface NFTResponse {
   pageKey?: string;
 }
 
+type PaginationAction = "next" | "stop";
+
+async function promptNFTPagination(shown: number, total: number): Promise<PaginationAction> {
+  const action = await promptSelect({
+    message: `Showing ${shown} of ${total} NFTs`,
+    options: [
+      { label: "Load next page", value: "next" },
+      { label: "Stop here", value: "stop" },
+    ],
+    initialValue: "next",
+    cancelMessage: "Stopped pagination.",
+  });
+  if (action === null) return "stop";
+  return action as PaginationAction;
+}
+
+function formatNFTRows(nfts: NFTResponse["ownedNfts"]): string[][] {
+  return nfts.map((nft) => [
+    nft.contract.name || dim("unnamed"),
+    nft.name || `#${nft.tokenId}`,
+    nft.contract.address,
+  ]);
+}
+
 export function registerNFTs(program: Command) {
   const cmd = program
     .command("nfts")
     .description("NFT API wrappers")
     .argument("[address]", "Wallet address (default action: list owned NFTs)")
-    .option("--limit <n>", "Maximum number of NFTs to return", parseInt)
+    .option("--limit <n>", "Maximum number of NFTs to return per page", parseInt)
     .option("--page-key <key>", "Pagination key from a previous response")
     .addHelpText(
       "after",
@@ -59,21 +85,45 @@ Examples:
           return;
         }
 
-        const rows = result.ownedNfts.map((nft) => [
-          nft.contract.name || dim("unnamed"),
-          nft.name || `#${nft.tokenId}`,
-          nft.contract.address,
-        ]);
-
-        printTable(["Collection", "Name", "Contract"], rows);
+        let shown = result.ownedNfts.length;
+        printTable(["Collection", "Name", "Contract"], formatNFTRows(result.ownedNfts));
 
         if (verbose) {
           console.log("");
           printJSON(result);
         }
 
-        if (result.pageKey) {
-          console.log(`\n  ${dim(`More results available. Use --page-key ${result.pageKey} to see the next page.`)}`);
+        const interactive = isInteractiveAllowed(program);
+        let pageKey = result.pageKey;
+
+        while (pageKey && interactive) {
+          const action = await promptNFTPagination(shown, result.totalCount);
+          if (action === "stop") {
+            console.log(`\n  ${dim(`Next page key: ${pageKey}`)}`);
+            break;
+          }
+
+          const nextParams: Record<string, string> = {
+            owner: address,
+            withMetadata: "true",
+            pageKey,
+          };
+          if (opts.limit) nextParams.pageSize = String(opts.limit);
+
+          const nextResult = await withSpinner("Fetching next page…", "Page fetched", () =>
+            client.callEnhanced("getNFTsForOwner", nextParams),
+          ) as NFTResponse;
+
+          if (nextResult.ownedNfts.length > 0) {
+            printTable(["Collection", "Name", "Contract"], formatNFTRows(nextResult.ownedNfts));
+            shown += nextResult.ownedNfts.length;
+          }
+
+          pageKey = nextResult.pageKey;
+        }
+
+        if (pageKey && !interactive) {
+          console.log(`\n  ${dim(`More results available. Use --page-key ${pageKey} to see the next page.`)}`);
         }
       } catch (err) {
         exitWithError(err);

@@ -163,10 +163,13 @@ async function runListPrompt<T extends string>(opts: {
     stdin.setRawMode(previousRawMode);
     stdin.removeListener("keypress", onKeypress);
     restoreKeypressListeners();
-    // Always release stdin after a standalone prompt to avoid keeping
-    // the process alive when the caller exits immediately after cancel.
-    stdin.pause();
-    (stdin as NodeJS.ReadStream & { unref?: () => void }).unref?.();
+    // Only release stdin if it wasn't already in raw mode before we started
+    // (i.e. we're NOT inside the REPL). Pausing stdin while the REPL is
+    // active triggers a readline 'close' event that kills the session.
+    if (!previousRawMode) {
+      stdin.pause();
+      (stdin as NodeJS.ReadStream & { unref?: () => void }).unref?.();
+    }
   };
 
   const commitSingleLine = (text: string): void => {

@@ -56,12 +56,27 @@ export function formatWeiWithRaw(value: unknown, symbol = "ETH"): string | undef
 /**
  * Format a wei value as gwei with raw hex: "1.50 gwei (0x59682f00)"
  */
+/**
+ * Format a gwei value with enough precision to show meaningful digits.
+ * Uses 2 decimal places for values >= 1 gwei, otherwise shows up to 9
+ * significant fractional digits so sub-gwei values aren't rounded to "0.00".
+ */
+/**
+ * Format a gwei value without truncating — strip only trailing zeros.
+ */
+export function formatGwei(gwei: number): string {
+  // 9 decimal places = full wei precision in gwei
+  const fixed = gwei.toFixed(9);
+  // Strip trailing zeros but keep at least one decimal place for clarity
+  return fixed.replace(/\.?0+$/, "") || "0";
+}
+
 export function formatGweiWithRaw(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const parsed = parseHexQuantity(value);
   if (parsed === undefined) return undefined;
   const gwei = Number(parsed) / 1e9;
-  return `${gwei.toFixed(2)} gwei ${dim(`(${value})`)}`;
+  return `${formatGwei(gwei)} gwei ${dim(`(${value})`)}`;
 }
 
 export function formatGasSummary(
