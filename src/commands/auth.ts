@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken, revokeToken } from "../lib/auth.js";
+import { AUTH_PORT, getLoginUrl, performBrowserLogin, revokeToken } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -35,40 +35,18 @@ export function registerAuth(program: Command) {
           }
         }
 
-        const port = AUTH_PORT;
-        const loginUrl = getLoginUrl(port);
-
         if (!isJSONMode()) {
           console.log("");
           console.log(`  ${brand("◆")} ${bold("Alchemy Authentication")}`);
           console.log(`  ${dim("────────────────────────────────────")}`);
           console.log("");
           console.log(`  Opening browser to log in...`);
-          console.log(`  ${dim(loginUrl)}`);
+          console.log(`  ${dim(getLoginUrl(AUTH_PORT))}`);
           console.log("");
-        }
-
-        // Start callback server before opening browser
-        const callbackPromise = waitForCallback(port);
-        openBrowser(loginUrl);
-
-        if (!isJSONMode()) {
           console.log(`  ${dim("Waiting for authentication...")}`);
         }
 
-        const callback = await callbackPromise;
-
-        // Exchange code for token (backchannel)
-        let result: { token: string; expiresAt: string };
-        try {
-          result = await exchangeCodeForToken(callback.code, port, {
-            expiresInSeconds: DEFAULT_EXPIRES_IN_SECONDS,
-          });
-          callback.sendSuccess();
-        } catch (err) {
-          callback.sendError("Failed to complete authentication. Please try again.");
-          throw err;
-        }
+        const result = await performBrowserLogin();
 
         // Save token to config
         const cfg = config.load();
@@ -111,6 +89,8 @@ export function registerAuth(program: Command) {
     .action(() => {
       try {
         const cfg = config.load();
+        const validToken = resolveAuthToken(cfg);
+
         if (!cfg.auth_token) {
           printHuman(
             `  ${dim("Not authenticated. Run")} alchemy auth ${dim("to log in.")}\n`,
@@ -119,11 +99,7 @@ export function registerAuth(program: Command) {
           return;
         }
 
-        const expired = cfg.auth_token_expires_at
-          ? new Date(cfg.auth_token_expires_at) < new Date()
-          : false;
-
-        if (expired) {
+        if (!validToken) {
           printHuman(
             `  ${dim("Session expired. Run")} alchemy auth ${dim("to log in again.")}\n`,
             { authenticated: false, expired: true },
@@ -133,7 +109,7 @@ export function registerAuth(program: Command) {
 
         printHuman(
           `  ${green("✓")} Authenticated\n` +
-            `  ${dim("Token:")} ${maskIf(cfg.auth_token)}\n` +
+            `  ${dim("Token:")} ${maskIf(validToken)}\n` +
             `  ${dim("Expires:")} ${cfg.auth_token_expires_at || "unknown"}\n`,
           {
             authenticated: true,

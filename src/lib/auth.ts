@@ -5,7 +5,8 @@ import { URL } from "node:url";
 
 const AUTH_PORT = 16424;
 const AUTH_CALLBACK_PATH = "/callback";
-/** Default token TTL: 90 days in seconds. */
+// Default token TTL: 90 days in seconds. Server caps at CLI_SESSION_MAX_AGE_SECONDS
+// (authchemy settings.ts). If the server cap changes, update this value to match.
 const DEFAULT_EXPIRES_IN_SECONDS = 90 * 24 * 60 * 60;
 
 const SUCCESS_HTML = `<!DOCTYPE html>
@@ -168,6 +169,30 @@ export async function revokeToken(token: string): Promise<void> {
       (body as { error?: string }).error ||
         `Token revocation failed (HTTP ${response.status})`,
     );
+  }
+}
+
+/**
+ * Runs the full browser login flow: bind server, open browser, exchange code.
+ * Returns the token and expiry. Caller is responsible for saving to config.
+ */
+export async function performBrowserLogin(
+  port = AUTH_PORT,
+  options?: { expiresInSeconds?: number },
+): Promise<TokenExchangeResult> {
+  const loginUrl = getLoginUrl(port);
+  const callbackPromise = waitForCallback(port);
+  openBrowser(loginUrl);
+  const callback = await callbackPromise;
+  try {
+    const result = await exchangeCodeForToken(callback.code, port, {
+      expiresInSeconds: options?.expiresInSeconds ?? DEFAULT_EXPIRES_IN_SECONDS,
+    });
+    callback.sendSuccess();
+    return result;
+  } catch (err) {
+    callback.sendError("Failed to complete authentication. Please try again.");
+    throw err;
   }
 }
 

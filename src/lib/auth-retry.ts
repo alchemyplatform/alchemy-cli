@@ -1,5 +1,6 @@
-import { load, save, type Config } from "./config.js";
-import { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken } from "./auth.js";
+import { load, save } from "./config.js";
+import { performBrowserLogin } from "./auth.js";
+import { CLIError, ErrorCode } from "./errors.js";
 import { isInteractiveAllowed as checkInteractive } from "./interaction.js";
 import { dim } from "./ui.js";
 import { isJSONMode } from "./output.js";
@@ -17,46 +18,36 @@ export async function withAuthRetry<T>(
   try {
     return await fn(cfg.auth_token);
   } catch (err: unknown) {
-    // Check if it's a 401
     if (!is401(err)) throw err;
-
-    // Don't retry in non-interactive mode
     if (!checkInteractive(program)) throw err;
 
     if (!isJSONMode()) {
       console.log(`\n  ${dim("Session expired. Re-authenticating...")}`);
     }
 
-    // Clear expired token
-    const updatedCfg = load();
-    save({ ...updatedCfg, auth_token: undefined, auth_token_expires_at: undefined });
-
-    // Re-authenticate
-    const port = AUTH_PORT;
-    const loginUrl = getLoginUrl(port);
-    const callbackPromise = waitForCallback(port);
-    openBrowser(loginUrl);
-
-    const callback = await callbackPromise;
-    const result = await exchangeCodeForToken(callback.code, port, {
-      expiresInSeconds: DEFAULT_EXPIRES_IN_SECONDS,
-    });
-    callback.sendSuccess();
-
+    // Clear expired token and re-authenticate
+    save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+    const result = await performBrowserLogin();
     const freshCfg = load();
-    save({ ...freshCfg, auth_token: result.token, auth_token_expires_at: result.expiresAt });
+    save({
+      ...freshCfg,
+      auth_token: result.token,
+      auth_token_expires_at: result.expiresAt,
+    });
 
-    // Retry with new token
     return fn(result.token);
   }
 }
 
 function is401(err: unknown): boolean {
-  if (err && typeof err === "object") {
-    if ("status" in err && (err as { status: number }).status === 401) return true;
-    if ("message" in err && typeof (err as { message: string }).message === "string") {
-      return (err as { message: string }).message.includes("401");
-    }
+  if (err instanceof CLIError) {
+    return (
+      err.code === ErrorCode.AUTH_REQUIRED ||
+      err.code === ErrorCode.INVALID_ACCESS_KEY
+    );
+  }
+  if (err && typeof err === "object" && "status" in err) {
+    return (err as { status: number }).status === 401;
   }
   return false;
 }
