@@ -153,4 +153,22 @@ export async function exchangeCodeForToken(
   return { token: data.authToken, expiresAt: data.expiresAt };
 }
 
+export async function revokeToken(token: string): Promise<void> {
+  const baseUrl = getAuthBaseUrl();
+  const response = await fetch(`${baseUrl}/api/cli/logout`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(
+      (body as { error?: string }).error ||
+        `Token revocation failed (HTTP ${response.status})`,
+    );
+  }
+}
+
 export { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS };

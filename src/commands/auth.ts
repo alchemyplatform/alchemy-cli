@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken } from "../lib/auth.js";
+import { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS, getLoginUrl, openBrowser, waitForCallback, exchangeCodeForToken, revokeToken } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -148,10 +148,21 @@ export function registerAuth(program: Command) {
 
   cmd
     .command("logout")
-    .description("Clear saved authentication token")
-    .action(() => {
+    .description("Revoke and clear saved authentication token")
+    .action(async () => {
       try {
         const cfg = config.load();
+        const token = cfg.auth_token;
+
+        // Revoke server-side first (best-effort)
+        if (token) {
+          try {
+            await revokeToken(token);
+          } catch {
+            // Token may already be expired/invalid — continue with local cleanup
+          }
+        }
+
         const { auth_token: _, auth_token_expires_at: __, ...rest } = cfg as Record<string, unknown>;
         config.save(rest as config.Config);
         printHuman(
