@@ -63,7 +63,7 @@ export class X402Client implements AlchemyClient {
     this.siweToken = null;
   }
 
-  async call(method: string, params: unknown[] = []): Promise<unknown> {
+  async call(method: string, params: unknown[] | Record<string, unknown> = []): Promise<unknown> {
     const body: RPCRequest = { jsonrpc: "2.0", method, params, id: 1 };
     const jsonBody = JSON.stringify(body);
 
