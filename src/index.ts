@@ -15,7 +15,6 @@ import { registerNFTs } from "./commands/nfts.js";
 import { registerTokens } from "./commands/tokens.js";
 import { registerNetwork } from "./commands/network.js";
 import { registerVersion } from "./commands/version.js";
-import { registerChains } from "./commands/chains.js";
 import { registerApps } from "./commands/apps.js";
 import { registerWallet } from "./commands/wallet.js";
 import { registerSetup } from "./commands/setup.js";
@@ -74,7 +73,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Chains",
-    commands: ["network", "chains", "solana"],
+    commands: ["network", "solana"],
   },
   {
     label: "Admin",
@@ -421,8 +420,6 @@ registerWebhooks(program);
 
 // Chains
 registerNetwork(program);
-registerChains(program);
-
 // Ops / Admin
 registerApps(program);
 registerSetup(program);

@@ -21,7 +21,6 @@ describe("tokens command", () => {
     const printKeyValueBox = vi.fn();
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const emptyState = vi.fn();
-    const validateAddress = vi.fn();
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -44,8 +43,15 @@ describe("tokens command", () => {
       emptyState,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
-      validateAddress,
+      validateAddress: vi.fn(),
+      resolveAddress: vi.fn().mockResolvedValue(ADDRESS),
       readStdinArg: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn().mockResolvedValue("stop"),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
@@ -63,14 +69,14 @@ describe("tokens command", () => {
     expect(printKeyValueBox).toHaveBeenCalledWith([
       ["Address", ADDRESS],
       ["Network", "eth-mainnet"],
-      ["Non-zero tokens", "1"],
+      ["Tokens", "1"],
     ]);
     expect(printTable).toHaveBeenCalledWith(
       ["Contract", "Balance (base units)", "Raw (hex)"],
       [["0xnonzero", "4660", "0x1234"]],
     );
     expect(log).toHaveBeenCalledWith(
-      "\n  Showing 1 of 2 contracts (non-zero only).",
+      "\n  1 tokens (zero balances hidden).",
     );
     log.mockRestore();
     expect(exitWithError).not.toHaveBeenCalled();
@@ -105,7 +111,14 @@ describe("tokens command", () => {
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
+      resolveAddress: vi.fn().mockResolvedValue(ADDRESS),
       readStdinArg: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn().mockResolvedValue("stop"),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 

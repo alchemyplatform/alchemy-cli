@@ -15,7 +15,7 @@ import { redactSensitiveText } from "./redact.js";
 export interface RPCRequest {
   jsonrpc: string;
   method: string;
-  params: unknown[];
+  params: unknown[] | Record<string, unknown>;
   id: number;
 }
 
@@ -115,7 +115,7 @@ export class Client implements AlchemyClient {
     return fetchWithTimeout(url, init);
   }
 
-  async call(method: string, params: unknown[] = []): Promise<unknown> {
+  async call(method: string, params: unknown[] | Record<string, unknown> = []): Promise<unknown> {
     const body: RPCRequest = {
       jsonrpc: "2.0",
       method,
@@ -126,7 +126,8 @@ export class Client implements AlchemyClient {
     const redactedURL = redactSensitiveText(this.rpcURL());
     this.verboseLog(`→ POST ${redactedURL}`);
     this.verboseLog(`  method: ${method}`);
-    if (params.length > 0) {
+    const hasParams = Array.isArray(params) ? params.length > 0 : Object.keys(params).length > 0;
+    if (hasParams) {
       this.verboseLog(`  params: ${JSON.stringify(params)}`);
     }
     const startTime = Date.now();

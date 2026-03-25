@@ -12,7 +12,7 @@ describe("balance command", () => {
   it("balance reads stdin arg and prints JSON", async () => {
     const call = vi.fn().mockResolvedValue("0x10");
     const readStdinArg = vi.fn().mockResolvedValue(ADDRESS);
-    const validateAddress = vi.fn();
+    const resolveAddress = vi.fn().mockResolvedValue(ADDRESS);
     const printJSON = vi.fn();
     const exitWithError = vi.fn();
 
@@ -36,7 +36,7 @@ describe("balance command", () => {
       green: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
-      validateAddress,
+      resolveAddress,
       readStdinArg,
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
@@ -51,7 +51,7 @@ describe("balance command", () => {
     await program.parseAsync(["node", "test", "balance"], { from: "node" });
 
     expect(readStdinArg).toHaveBeenCalledWith("address");
-    expect(validateAddress).toHaveBeenCalledWith(ADDRESS);
+    expect(resolveAddress).toHaveBeenCalledWith(ADDRESS, expect.anything());
     expect(call).toHaveBeenCalledWith("eth_getBalance", [ADDRESS, "latest"]);
     expect(printJSON).toHaveBeenCalledWith({
       address: ADDRESS,
@@ -65,9 +65,7 @@ describe("balance command", () => {
 
   it("balance forwards validation failures to exitWithError", async () => {
     const err = new Error("bad address");
-    const validateAddress = vi.fn(() => {
-      throw err;
-    });
+    const resolveAddress = vi.fn().mockRejectedValue(err);
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -90,7 +88,7 @@ describe("balance command", () => {
       green: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
-      validateAddress,
+      resolveAddress,
       readStdinArg: vi.fn().mockResolvedValue(ADDRESS),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));

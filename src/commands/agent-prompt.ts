@@ -161,7 +161,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
         envVar: "ALCHEMY_ACCESS_KEY",
         flag: "--access-key <key>",
         configKey: "access-key",
-        commandFamilies: ["apps", "chains", "network list --configured"],
+        commandFamilies: ["apps", "network list --configured"],
       },
       {
         method: "Webhook API key",

@@ -22,16 +22,20 @@ export function registerSolana(program: Command) {
       }
     });
 
-  const das = cmd.command("das").description("Solana DAS (Digital Asset Standard) wrappers");
-
-  das
-    .command("<method> [params...]")
-    .description("Call DAS method (e.g. getAssetsByOwner)")
+  cmd
+    .command("das <method> [params...]")
+    .description("Call a Solana DAS method (e.g. getAssetsByOwner)")
     .action(async (method: string, params: string[]) => {
       try {
         const client = clientFromFlags(program, { defaultNetwork: "solana-mainnet" });
+        // DAS methods use named params (object), not positional (array).
+        // If the user passes a single JSON object, send it directly as params.
+        const parsed = parseCLIParams(params);
+        const rpcParams = parsed.length === 1 && typeof parsed[0] === "object" && parsed[0] !== null && !Array.isArray(parsed[0])
+          ? (parsed[0] as Record<string, unknown>)
+          : parsed;
         const result = await withSpinner(`Calling ${method}…`, `Called ${method}`, () =>
-          client.call(method, parseCLIParams(params)),
+          client.call(method, rpcParams),
         );
         printSyntaxJSON(result);
       } catch (err) {

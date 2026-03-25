@@ -14,7 +14,7 @@ export function registerNetwork(program: Command) {
 
   cmd
     .command("list")
-    .description("List supported RPC network slugs")
+    .description("List RPC network IDs for use with --network (e.g. eth-mainnet)")
     .option(
       "--configured",
       "List only configured app RPC networks (requires access key and app context)",
@@ -75,7 +75,7 @@ export function registerNetwork(program: Command) {
         }
         console.log(`\n  Current: ${green(current)}`);
         console.log(
-          `  ${dim("Need Admin API chain enums instead? Run: alchemy chains list")}`,
+          `  ${dim("Need Admin API chain identifiers (e.g. ETH_MAINNET)? See: apps chains")}`,
         );
 
         if (verbose) {

@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { adminClientFromFlags } from "../lib/resolve.js";
 import type { App } from "../lib/admin-client.js";
 import { errInvalidArgs, exitWithError } from "../lib/errors.js";
-import { isJSONMode, printJSON } from "../lib/output.js";
+import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { promptSelect } from "../lib/terminal-ui.js";
 import {
   green,
@@ -507,6 +507,57 @@ export function registerApps(program: Command) {
         console.log(
           `  ${green("✓")} Updated IP allowlist for ${app.name}`,
         );
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  cmd
+    .command("chains")
+    .description("List Admin API chain identifiers for app configuration (e.g. ETH_MAINNET)")
+    .action(async () => {
+      try {
+        const admin = adminClientFromFlags(program);
+        const chains = await withSpinner(
+          "Fetching chains…",
+          "Chains fetched",
+          () => admin.listChains(),
+        );
+
+        if (isJSONMode()) {
+          printJSON(chains);
+          return;
+        }
+
+        if (chains.length === 0) {
+          emptyState("No chain networks were returned.");
+          return;
+        }
+
+        const formatChainId = (value: string | null): string => {
+          if (!value) return dim("—");
+          const num = parseInt(value, 10);
+          if (isNaN(num)) return value;
+          return `${num} (0x${num.toString(16)})`;
+        };
+
+        const rows = chains.map((c) => [
+          c.id,
+          c.name,
+          formatChainId(c.networkChainId),
+          c.isTestnet ? dim("yes") : "no",
+          c.availability === "public"
+            ? green(c.availability)
+            : dim(c.availability),
+          c.currency,
+        ]);
+
+        printTable(["ID", "Name", "Chain ID", "Testnet", "Availability", "Currency"], rows);
+
+        if (verbose) {
+          console.log("");
+          printJSON(chains);
+        }
       } catch (err) {
         exitWithError(err);
       }

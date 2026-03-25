@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
 import { printJSON, isJSONMode } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
-import { validateAddress, readStdinArg, splitCommaList } from "../lib/validators.js";
+import { validateAddress, resolveAddress, readStdinArg, splitCommaList } from "../lib/validators.js";
 import { dim, withSpinner, printTable } from "../lib/ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { promptSelect } from "../lib/terminal-ui.js";
@@ -56,7 +56,7 @@ function formatTransferRows(transfers: Transfer[]): string[][] {
 export function registerTransfers(program: Command) {
   program
     .command("transfers")
-    .argument("[address]", "Wallet address — queries outgoing transfers (use --to-address for incoming)")
+    .argument("[address]", "Wallet address or ENS name — queries outgoing transfers (use --to-address for incoming)")
     .description("Get transfer history (alchemy_getAssetTransfers)")
     .option("--from-address <address>", "Filter sender address")
     .option("--to-address <address>", "Filter recipient address")
@@ -84,10 +84,9 @@ Examples:
     .action(async (addressArg: string | undefined, opts) => {
       try {
         const client = clientFromFlags(program);
-        const address = addressArg ?? undefined;
-        if (address) validateAddress(address);
-        if (opts.fromAddress) validateAddress(opts.fromAddress);
-        if (opts.toAddress) validateAddress(opts.toAddress);
+        const address = addressArg ? await resolveAddress(addressArg, client) : undefined;
+        if (opts.fromAddress) opts.fromAddress = await resolveAddress(opts.fromAddress, client);
+        if (opts.toAddress) opts.toAddress = await resolveAddress(opts.toAddress, client);
 
         const baseFilter: Record<string, unknown> = {
           fromBlock: opts.fromBlock ?? "0x0",

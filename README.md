@@ -156,8 +156,7 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 | Command | What it does | Example |
 |---|---|---|
-| `network list` | Lists supported RPC networks | `alchemy network list --configured` |
-| `chains list` | Lists Admin API chain enums | `alchemy chains list` |
+| `network list` | Lists RPC network IDs for use with `--network` (e.g. `eth-mainnet`) | `alchemy network list --configured` |
 | `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"'` |
 | `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}'` |
 
@@ -167,6 +166,7 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 |---|---|---|
 | `(no command)` | Starts interactive REPL mode (TTY only) | `alchemy` |
 | `apps list` | Lists apps (supports pagination/filtering) | `alchemy apps list --all` |
+| `apps chains` | Lists Admin API chain identifiers (e.g. `ETH_MAINNET`) | `alchemy apps chains` |
 | `apps get <id>` | Gets app details | `alchemy apps get <app-id>` |
 | `apps create` | Creates app | `alchemy apps create --name "My App" --networks eth-mainnet` |
 | `apps update <id>` | Updates app name/description | `alchemy apps update <app-id> --name "New Name"` |

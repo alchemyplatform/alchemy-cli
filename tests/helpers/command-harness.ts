@@ -47,6 +47,11 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
     exitWithError,
   }));
 
+  vi.doMock("../../src/lib/ens.js", () => ({
+    isENSName: () => false,
+    resolveENS: vi.fn(),
+  }));
+
   vi.doMock("../../src/lib/interaction.js", () => ({
     isInteractiveAllowed: () => false,
   }));
