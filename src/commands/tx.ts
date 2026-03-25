@@ -8,10 +8,11 @@ import {
   successBadge,
   failBadge,
   withSpinner,
-  weiToEth,
   etherscanTxURL,
   printKeyValueBox,
 } from "../lib/ui.js";
+import { formatHexWithRaw, formatWeiWithRaw, formatGweiWithRaw } from "../lib/block-format.js";
+import { nativeTokenSymbol } from "../lib/networks.js";
 
 export function registerTx(program: Command) {
   program
@@ -48,24 +49,36 @@ Examples:
           return;
         }
 
+        const network = resolveNetwork(program);
+        const symbol = nativeTokenSymbol(network);
+
         const pairs: Array<[string, string]> = [["Hash", hash]];
         if (tx.from) pairs.push(["From", String(tx.from)]);
         if (tx.to) pairs.push(["To", String(tx.to)]);
         if (tx.value) {
-          const wei = BigInt(tx.value as string);
-          pairs.push(["Value", green(weiToEth(wei) + " ETH")]);
+          const formatted = formatWeiWithRaw(tx.value, symbol);
+          pairs.push(["Value", formatted ? green(formatted) : String(tx.value)]);
         }
-        if (tx.blockNumber) pairs.push(["Block", String(tx.blockNumber)]);
+        if (tx.blockNumber) {
+          const formatted = formatHexWithRaw(tx.blockNumber);
+          pairs.push(["Block", formatted ?? String(tx.blockNumber)]);
+        }
         if (receipt) {
           if (receipt.status === "0x1") {
             pairs.push(["Status", `${successBadge()} Success`]);
           } else if (receipt.status) {
             pairs.push(["Status", `${failBadge()} Failed`]);
           }
-          if (receipt.gasUsed) pairs.push(["Gas Used", String(receipt.gasUsed)]);
+          if (receipt.gasUsed) {
+            const formatted = formatHexWithRaw(receipt.gasUsed);
+            pairs.push(["Gas Used", formatted ?? String(receipt.gasUsed)]);
+          }
+          if (receipt.effectiveGasPrice) {
+            const formatted = formatGweiWithRaw(receipt.effectiveGasPrice);
+            pairs.push(["Gas Price", formatted ?? String(receipt.effectiveGasPrice)]);
+          }
         }
 
-        const network = resolveNetwork(program);
         const explorerURL = etherscanTxURL(hash, network);
         if (explorerURL) {
           pairs.push(["Explorer", explorerURL]);

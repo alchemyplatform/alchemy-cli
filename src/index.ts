@@ -9,6 +9,7 @@ import { registerConfig } from "./commands/config.js";
 import { registerRPC } from "./commands/rpc.js";
 import { registerBalance } from "./commands/balance.js";
 import { registerTx } from "./commands/tx.js";
+import { registerReceipt } from "./commands/receipt.js";
 import { registerBlock } from "./commands/block.js";
 import { registerNFTs } from "./commands/nfts.js";
 import { registerTokens } from "./commands/tokens.js";
@@ -394,6 +395,7 @@ program
 registerRPC(program);
 registerBalance(program);
 registerTx(program);
+registerReceipt(program);
 registerBlock(program);
 registerTrace(program);
 registerDebug(program);
