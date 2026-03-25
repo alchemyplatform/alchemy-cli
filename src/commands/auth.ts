@@ -7,6 +7,7 @@ import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
 import { printHuman, isJSONMode, debug } from "../lib/output.js";
 import { promptSelect } from "../lib/terminal-ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
+import { resolveAuthToken } from "../lib/resolve.js";
 import { green, dim, bold, brand, maskIf, withSpinner } from "../lib/ui.js";
 
 export function registerAuth(program: Command) {
@@ -17,8 +18,23 @@ export function registerAuth(program: Command) {
   cmd
     .command("login", { isDefault: true })
     .description("Log in via browser")
-    .action(async () => {
+    .option("--force", "Force re-authentication even if a valid token exists")
+    .action(async (opts: { force?: boolean }) => {
       try {
+        // Skip browser flow if we already have a valid token
+        if (!opts.force) {
+          const existing = resolveAuthToken();
+          if (existing) {
+            printHuman(
+              `  ${green("✓")} Already authenticated\n` +
+                `  ${dim("Token:")} ${maskIf(existing)}\n` +
+                `  ${dim("Run")} alchemy auth login --force ${dim("to re-authenticate.")}\n`,
+              { status: "already_authenticated" },
+            );
+            return;
+          }
+        }
+
         const port = AUTH_PORT;
         const loginUrl = getLoginUrl(port);
 
