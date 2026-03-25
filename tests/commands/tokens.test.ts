@@ -76,7 +76,7 @@ describe("tokens command", () => {
       [["0xnonzero", "4660", "0x1234"]],
     );
     expect(log).toHaveBeenCalledWith(
-      "\n  Showing 1 of 2 contracts (non-zero only).",
+      "\n  1 non-zero of 2 contracts.",
     );
     log.mockRestore();
     expect(exitWithError).not.toHaveBeenCalled();
