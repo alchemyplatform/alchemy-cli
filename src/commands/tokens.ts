@@ -92,16 +92,15 @@ Examples:
           return;
         }
 
-        let totalNonZero = rows.length;
-        let totalContracts = result.tokenBalances.length;
+        let totalShown = rows.length;
 
         printKeyValueBox([
           ["Address", address],
           ["Network", client.network],
-          ["Non-zero tokens", String(totalNonZero)],
+          ["Tokens", String(totalShown)],
         ]);
         printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
-        console.log(`\n  ${dim(`${totalNonZero} non-zero of ${totalContracts} contracts.`)}`);
+        console.log(`\n  ${dim(`${totalShown} tokens (zero balances hidden).`)}`);
 
         if (verbose) {
           console.log("");
@@ -128,13 +127,12 @@ Examples:
           }
 
           const nextRows = formatTokenRows(nextResult.tokenBalances);
-          totalContracts += nextResult.tokenBalances.length;
-          totalNonZero += nextRows.length;
+          totalShown += nextRows.length;
 
           if (nextRows.length > 0) {
             printTable(["Contract", "Balance (base units)", "Raw (hex)"], nextRows);
           }
-          console.log(`\n  ${dim(`${totalNonZero} non-zero of ${totalContracts} contracts total.`)}`);
+          console.log(`\n  ${dim(`${totalShown} tokens total (zero balances hidden).`)}`);
 
           pageKey = nextResult.pageKey;
         }

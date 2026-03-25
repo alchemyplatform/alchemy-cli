@@ -69,14 +69,14 @@ describe("tokens command", () => {
     expect(printKeyValueBox).toHaveBeenCalledWith([
       ["Address", ADDRESS],
       ["Network", "eth-mainnet"],
-      ["Non-zero tokens", "1"],
+      ["Tokens", "1"],
     ]);
     expect(printTable).toHaveBeenCalledWith(
       ["Contract", "Balance (base units)", "Raw (hex)"],
       [["0xnonzero", "4660", "0x1234"]],
     );
     expect(log).toHaveBeenCalledWith(
-      "\n  1 non-zero of 2 contracts.",
+      "\n  1 tokens (zero balances hidden).",
     );
     log.mockRestore();
     expect(exitWithError).not.toHaveBeenCalled();
