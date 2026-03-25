@@ -23,7 +23,7 @@ function pad32(hex: string): string {
  * EIP-137 namehash: recursive keccak256 over dot-separated labels.
  */
 export function namehash(name: string): Uint8Array {
-  let node = new Uint8Array(32);
+  let node: Uint8Array = new Uint8Array(32);
   if (!name) return node;
 
   const labels = name.split(".");
