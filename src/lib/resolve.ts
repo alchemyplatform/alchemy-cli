@@ -46,10 +46,25 @@ export function resolveAppId(program: Command, cfg?: Config): string | undefined
   return undefined;
 }
 
+export function resolveAuthToken(cfg?: Config): string | undefined {
+  const config = cfg ?? load();
+  if (!config.auth_token?.trim()) return undefined;
+  // Check expiry
+  if (config.auth_token_expires_at && new Date(config.auth_token_expires_at) <= new Date()) {
+    return undefined;
+  }
+  return config.auth_token;
+}
+
 export function adminClientFromFlags(program: Command): AdminClient {
-  const accessKey = resolveAccessKey(program);
-  if (!accessKey) throw errAccessKeyRequired();
-  return new AdminClient(accessKey);
+  const cfg = load();
+  const accessKey = resolveAccessKey(program, cfg);
+  if (accessKey) return new AdminClient(accessKey);
+
+  const authToken = resolveAuthToken(cfg);
+  if (authToken) return new AdminClient({ type: "auth_token", token: authToken });
+
+  throw errAccessKeyRequired();
 }
 
 export function resolveX402(program: Command, cfg?: Config): boolean {

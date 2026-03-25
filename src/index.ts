@@ -18,6 +18,7 @@ import { registerVersion } from "./commands/version.js";
 import { registerApps } from "./commands/apps.js";
 import { registerWallet } from "./commands/wallet.js";
 import { registerSetup } from "./commands/setup.js";
+import { registerAuth } from "./commands/auth.js";
 import { registerTrace } from "./commands/trace.js";
 import { registerDebug } from "./commands/debug.js";
 import { registerTransfers } from "./commands/transfers.js";
@@ -77,7 +78,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Admin",
-    commands: ["apps", "config", "setup", "completions", "agent-prompt", "update-check", "version", "help"],
+    commands: ["apps", "auth", "config", "setup", "completions", "agent-prompt", "update-check", "version", "help"],
   },
 ] as const;
 
@@ -423,6 +424,7 @@ registerWebhooks(program);
 registerNetwork(program);
 // Ops / Admin
 registerApps(program);
+registerAuth(program);
 registerSetup(program);
 registerConfig(program);
 registerSolana(program);

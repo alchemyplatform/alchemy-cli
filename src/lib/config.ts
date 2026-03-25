@@ -21,6 +21,8 @@ export interface Config {
   wallet_key_file?: string;
   wallet_address?: string;
   x402?: boolean;
+  auth_token?: string;
+  auth_token_expires_at?: string;
 }
 
 export const KEY_MAP: Record<string, keyof Config> = {
@@ -37,6 +39,10 @@ export const KEY_MAP: Record<string, keyof Config> = {
   "wallet-address": "wallet_address",
   wallet_address: "wallet_address",
   x402: "x402",
+  "auth-token": "auth_token",
+  auth_token: "auth_token",
+  "auth-token-expires-at": "auth_token_expires_at",
+  auth_token_expires_at: "auth_token_expires_at",
 };
 
 const SAFE_ID_RE = /^[A-Za-z0-9:_-]{1,128}$/;
@@ -75,6 +81,8 @@ const configSchema = z
     wallet_key_file: safeTextSchema(MAX_PATH_LEN).optional().catch(undefined),
     wallet_address: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     x402: z.boolean().optional().catch(undefined),
+    auth_token: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    auth_token_expires_at: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
   })
   .strip();
 
@@ -175,5 +183,7 @@ export function toMap(cfg: Config): Record<string, string> {
   if (cfg.wallet_key_file) m["wallet-key-file"] = cfg.wallet_key_file;
   if (cfg.wallet_address) m["wallet-address"] = cfg.wallet_address;
   if (cfg.x402 !== undefined) m["x402"] = String(cfg.x402);
+  if (cfg.auth_token) m["auth-token"] = maskIf(cfg.auth_token);
+  if (cfg.auth_token_expires_at) m["auth-token-expires-at"] = cfg.auth_token_expires_at;
   return m;
 }

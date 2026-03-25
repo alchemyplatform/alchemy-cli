@@ -1,4 +1,5 @@
 import {
+  errAuthRequired,
   errInvalidAccessKey,
   errAccessDenied,
   errNotFound,
@@ -56,15 +57,29 @@ interface ListAppsResponse {
 
 // ── Client ───────────────────────────────────────────────────────────
 
+export type AdminCredential =
+  | { type: "access_key"; key: string }
+  | { type: "auth_token"; token: string };
+
 export class AdminClient {
   private static readonly ADMIN_API_HOST = "admin-api.alchemy.com";
   // Test/debug only: used by mock E2E to route admin requests locally.
   private static readonly ADMIN_API_BASE_URL_ENV = "ALCHEMY_ADMIN_API_BASE_URL";
-  private accessKey: string;
+  private credential: AdminCredential;
 
-  constructor(accessKey: string) {
-    this.validateAccessKey(accessKey);
-    this.accessKey = accessKey;
+  constructor(credential: string | AdminCredential) {
+    if (typeof credential === "string") {
+      // Legacy: treat as access key
+      this.validateAccessKey(credential);
+      this.credential = { type: "access_key", key: credential };
+    } else {
+      if (credential.type === "access_key") {
+        this.validateAccessKey(credential.key);
+      } else if (!credential.token.trim()) {
+        throw errAuthRequired();
+      }
+      this.credential = credential;
+    }
   }
 
   protected baseURL(): string {
@@ -122,7 +137,7 @@ export class AdminClient {
       method,
       redirect: "error",
       headers: {
-        Authorization: `Bearer ${this.accessKey}`,
+        Authorization: `Bearer ${this.credential.type === "access_key" ? this.credential.key : this.credential.token}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },

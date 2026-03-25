@@ -87,8 +87,8 @@ export class CLIError extends Error {
 export function errAuthRequired(): CLIError {
   return new CLIError(
     ErrorCode.AUTH_REQUIRED,
-    "Not authenticated. Set ALCHEMY_API_KEY or run 'alchemy config set api-key <key>'.",
-    "alchemy config set api-key <your-key>",
+    "Not authenticated. Run 'alchemy auth' to log in, or set ALCHEMY_API_KEY.",
+    "alchemy auth",
   );
 }
 
