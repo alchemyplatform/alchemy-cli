@@ -3,7 +3,7 @@ import { errInvalidArgs } from "./errors.js";
 import type { AlchemyClient } from "./client-interface.js";
 
 // Universal Resolver on Ethereum mainnet
-const UNIVERSAL_RESOLVER = "0xc0497E381f536Be9ce14B0dD3817cBcAe57d2F62";
+const UNIVERSAL_RESOLVER = "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe";
 
 // Function selectors
 const RESOLVE_SELECTOR = "9061b923"; // resolve(bytes,bytes)
