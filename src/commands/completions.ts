@@ -100,7 +100,7 @@ function generateFish(program: Command): string {
   const commands = collectCommands(program);
 
   const lines = commands.map((c) => {
-    const desc = c.description.replace(/'/g, "\\'");
+    const desc = c.description.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     if (c.path.length === 1) {
       return `complete -c alchemy -n '__fish_use_subcommand' -a '${c.path[0]}' -d '${desc}'`;
     }
