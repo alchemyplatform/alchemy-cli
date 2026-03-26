@@ -40,8 +40,7 @@ export function registerAuth(program: Command) {
           const cfg = config.load();
           if (cfg.auth_token) {
             await revokeToken(cfg.auth_token);
-            const { auth_token: _, auth_token_expires_at: __, ...rest } = cfg as Record<string, unknown>;
-            config.save(rest as config.Config);
+            config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
           }
         }
 
@@ -83,7 +82,6 @@ export function registerAuth(program: Command) {
           await selectAppAfterAuth(result.token);
         }
 
-        process.exit(0);
       } catch (err) {
         exitWithError(
           err instanceof CLIError

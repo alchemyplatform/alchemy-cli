@@ -51,8 +51,11 @@ export function resolveAuthToken(cfg?: Config): string | undefined {
   const config = cfg ?? load();
   if (!config.auth_token?.trim()) return undefined;
   // Check expiry
-  if (config.auth_token_expires_at && new Date(config.auth_token_expires_at) <= new Date()) {
-    return undefined;
+  if (config.auth_token_expires_at) {
+    const expiry = new Date(config.auth_token_expires_at);
+    if (!Number.isNaN(expiry.getTime()) && expiry <= new Date()) {
+      return undefined;
+    }
   }
   return config.auth_token;
 }

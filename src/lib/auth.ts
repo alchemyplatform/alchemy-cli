@@ -206,6 +206,8 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
     });
 
     server.listen(port);
+    // Allow the process to exit naturally even if the server is still listening.
+    server.unref();
   });
 }
 
