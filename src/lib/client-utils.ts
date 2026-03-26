@@ -54,6 +54,10 @@ export function parseBaseURLOverride(envVarName: string): URL | null {
 
 const BREADCRUMB_HEADER = "alchemy-cli";
 
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export async function fetchWithTimeout(
   url: string,
   init: RequestInit,
@@ -81,7 +85,7 @@ export async function fetchWithTimeout(
       // Extract the hostname from the URL for a clearer error message
       try {
         const hostname = new URL(url).hostname;
-        const networkSlug = hostname.replace(new RegExp(`\\.g\\.${getBaseDomain().replace(/\./g, "\\.")}$`), "");
+        const networkSlug = hostname.replace(new RegExp(`\\.g\\.${escapeRegExp(getBaseDomain())}$`), "");
         if (networkSlug !== hostname) {
           throw errInvalidArgs(
             `Unknown network '${networkSlug}'. Run 'alchemy network list' to see available networks.`,
