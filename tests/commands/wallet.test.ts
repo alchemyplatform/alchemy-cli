@@ -14,8 +14,12 @@ describe("wallet command", () => {
     const printJSON = vi.fn();
     const exitWithError = vi.fn();
     const originalHome = process.env.HOME;
+    const originalXdg = process.env.XDG_CONFIG_HOME;
+    const originalAlchemyCfg = process.env.ALCHEMY_CONFIG;
     const tempHome = mkdtempSync(join(tmpdir(), "alchemy-wallet-test-"));
     process.env.HOME = tempHome;
+    delete process.env.XDG_CONFIG_HOME;
+    delete process.env.ALCHEMY_CONFIG;
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveWalletKey: vi.fn(),
@@ -69,6 +73,10 @@ describe("wallet command", () => {
 
     if (originalHome === undefined) delete process.env.HOME;
     else process.env.HOME = originalHome;
+    if (originalXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = originalXdg;
+    if (originalAlchemyCfg === undefined) delete process.env.ALCHEMY_CONFIG;
+    else process.env.ALCHEMY_CONFIG = originalAlchemyCfg;
   });
 
   it("wallet import forwards read failures to exitWithError", async () => {

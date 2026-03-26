@@ -4,7 +4,7 @@ import { setFlags, isJSONMode, quiet } from "./lib/output.js";
 import { formatCommanderError } from "./lib/error-format.js";
 import { load as loadConfig } from "./lib/config.js";
 import { brandedHelp } from "./lib/ui.js";
-import { noColor, identity, esc } from "./lib/colors.js";
+import { noColor, setNoColor, identity, esc } from "./lib/colors.js";
 import { registerConfig } from "./commands/config.js";
 import { registerRPC } from "./commands/rpc.js";
 import { registerBalance } from "./commands/balance.js";
@@ -327,6 +327,7 @@ program
   })
   .hook("preAction", () => {
     const opts = program.opts();
+    if (opts.color === false) setNoColor(true);
     const cfg = loadConfig();
     setFlags({
       json: opts.json,

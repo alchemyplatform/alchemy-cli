@@ -92,7 +92,8 @@ function getHome(): string {
 
 export function configPath(): string {
   if (process.env.ALCHEMY_CONFIG) return process.env.ALCHEMY_CONFIG;
-  return join(getHome(), ".config", "alchemy", "config.json");
+  const configHome = process.env.XDG_CONFIG_HOME || join(getHome(), ".config");
+  return join(configHome, "alchemy", "config.json");
 }
 
 export function configDir(): string {
