@@ -120,17 +120,27 @@ describe("configPath", () => {
 
 describe("config save/load", () => {
   let origHome: string | undefined;
+  let origXdg: string | undefined;
+  let origAlchemyCfg: string | undefined;
   let tmpDir: string;
 
   beforeEach(() => {
     origHome = process.env.HOME;
+    origXdg = process.env.XDG_CONFIG_HOME;
+    origAlchemyCfg = process.env.ALCHEMY_CONFIG;
     tmpDir = join(tmpdir(), `alchemy-test-${randomUUID()}`);
     mkdirSync(tmpDir, { recursive: true });
     process.env.HOME = tmpDir;
+    delete process.env.XDG_CONFIG_HOME;
+    delete process.env.ALCHEMY_CONFIG;
   });
 
   afterEach(() => {
     process.env.HOME = origHome;
+    if (origXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = origXdg;
+    if (origAlchemyCfg === undefined) delete process.env.ALCHEMY_CONFIG;
+    else process.env.ALCHEMY_CONFIG = origAlchemyCfg;
   });
 
   it("saves and loads config", () => {
