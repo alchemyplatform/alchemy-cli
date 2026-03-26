@@ -9,7 +9,7 @@ import {
   CLIError,
   ErrorCode,
 } from "./errors.js";
-import { parseBaseURLOverride, fetchWithTimeout } from "./client-utils.js";
+import { parseBaseURLOverride, fetchWithTimeout, getBaseDomain } from "./client-utils.js";
 
 export class X402Client implements AlchemyClient {
   readonly network: string;
@@ -17,7 +17,7 @@ export class X402Client implements AlchemyClient {
   private siweToken: string | null = null;
 
   private static readonly X402_BASE_URL_ENV = "ALCHEMY_X402_BASE_URL";
-  private static readonly DEFAULT_BASE = "https://x402.alchemy.com";
+  private static get DEFAULT_BASE(): string { return `https://x402.${getBaseDomain()}`; }
 
   constructor(privateKey: string, network: string) {
     this.privateKey = privateKey;

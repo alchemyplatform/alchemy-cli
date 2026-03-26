@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { load } from "./config.js";
 import type { Config } from "./config.js";
 import type { AlchemyClient } from "./client-interface.js";
+import { getBaseDomain } from "./client-utils.js";
 import { Client } from "./client.js";
 import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
@@ -128,7 +129,7 @@ function appNetworkToSlug(rpcUrl: string): string | null {
     return null;
   }
 
-  const suffix = ".g.alchemy.com";
+  const suffix = `.g.${getBaseDomain()}`;
   if (!parsed.hostname.endsWith(suffix)) return null;
 
   const slug = parsed.hostname.slice(0, -suffix.length);

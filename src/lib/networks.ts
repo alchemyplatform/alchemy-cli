@@ -1,3 +1,5 @@
+import { getBaseDomain } from "./client-utils.js";
+
 export interface RPCNetwork {
   id: string;
   name: string;
@@ -223,10 +225,11 @@ function toDisplayName(id: string): string {
 }
 
 function toHttpsUrlTemplate(id: string): string {
+  const domain = getBaseDomain();
   if (id === "starknet-mainnet" || id === "starknet-sepolia") {
-    return `https://${id}.g.alchemy.com/starknet/version/rpc/v0_10/{apiKey}`;
+    return `https://${id}.g.${domain}/starknet/version/rpc/v0_10/{apiKey}`;
   }
-  return `https://${id}.g.alchemy.com/v2/{apiKey}`;
+  return `https://${id}.g.${domain}/v2/{apiKey}`;
 }
 
 export function getRPCNetworks(): RPCNetwork[] {

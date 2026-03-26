@@ -3,6 +3,7 @@ import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { execFile } from "node:child_process";
 import { platform } from "node:os";
 import { URL } from "node:url";
+import { getBaseDomain } from "./client-utils.js";
 
 const AUTH_PORT = 16424;
 const AUTH_CALLBACK_PATH = "/callback";
@@ -106,7 +107,7 @@ const SUCCESS_HTML = `<!DOCTYPE html>
 
 // Environment-based auth URL
 function getAuthBaseUrl(): string {
-  return process.env.ALCHEMY_AUTH_URL || "https://auth.alchemy.com";
+  return process.env.ALCHEMY_AUTH_URL || `https://auth.${getBaseDomain()}`;
 }
 
 function generateCodeVerifier(): string {

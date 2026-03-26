@@ -7,7 +7,8 @@ import {
   errAdminAPI,
   errInvalidArgs,
 } from "./errors.js";
-import { isLocalhost, parseBaseURLOverride, fetchWithTimeout } from "./client-utils.js";
+import { isLocalhost, parseBaseURLOverride, fetchWithTimeout, getBaseDomain } from "./client-utils.js";
+import { debug } from "./output.js";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ export type AdminCredential =
   | { type: "auth_token"; token: string };
 
 export class AdminClient {
-  private static readonly ADMIN_API_HOST = "admin-api.alchemy.com";
+  private static get ADMIN_API_HOST(): string { return `admin-api.${getBaseDomain()}`; }
   // Test/debug only: used by mock E2E to route admin requests locally.
   private static readonly ADMIN_API_BASE_URL_ENV = "ALCHEMY_ADMIN_API_BASE_URL";
   private credential: AdminCredential;
@@ -85,7 +86,7 @@ export class AdminClient {
   protected baseURL(): string {
     const override = this.baseURLOverride();
     if (override) return override.toString().replace(/\/$/, "");
-    return "https://admin-api.alchemy.com";
+    return `https://admin-api.${getBaseDomain()}`;
   }
 
   protected allowedHosts(): Set<string> {
@@ -132,6 +133,7 @@ export class AdminClient {
     body?: unknown,
   ): Promise<T> {
     const url = `${this.baseURL()}${path}`;
+    debug(`${method} ${url}`);
     this.assertSafeRequestTarget(url);
     const resp = await fetchWithTimeout(url, {
       method,
@@ -144,7 +146,10 @@ export class AdminClient {
       ...(body !== undefined && { body: JSON.stringify(body) }),
     });
 
-    if (resp.status === 401) throw errInvalidAccessKey();
+    if (resp.status === 401) {
+      debug(`401 Unauthorized from ${url}`);
+      throw errInvalidAccessKey();
+    }
     if (resp.status === 403) {
       const detail = await resp.text().catch(() => "");
       // Try to extract a reason from the response body

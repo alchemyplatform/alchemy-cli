@@ -8,7 +8,7 @@ import {
   errRPC,
   errRateLimited,
 } from "./errors.js";
-import { parseBaseURLOverride, fetchWithTimeout } from "./client-utils.js";
+import { parseBaseURLOverride, fetchWithTimeout, getBaseDomain } from "./client-utils.js";
 import { verbose as isVerbose } from "./output.js";
 import { redactSensitiveText } from "./redact.js";
 
@@ -45,7 +45,8 @@ export class Client implements AlchemyClient {
 
     // Ensure the network value cannot redirect requests to an arbitrary host.
     // A valid Alchemy network slug produces a hostname like "eth-mainnet.g.alchemy.com".
-    const hostname = `${network}.g.alchemy.com`;
+    const domain = getBaseDomain();
+    const hostname = `${network}.g.${domain}`;
     let parsed: URL;
     try {
       parsed = new URL(`https://${hostname}`);
@@ -54,7 +55,7 @@ export class Client implements AlchemyClient {
         `Unknown network '${network}'. Run 'alchemy network list' to see available networks.`,
       );
     }
-    if (!parsed.hostname.endsWith(".g.alchemy.com")) {
+    if (!parsed.hostname.endsWith(`.g.${domain}`)) {
       throw errInvalidArgs(
         `Unknown network '${network}'. Run 'alchemy network list' to see available networks.`,
       );
@@ -68,7 +69,7 @@ export class Client implements AlchemyClient {
   private rpcBaseURL(): URL {
     const override = this.rpcBaseURLOverride();
     if (override) return override;
-    return new URL(`https://${this.network}.g.alchemy.com`);
+    return new URL(`https://${this.network}.g.${getBaseDomain()}`);
   }
 
   rpcURL(): string {
