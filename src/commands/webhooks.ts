@@ -1,10 +1,12 @@
 import { Command } from "commander";
 import { exitWithError } from "../lib/errors.js";
 import { callNotify } from "../lib/rest.js";
-import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
+import { withSpinner, printSyntaxJSON, dim } from "../lib/ui.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { parseRequiredJSON } from "../lib/params.js";
 import { load as loadConfig } from "../lib/config.js";
+import { promptConfirm } from "../lib/terminal-ui.js";
+import { isInteractiveAllowed } from "../lib/interaction.js";
 
 function resolveWebhookApiKey(
   opts?: { notifyToken?: string; webhookApiKey?: string },
@@ -85,8 +87,22 @@ export function registerWebhooks(program: Command) {
   cmd
     .command("delete <webhookId>")
     .description("Delete webhook")
-    .action(async (webhookId: string) => {
+    .option("-y, --yes", "Skip confirmation prompt")
+    .action(async (webhookId: string, opts: { yes?: boolean }) => {
       try {
+        if (!opts.yes && isInteractiveAllowed(program)) {
+          const proceed = await promptConfirm({
+            message: `Delete webhook ${webhookId}?`,
+            initialValue: false,
+            cancelMessage: "Cancelled webhook deletion.",
+          });
+          if (proceed === null) return;
+          if (!proceed) {
+            console.log(`  ${dim("Skipped webhook deletion.")}`);
+            return;
+          }
+        }
+
         const token = resolveWebhookApiKey(cmd.opts());
         const result = await withSpinner("Deleting webhook…", "Webhook deleted", () =>
           callNotify(token, "/delete-webhook", {

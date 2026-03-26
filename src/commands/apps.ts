@@ -3,7 +3,7 @@ import { adminClientFromFlags } from "../lib/resolve.js";
 import type { App } from "../lib/admin-client.js";
 import { errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
-import { promptSelect } from "../lib/terminal-ui.js";
+import { promptSelect, promptConfirm } from "../lib/terminal-ui.js";
 import {
   green,
   dim,
@@ -319,9 +319,23 @@ export function registerApps(program: Command) {
     .command("delete <id>")
     .description("Delete an app")
     .option("--dry-run", "Preview without executing")
-    .action(async (id: string, opts) => {
+    .option("-y, --yes", "Skip confirmation prompt")
+    .action(async (id: string, opts: { dryRun?: boolean; yes?: boolean }) => {
       try {
         if (handleDryRun(opts, "delete", { id }, `Would delete app ${id}`)) return;
+
+        if (!opts.yes && isInteractiveAllowed(program)) {
+          const proceed = await promptConfirm({
+            message: `Delete app ${id}?`,
+            initialValue: false,
+            cancelMessage: "Cancelled app deletion.",
+          });
+          if (proceed === null) return;
+          if (!proceed) {
+            console.log(`  ${dim("Skipped app deletion.")}`);
+            return;
+          }
+        }
 
         const admin = adminClientFromFlags(program);
         await withSpinner("Deleting app…", "App deleted", () =>
