@@ -6,6 +6,7 @@ import { dim, withSpinner, printTable, emptyState, printKeyValueBox, printSyntax
 import { validateAddress, resolveAddress, readStdinArg } from "../lib/validators.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { promptSelect } from "../lib/terminal-ui.js";
+import type { AlchemyClient } from "../lib/client-interface.js";
 
 interface TokenResponse {
   address: string;
@@ -14,6 +15,13 @@ interface TokenResponse {
     tokenBalance: string;
   }>;
   pageKey?: string;
+}
+
+interface TokenMetadata {
+  name: string | null;
+  symbol: string | null;
+  decimals: number | null;
+  logo: string | null;
 }
 
 type PaginationAction = "next" | "stop";
@@ -32,14 +40,17 @@ async function promptTokensPagination(): Promise<PaginationAction> {
   return action as PaginationAction;
 }
 
-function formatTokenRows(balances: TokenResponse["tokenBalances"]): string[][] {
-  const nonZero = balances.filter(
+function filterNonZero(balances: TokenResponse["tokenBalances"]) {
+  return balances.filter(
     (tb) =>
       tb.tokenBalance !== "0x0" &&
       tb.tokenBalance !==
         "0x0000000000000000000000000000000000000000000000000000000000000000",
   );
-  return nonZero.map((tb) => {
+}
+
+function formatTokenRows(balances: TokenResponse["tokenBalances"]): string[][] {
+  return filterNonZero(balances).map((tb) => {
     let decimalBalance = dim("unparseable");
     try {
       decimalBalance = BigInt(tb.tokenBalance).toString();
@@ -47,6 +58,76 @@ function formatTokenRows(balances: TokenResponse["tokenBalances"]): string[][] {
       // Keep fallback when provider returns unexpected non-hex content.
     }
     return [tb.contractAddress, decimalBalance, tb.tokenBalance];
+  });
+}
+
+function formatWithDecimals(rawBalance: string, decimals: number | null): string {
+  if (decimals === null || decimals === 0) {
+    try {
+      return BigInt(rawBalance).toString();
+    } catch {
+      return rawBalance;
+    }
+  }
+  try {
+    const raw = BigInt(rawBalance);
+    const divisor = 10n ** BigInt(decimals);
+    const whole = raw / divisor;
+    const remainder = raw % divisor;
+    if (remainder === 0n) return whole.toString();
+    const fracStr = remainder.toString().padStart(decimals, "0").replace(/0+$/, "");
+    return `${whole}.${fracStr}`;
+  } catch {
+    return rawBalance;
+  }
+}
+
+async function resolveMetadata(
+  client: AlchemyClient,
+  balances: TokenResponse["tokenBalances"],
+): Promise<Map<string, TokenMetadata>> {
+  const nonZero = filterNonZero(balances);
+  const results = await Promise.all(
+    nonZero.map(async (tb) => {
+      try {
+        const meta = await client.call("alchemy_getTokenMetadata", [tb.contractAddress]) as TokenMetadata;
+        return [tb.contractAddress, meta] as const;
+      } catch {
+        return [tb.contractAddress, { name: null, symbol: null, decimals: null, logo: null }] as const;
+      }
+    }),
+  );
+  return new Map(results);
+}
+
+function formatResolvedRows(
+  balances: TokenResponse["tokenBalances"],
+  metadata: Map<string, TokenMetadata>,
+): string[][] {
+  return filterNonZero(balances).map((tb) => {
+    const meta = metadata.get(tb.contractAddress);
+    const symbol = meta?.symbol ?? "???";
+    const formatted = formatWithDecimals(tb.tokenBalance, meta?.decimals ?? null);
+    return [tb.contractAddress, symbol, `${formatted} ${symbol}`];
+  });
+}
+
+function formatResolvedJSON(
+  balances: TokenResponse["tokenBalances"],
+  metadata: Map<string, TokenMetadata>,
+) {
+  return filterNonZero(balances).map((tb) => {
+    const meta = metadata.get(tb.contractAddress);
+    return {
+      contractAddress: tb.contractAddress,
+      tokenBalance: tb.tokenBalance,
+      ...(meta?.symbol && { symbol: meta.symbol }),
+      ...(meta?.name && { name: meta.name }),
+      ...(meta?.decimals !== null && meta?.decimals !== undefined && { decimals: meta.decimals }),
+      ...(meta?.decimals !== null && meta?.decimals !== undefined && {
+        formattedBalance: formatWithDecimals(tb.tokenBalance, meta.decimals),
+      }),
+    };
   });
 }
 
@@ -62,16 +143,16 @@ export function registerTokens(program: Command) {
     .argument("[address]", "Wallet address or ENS name, or pipe via stdin")
     .description("Get ERC-20 token balances for an address")
     .option("--page-key <key>", "Pagination key from a previous response")
+    .option("--metadata", "Fetch token metadata (symbol, decimals) and show formatted balances")
     .addHelpText(
       "after",
       `
 Examples:
   alchemy tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy tokens balances
-
-Tip: use 'alchemy tokens metadata <contract>' to get decimals and symbol for a token.`,
+  alchemy tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --metadata
+  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy tokens balances`,
     )
-    .action(async (addressArg: string | undefined, opts: { pageKey?: string }) => {
+    .action(async (addressArg: string | undefined, opts: { pageKey?: string; metadata?: boolean }) => {
       try {
         const addressInput = addressArg ?? (await readStdinArg("address"));
         const client = clientFromFlags(program);
@@ -86,28 +167,59 @@ Tip: use 'alchemy tokens metadata <contract>' to get decimals and symbol for a t
           client.call("alchemy_getTokenBalances", params),
         ) as TokenResponse;
 
+        const nonZero = filterNonZero(result.tokenBalances);
+
+        if (nonZero.length === 0) {
+          if (isJSONMode()) {
+            printJSON(result);
+          } else {
+            emptyState("No token balances found.");
+          }
+          return;
+        }
+
+        // Resolve metadata if requested
+        const metadata = opts.metadata
+          ? await withSpinner(
+              `Resolving metadata for ${nonZero.length} tokens…`,
+              "Metadata resolved",
+              () => resolveMetadata(client, result.tokenBalances),
+            )
+          : null;
+
         if (isJSONMode()) {
-          printJSON(result);
+          if (metadata) {
+            printJSON({
+              address: result.address,
+              tokenBalances: formatResolvedJSON(result.tokenBalances, metadata),
+              ...(result.pageKey && { pageKey: result.pageKey }),
+            });
+          } else {
+            printJSON(result);
+          }
           return;
         }
 
-        const rows = formatTokenRows(result.tokenBalances);
-
-        if (rows.length === 0) {
-          emptyState("No token balances found.");
-          return;
-        }
-
-        let totalShown = rows.length;
+        let totalShown = nonZero.length;
 
         printKeyValueBox([
           ["Address", address],
           ["Network", client.network],
           ["Tokens", String(totalShown)],
         ]);
-        printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
+
+        if (metadata) {
+          const rows = formatResolvedRows(result.tokenBalances, metadata);
+          printTable(["Contract", "Symbol", "Balance"], rows);
+        } else {
+          const rows = formatTokenRows(result.tokenBalances);
+          printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
+        }
+
         console.log(`\n  ${dim(`${totalShown} tokens (zero balances hidden).`)}`);
-        console.log(`  ${dim("Tip: use 'alchemy tokens metadata <contract>' to get decimals and symbol.")}`);
+        if (!metadata) {
+          console.log(`  ${dim("Tip: use --metadata to fetch token symbols, decimals, and show formatted balances.")}`);
+        }
 
         if (verbose) {
           console.log("");
@@ -133,11 +245,22 @@ Tip: use 'alchemy tokens metadata <contract>' to get decimals and symbol for a t
             return;
           }
 
-          const nextRows = formatTokenRows(nextResult.tokenBalances);
-          totalShown += nextRows.length;
+          const nextNonZero = filterNonZero(nextResult.tokenBalances);
+          totalShown += nextNonZero.length;
 
-          if (nextRows.length > 0) {
-            printTable(["Contract", "Balance (base units)", "Raw (hex)"], nextRows);
+          if (nextNonZero.length > 0) {
+            if (metadata) {
+              const nextMeta = await withSpinner(
+                `Resolving metadata for ${nextNonZero.length} tokens…`,
+                "Metadata resolved",
+                () => resolveMetadata(client, nextResult.tokenBalances),
+              );
+              const rows = formatResolvedRows(nextResult.tokenBalances, nextMeta);
+              printTable(["Contract", "Symbol", "Balance"], rows);
+            } else {
+              const rows = formatTokenRows(nextResult.tokenBalances);
+              printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
+            }
           }
           console.log(`\n  ${dim(`${totalShown} tokens total (zero balances hidden).`)}`);
 
