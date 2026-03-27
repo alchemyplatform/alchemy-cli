@@ -258,7 +258,7 @@ export function registerAgentPrompt(program: Command) {
   program
     .command("agent-prompt")
     .description("Emit complete agent/automation usage instructions")
-    .option("--commands <list>", "Comma-separated list of top-level commands to include (e.g. balance,tokens,gas)")
+    .option("--commands <list>", "Filter to specific commands in JSON output (requires --json). Comma-separated (e.g. balance,tokens,gas)")
     .action((opts: { commands?: string }) => {
       const payload = buildAgentPrompt(program);
       if (opts.commands) {
