@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { adminClientFromFlags, resolveAppId } from "../lib/resolve.js";
 import type { App } from "../lib/admin-client.js";
-import { errInvalidArgs, exitWithError } from "../lib/errors.js";
+import { errInvalidArgs, errAppRequired, exitWithError } from "../lib/errors.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { promptSelect, promptConfirm } from "../lib/terminal-ui.js";
 import {
@@ -536,6 +536,7 @@ export function registerApps(program: Command) {
       try {
         const admin = adminClientFromFlags(program);
         const appId = opts.appId || resolveAppId(program);
+        if (!appId) throw errAppRequired();
 
         const app = await withSpinner("Fetching app…", "App fetched", () =>
           admin.getApp(appId),
