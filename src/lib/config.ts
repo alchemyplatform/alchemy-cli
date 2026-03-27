@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { z } from "zod";
@@ -108,8 +108,19 @@ export function load(): Config {
     const raw = readFileSync(p);
 
     if (isEncrypted(raw)) {
-      const json = decrypt(raw);
-      return sanitizeConfig(JSON.parse(json));
+      try {
+        const json = decrypt(raw);
+        return sanitizeConfig(JSON.parse(json));
+      } catch {
+        console.error(
+          `warning: could not decrypt config at ${p} — this usually means the config was created on a different machine or your hostname changed.\n` +
+          `  The file has been backed up to ${p}.bak\n` +
+          `  Run 'alchemy auth' or 'alchemy config set api-key <key>' to reconfigure.`,
+        );
+        // Backup the unreadable file so save() doesn't silently destroy it
+        try { renameSync(p, `${p}.bak`); } catch { /* best effort */ }
+        return {};
+      }
     }
 
     // Plaintext migration: parse as JSON, re-save encrypted

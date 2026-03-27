@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, readFileSync, statSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
@@ -226,7 +226,7 @@ describe("config save/load", () => {
     expect(raw.subarray(0, 8).toString("ascii")).toBe("ALCH_ENC");
   });
 
-  it("returns empty config for corrupted encrypted file", () => {
+  it("returns empty config and backs up corrupted encrypted file", () => {
     const p = join(tmpDir, ".config", "alchemy", "config.json");
     const { mkdirSync: mkdirSyncFs, writeFileSync: writeFileSyncFs } = require("node:fs");
     mkdirSyncFs(join(tmpDir, ".config", "alchemy"), { recursive: true });
@@ -236,5 +236,9 @@ describe("config save/load", () => {
 
     const loaded = config.load();
     expect(loaded).toEqual({});
+    // Original file should be gone, backup should exist
+    expect(existsSync(p)).toBe(false);
+    expect(existsSync(`${p}.bak`)).toBe(true);
+    expect(readFileSync(`${p}.bak`).equals(garbage)).toBe(true);
   });
 });
