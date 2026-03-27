@@ -64,10 +64,8 @@ describe("wallet command", () => {
     const keyPath = printedWallet.keyFile;
     expect(existsSync(configPath)).toBe(true);
     expect(existsSync(keyPath)).toBe(true);
-    const configJSON = JSON.parse(readFileSync(configPath, "utf-8")) as {
-      wallet_key_file: string;
-      wallet_address: string;
-    };
+    const { load } = await import("../../src/lib/config.js");
+    const configJSON = load();
     expect(configJSON.wallet_key_file).toBe(keyPath);
     expect(configJSON.wallet_address).toBe("0xaddress");
 

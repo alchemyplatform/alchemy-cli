@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { z } from "zod";
 import { maskIf } from "./secrets.js";
+import { encrypt, decrypt, isEncrypted } from "./config-crypto.js";
 
 export interface AppConfig {
   id: string;
@@ -104,8 +105,18 @@ export function load(): Config {
   const p = configPath();
   if (!existsSync(p)) return {};
   try {
-    const data = readFileSync(p, "utf-8");
-    return sanitizeConfig(JSON.parse(data));
+    const raw = readFileSync(p);
+
+    if (isEncrypted(raw)) {
+      const json = decrypt(raw);
+      return sanitizeConfig(JSON.parse(json));
+    }
+
+    // Plaintext migration: parse as JSON, re-save encrypted
+    const text = raw.toString("utf-8");
+    const cfg = sanitizeConfig(JSON.parse(text));
+    save(cfg);
+    return cfg;
   } catch {
     console.error(`warning: could not parse config file at ${p} — using defaults`);
     return {};
@@ -115,10 +126,10 @@ export function load(): Config {
 export function save(cfg: Config): void {
   const p = configPath();
   const sanitized = sanitizeConfig(cfg);
+  const json = JSON.stringify(sanitized, null, 2) + "\n";
+  const encrypted = encrypt(json);
   mkdirSync(dirname(p), { recursive: true, mode: 0o755 });
-  writeFileSync(p, JSON.stringify(sanitized, null, 2) + "\n", {
-    mode: 0o600,
-  });
+  writeFileSync(p, encrypted, { mode: 0o600 });
 }
 
 export function get(cfg: Config, key: string): string | undefined {

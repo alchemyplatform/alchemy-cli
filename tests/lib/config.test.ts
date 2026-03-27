@@ -164,11 +164,12 @@ describe("config save/load", () => {
     expect(stats.mode & 0o777).toBe(0o600);
   });
 
-  it("saves valid JSON", () => {
+  it("saves encrypted data (not plaintext JSON)", () => {
     config.save({ api_key: "key" });
     const p = join(tmpDir, ".config", "alchemy", "config.json");
-    const data = readFileSync(p, "utf-8");
-    expect(() => JSON.parse(data)).not.toThrow();
+    const data = readFileSync(p);
+    expect(data.subarray(0, 8).toString("ascii")).toBe("ALCH_ENC");
+    expect(() => JSON.parse(data.toString("utf-8"))).toThrow();
   });
 
   it("returns empty config for missing file", () => {
@@ -209,5 +210,31 @@ describe("config save/load", () => {
       name: "My App",
       apiKey: "app-key-123",
     });
+  });
+
+  it("auto-migrates plaintext config to encrypted", () => {
+    const p = join(tmpDir, ".config", "alchemy", "config.json");
+    const { mkdirSync: mkdirSyncFs, writeFileSync: writeFileSyncFs } = require("node:fs");
+    mkdirSyncFs(join(tmpDir, ".config", "alchemy"), { recursive: true });
+    writeFileSyncFs(p, JSON.stringify({ api_key: "migrated-key" }), { mode: 0o600 });
+
+    const loaded = config.load();
+    expect(loaded.api_key).toBe("migrated-key");
+
+    // File should now be encrypted on disk
+    const raw = readFileSync(p);
+    expect(raw.subarray(0, 8).toString("ascii")).toBe("ALCH_ENC");
+  });
+
+  it("returns empty config for corrupted encrypted file", () => {
+    const p = join(tmpDir, ".config", "alchemy", "config.json");
+    const { mkdirSync: mkdirSyncFs, writeFileSync: writeFileSyncFs } = require("node:fs");
+    mkdirSyncFs(join(tmpDir, ".config", "alchemy"), { recursive: true });
+    // Write magic bytes + garbage
+    const garbage = Buffer.concat([Buffer.from("ALCH_ENC"), Buffer.from("corrupted-data")]);
+    writeFileSyncFs(p, garbage, { mode: 0o600 });
+
+    const loaded = config.load();
+    expect(loaded).toEqual({});
   });
 });
