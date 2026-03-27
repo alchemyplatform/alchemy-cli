@@ -544,7 +544,7 @@ export function registerApps(program: Command) {
         // Extract RPC network slugs from chain network URLs
         const slugs = app.chainNetworks
           .map((n) => {
-            const match = n.rpcUrl?.match(/^https:\/\/([^.]+)\.g\.alchemy\.com/);
+            const match = n.rpcUrl?.match(/^https:\/\/([^.]+)\.g\.alchemy\.com(?:\/|$)/);
             return match ? match[1] : null;
           })
           .filter((s): s is string => Boolean(s));
