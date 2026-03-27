@@ -53,17 +53,23 @@ function formatTokenRows(balances: TokenResponse["tokenBalances"]): string[][] {
 export function registerTokens(program: Command) {
   const cmd = program
     .command("tokens")
-    .description("Token API wrappers")
-    .argument("[address]", "Wallet address or ENS name (default action: list balances)")
+    .description("Token API wrappers");
+
+  // ── tokens balances ───────────────────────────────────────────────
+
+  cmd
+    .command("balances")
+    .argument("[address]", "Wallet address or ENS name, or pipe via stdin")
+    .description("Get ERC-20 token balances for an address")
     .option("--page-key <key>", "Pagination key from a previous response")
     .addHelpText(
       "after",
       `
 Examples:
-  alchemy tokens 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-  alchemy tokens metadata 0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eB48
-  alchemy tokens allowance --owner 0x... --spender 0x... --contract 0x...
-  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy tokens`,
+  alchemy tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy tokens balances
+
+Tip: use 'alchemy tokens metadata <contract>' to get decimals and symbol for a token.`,
     )
     .action(async (addressArg: string | undefined, opts: { pageKey?: string }) => {
       try {
@@ -101,6 +107,7 @@ Examples:
         ]);
         printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
         console.log(`\n  ${dim(`${totalShown} tokens (zero balances hidden).`)}`);
+        console.log(`  ${dim("Tip: use 'alchemy tokens metadata <contract>' to get decimals and symbol.")}`);
 
         if (verbose) {
           console.log("");
@@ -145,9 +152,17 @@ Examples:
       }
     });
 
+  // ── tokens metadata ───────────────────────────────────────────────
+
   cmd
     .command("metadata <contract>")
-    .description("Get ERC-20 token metadata")
+    .description("Get ERC-20 token metadata (name, symbol, decimals, logo)")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  alchemy tokens metadata 0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eB48`,
+    )
     .action(async (contract: string) => {
       try {
         validateAddress(contract);
@@ -161,6 +176,8 @@ Examples:
         exitWithError(err);
       }
     });
+
+  // ── tokens allowance ──────────────────────────────────────────────
 
   cmd
     .command("allowance")

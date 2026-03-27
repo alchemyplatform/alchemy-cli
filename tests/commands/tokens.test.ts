@@ -59,7 +59,7 @@ describe("tokens command", () => {
     const program = new Command();
     registerTokens(program);
 
-    await program.parseAsync(["node", "test", "tokens", ADDRESS], {
+    await program.parseAsync(["node", "test", "tokens", "balances", ADDRESS], {
       from: "node",
     });
 
@@ -127,7 +127,7 @@ describe("tokens command", () => {
     registerTokens(program);
 
     await program.parseAsync(
-      ["node", "test", "tokens", ADDRESS, "--page-key", "pk_next"],
+      ["node", "test", "tokens", "balances", ADDRESS, "--page-key", "pk_next"],
       { from: "node" },
     );
 

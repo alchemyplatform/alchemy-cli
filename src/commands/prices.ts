@@ -50,6 +50,13 @@ export function registerPrices(program: Command) {
     .command("historical")
     .description("Get historical prices")
     .requiredOption("--body <json>", "JSON request payload")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  alchemy prices historical --body '{"symbol":"ETH","startTime":"2024-01-01T00:00:00Z","endTime":"2024-01-02T00:00:00Z","interval":"1h"}'
+  alchemy prices historical --body '{"address":"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48","network":"eth-mainnet","startTime":"2024-06-01","endTime":"2024-06-07","interval":"1d"}'`,
+    )
     .action(async (opts: { body: string }) => {
       try {
         const apiKey = resolveAPIKey(program);

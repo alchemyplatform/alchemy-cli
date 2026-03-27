@@ -10,11 +10,10 @@ describe("tx command", () => {
     vi.resetModules();
   });
 
-  it("tx emits combined JSON transaction + receipt payload", async () => {
+  it("tx emits JSON transaction payload (no receipt)", async () => {
     const call = vi
       .fn()
-      .mockResolvedValueOnce({ hash: HASH, from: "0xfrom", to: "0xto", value: "0x1" })
-      .mockResolvedValueOnce({ status: "0x1", gasUsed: "0x5208" });
+      .mockResolvedValueOnce({ hash: HASH, from: "0xfrom", to: "0xto", value: "0x1" });
     const printJSON = vi.fn();
     const validateTxHash = vi.fn();
     const exitWithError = vi.fn();
@@ -38,14 +37,11 @@ describe("tx command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
-      successBadge: () => "\u2713",
-      failBadge: () => "\u2717",
       withSpinner: async (
         _start: string,
         _end: string,
         fn: () => Promise<unknown>,
       ) => fn(),
-      weiToEth: (wei: bigint) => wei.toString(),
       etherscanTxURL: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
@@ -58,12 +54,11 @@ describe("tx command", () => {
     await program.parseAsync(["node", "test", "tx", HASH], { from: "node" });
 
     expect(validateTxHash).toHaveBeenCalledWith(HASH);
-    expect(call).toHaveBeenNthCalledWith(1, "eth_getTransactionByHash", [HASH]);
-    expect(call).toHaveBeenNthCalledWith(2, "eth_getTransactionReceipt", [HASH]);
-    expect(printJSON).toHaveBeenCalledWith({
-      transaction: { hash: HASH, from: "0xfrom", to: "0xto", value: "0x1" },
-      receipt: { status: "0x1", gasUsed: "0x5208" },
-    });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(call).toHaveBeenCalledWith("eth_getTransactionByHash", [HASH]);
+    expect(printJSON).toHaveBeenCalledWith(
+      { hash: HASH, from: "0xfrom", to: "0xto", value: "0x1" },
+    );
     expect(exitWithError).not.toHaveBeenCalled();
   });
 

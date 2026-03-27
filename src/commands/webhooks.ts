@@ -48,13 +48,23 @@ export function registerWebhooks(program: Command) {
     .command("create")
     .description("Create webhook")
     .requiredOption("--body <json>", "Create webhook JSON payload")
-    .action(async (opts: { body: string }) => {
+    .option("--dry-run", "Preview without executing")
+    .action(async (opts: { body: string; dryRun?: boolean }) => {
       try {
+        const payload = parseRequiredJSON(opts.body, "--body");
+        if (opts.dryRun) {
+          if (isJSONMode()) printJSON({ dryRun: true, action: "create-webhook", payload });
+          else {
+            console.log(`  ${dim("Dry run:")} Would create webhook`);
+            printSyntaxJSON(payload);
+          }
+          return;
+        }
         const token = resolveWebhookApiKey(cmd.opts());
         const result = await withSpinner("Creating webhook…", "Webhook created", () =>
           callNotify(token, "/create-webhook", {
             method: "POST",
-            body: parseRequiredJSON(opts.body, "--body"),
+            body: payload,
           }),
         );
         if (isJSONMode()) printJSON(result);
@@ -68,13 +78,23 @@ export function registerWebhooks(program: Command) {
     .command("update")
     .description("Update webhook")
     .requiredOption("--body <json>", "Update webhook JSON payload")
-    .action(async (opts: { body: string }) => {
+    .option("--dry-run", "Preview without executing")
+    .action(async (opts: { body: string; dryRun?: boolean }) => {
       try {
+        const payload = parseRequiredJSON(opts.body, "--body");
+        if (opts.dryRun) {
+          if (isJSONMode()) printJSON({ dryRun: true, action: "update-webhook", payload });
+          else {
+            console.log(`  ${dim("Dry run:")} Would update webhook`);
+            printSyntaxJSON(payload);
+          }
+          return;
+        }
         const token = resolveWebhookApiKey(cmd.opts());
         const result = await withSpinner("Updating webhook…", "Webhook updated", () =>
           callNotify(token, "/update-webhook", {
             method: "PUT",
-            body: parseRequiredJSON(opts.body, "--body"),
+            body: payload,
           }),
         );
         if (isJSONMode()) printJSON(result);
@@ -87,9 +107,15 @@ export function registerWebhooks(program: Command) {
   cmd
     .command("delete <webhookId>")
     .description("Delete webhook")
+    .option("--dry-run", "Preview without executing")
     .option("-y, --yes", "Skip confirmation prompt")
-    .action(async (webhookId: string, opts: { yes?: boolean }) => {
+    .action(async (webhookId: string, opts: { yes?: boolean; dryRun?: boolean }) => {
       try {
+        if (opts.dryRun) {
+          if (isJSONMode()) printJSON({ dryRun: true, action: "delete-webhook", payload: { webhookId } });
+          else console.log(`  ${dim("Dry run:")} Would delete webhook ${webhookId}`);
+          return;
+        }
         if (!opts.yes && isInteractiveAllowed(program)) {
           const proceed = await promptConfirm({
             message: `Delete webhook ${webhookId}?`,

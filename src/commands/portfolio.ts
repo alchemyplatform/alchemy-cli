@@ -99,23 +99,4 @@ export function registerPortfolio(program: Command) {
       }
     });
 
-  cmd
-    .command("transactions")
-    .description("Get transaction history by address/network pairs")
-    .requiredOption("--body <json>", "JSON body for /transactions/history/by-address")
-    .action(async (opts: { body: string }) => {
-      try {
-        const apiKey = resolveAPIKey(program);
-        const result = await runDataCall(
-          apiKey,
-          "transaction history",
-          "/transactions/history/by-address",
-          JSON.parse(opts.body),
-        );
-        if (isJSONMode()) printJSON(result);
-        else printSyntaxJSON(result);
-      } catch (err) {
-        exitWithError(err);
-      }
-    });
 }
