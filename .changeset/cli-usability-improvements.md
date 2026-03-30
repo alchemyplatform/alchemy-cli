@@ -1,5 +1,5 @@
 ---
-"@alchemy/cli": major
+"@alchemy/cli": minor
 ---
 
 Breaking: `tokens <address>` is now `tokens balances <address>`, `tx` no longer includes receipt data (use `receipt` separately), `network list --configured` moved to `apps configured-networks`, and `portfolio transactions` removed (use `transfers`).
