@@ -15,10 +15,11 @@ import { getUpdateNoticeLines } from "../lib/update-check.js";
 import { selectOrCreateApp } from "./config.js";
 import { generateAndPersistWallet, importAndPersistWallet } from "./wallet.js";
 
-type OnboardingMethod = "api-key" | "access-key" | "x402" | "exit";
+type OnboardingMethod = "browser-login" | "api-key" | "access-key" | "x402" | "exit";
 
 function printNextSteps(method: Exclude<OnboardingMethod, "exit">): void {
   const commandsByMethod: Record<Exclude<OnboardingMethod, "exit">, string[]> = {
+    "browser-login": ["alchemy auth"],
     "api-key": ["alchemy config set api-key <key>"],
     "access-key": [
       "alchemy config set access-key <key>",
@@ -138,6 +139,11 @@ export async function runOnboarding(
     message: "Choose an auth setup path",
     options: [
       {
+        label: "Browser login",
+        hint: "Log in via browser (recommended)",
+        value: "browser-login",
+      },
+      {
         label: "API key",
         hint: "Query Alchemy RPC nodes",
         value: "api-key",
@@ -157,7 +163,7 @@ export async function runOnboarding(
         value: "exit",
       },
     ],
-    initialValue: "api-key",
+    initialValue: "browser-login",
     cancelMessage: "Skipped onboarding.",
   });
   if (!method) return false;
@@ -166,6 +172,26 @@ export async function runOnboarding(
     return false;
   }
 
+  if (method === "browser-login") {
+    const { performBrowserLogin, AUTH_PORT, getLoginUrl } = await import("../lib/auth.js");
+    console.log(`  Opening browser to log in...`);
+    console.log(`  ${dim(getLoginUrl(AUTH_PORT))}`);
+    console.log(`  ${dim("Waiting for authentication...")}`);
+    try {
+      const result = await performBrowserLogin();
+      const cfg = loadConfig();
+      saveConfig({
+        ...cfg,
+        auth_token: result.token,
+        auth_token_expires_at: result.expiresAt,
+      });
+      console.log(`  ${green("✓")} Logged in successfully`);
+      return true;
+    } catch (err) {
+      console.log(`  ${dim(`Login failed: ${err instanceof Error ? err.message : String(err)}`)}`);
+      return false;
+    }
+  }
   if (method === "api-key") {
     await runAPIKeyOnboarding();
     const complete = Boolean(loadConfig().api_key?.trim());
