@@ -82,6 +82,7 @@ export function registerAuth(program: Command) {
           await selectAppAfterAuth(result.token);
         }
 
+        process.exit(0);
       } catch (err) {
         exitWithError(
           err instanceof CLIError
