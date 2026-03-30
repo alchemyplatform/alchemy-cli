@@ -25,7 +25,9 @@ export function registerReceipt(program: Command) {
       `
 Examples:
   alchemy receipt 0xabc123...
-  echo 0xabc123... | alchemy receipt`,
+  echo 0xabc123... | alchemy receipt
+
+Tip: use 'alchemy tx <hash>' for transaction details (value, block, nonce). Receipt provides execution results (status, gas used, logs).`,
     )
     .action(async (hashArg?: string) => {
       try {

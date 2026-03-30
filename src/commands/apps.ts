@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { adminClientFromFlags } from "../lib/resolve.js";
+import { adminClientFromFlags, resolveAppId } from "../lib/resolve.js";
 import type { App } from "../lib/admin-client.js";
-import { errInvalidArgs, exitWithError } from "../lib/errors.js";
+import { errInvalidArgs, errAppRequired, exitWithError } from "../lib/errors.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { promptSelect, promptConfirm } from "../lib/terminal-ui.js";
 import {
@@ -525,6 +525,51 @@ export function registerApps(program: Command) {
         exitWithError(err);
       }
     });
+
+  // ── apps configured-networks ─────────────────────────────────────
+
+  cmd
+    .command("configured-networks")
+    .description("List RPC network slugs configured for an app")
+    .option("--app-id <id>", "App ID (overrides saved app)")
+    .action(async (opts: { appId?: string }) => {
+      try {
+        const admin = adminClientFromFlags(program);
+        const appId = opts.appId || resolveAppId(program);
+        if (!appId) throw errAppRequired();
+
+        const app = await withSpinner("Fetching app…", "App fetched", () =>
+          admin.getApp(appId),
+        );
+
+        // Extract RPC network slugs from chain network URLs
+        const slugs = app.chainNetworks
+          .map((n) => {
+            const match = n.rpcUrl?.match(/^https:\/\/([^.]+)\.g\.alchemy\.com(?:\/|$)/);
+            return match ? match[1] : null;
+          })
+          .filter((s): s is string => Boolean(s));
+        const uniqueSlugs = Array.from(new Set(slugs)).sort();
+
+        if (isJSONMode()) {
+          printJSON({ appId: app.id, appName: app.name, networks: uniqueSlugs });
+          return;
+        }
+
+        if (uniqueSlugs.length === 0) {
+          emptyState(`No RPC networks configured for ${app.name}.`);
+          return;
+        }
+
+        const rows = uniqueSlugs.map((slug) => [slug]);
+        printTable(["Network ID"], rows);
+        console.log(`\n  ${dim(`${uniqueSlugs.length} networks configured for ${app.name} (${app.id})`)}`);
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  // ── apps chains ─────────────────────────────────────────────────
 
   cmd
     .command("chains")

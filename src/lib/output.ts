@@ -32,7 +32,7 @@ export function setFlags(opts: {
 }
 
 export function isRevealMode(): boolean {
-  return reveal && Boolean(process.stdout.isTTY);
+  return reveal;
 }
 
 export function isJSONMode(): boolean {

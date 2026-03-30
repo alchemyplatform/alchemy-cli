@@ -258,8 +258,13 @@ export function registerAgentPrompt(program: Command) {
   program
     .command("agent-prompt")
     .description("Emit complete agent/automation usage instructions")
-    .action(() => {
+    .option("--commands <list>", "Filter to specific commands in JSON output (requires --json). Comma-separated (e.g. balance,tokens,gas)")
+    .action((opts: { commands?: string }) => {
       const payload = buildAgentPrompt(program);
+      if (opts.commands) {
+        const filter = new Set(opts.commands.split(",").map((s) => s.trim().toLowerCase()));
+        payload.commands = payload.commands.filter((cmd) => filter.has(cmd.name.toLowerCase()));
+      }
       printHuman(formatAsSystemPrompt(payload), payload);
     });
 }

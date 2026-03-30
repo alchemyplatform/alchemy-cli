@@ -27,6 +27,27 @@ export async function readStdinArg(name: string): Promise<string> {
   return data;
 }
 
+export async function readStdinLines(name: string): Promise<string[]> {
+  if (process.stdin.isTTY) {
+    throw errInvalidArgs(`Missing <${name}>. Provide it as an argument or pipe via stdin.`);
+  }
+
+  process.stdin.setEncoding("utf-8");
+  let input = "";
+  for await (const chunk of process.stdin) {
+    input += chunk;
+  }
+
+  const lines = input
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) {
+    throw errInvalidArgs(`No <${name}> received on stdin.`);
+  }
+  return lines;
+}
+
 export function validateAddress(address: string): void {
   if (!ADDRESS_RE.test(address)) {
     throw errInvalidArgs(

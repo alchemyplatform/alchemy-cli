@@ -5,8 +5,6 @@ import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { validateTxHash, readStdinArg } from "../lib/validators.js";
 import {
   green,
-  successBadge,
-  failBadge,
   withSpinner,
   etherscanTxURL,
   printKeyValueBox,
@@ -18,13 +16,15 @@ export function registerTx(program: Command) {
   program
     .command("tx")
     .argument("[hash]", "Transaction hash (0x...) or pipe via stdin")
-    .description("Get transaction details by hash")
+    .description("Get transaction details by hash (use 'receipt' for receipt data)")
     .addHelpText(
       "after",
       `
 Examples:
   alchemy tx 0xabc123...
-  echo 0xabc123... | alchemy tx`,
+  echo 0xabc123... | alchemy tx
+
+Tip: use 'alchemy receipt <hash>' to get the transaction receipt (status, gas used, logs).`,
     )
     .action(async (hashArg?: string) => {
       try {
@@ -33,19 +33,16 @@ Examples:
 
         const client = clientFromFlags(program);
 
-        const [tx, receipt] = await withSpinner("Fetching transaction…", "Transaction fetched", async () => {
+        const tx = await withSpinner("Fetching transaction…", "Transaction fetched", async () => {
           const t = (await client.call("eth_getTransactionByHash", [
             hash,
           ])) as Record<string, unknown> | null;
           if (!t) throw errNotFound(`transaction ${hash}`);
-          const r = (await client.call("eth_getTransactionReceipt", [
-            hash,
-          ])) as Record<string, unknown> | null;
-          return [t, r] as const;
+          return t;
         });
 
         if (isJSONMode()) {
-          printJSON({ transaction: tx, receipt });
+          printJSON(tx);
           return;
         }
 
@@ -63,20 +60,13 @@ Examples:
           const formatted = formatHexWithRaw(tx.blockNumber);
           pairs.push(["Block", formatted ?? String(tx.blockNumber)]);
         }
-        if (receipt) {
-          if (receipt.status === "0x1") {
-            pairs.push(["Status", `${successBadge()} Success`]);
-          } else if (receipt.status) {
-            pairs.push(["Status", `${failBadge()} Failed`]);
-          }
-          if (receipt.gasUsed) {
-            const formatted = formatHexWithRaw(receipt.gasUsed);
-            pairs.push(["Gas Used", formatted ?? String(receipt.gasUsed)]);
-          }
-          if (receipt.effectiveGasPrice) {
-            const formatted = formatGweiWithRaw(receipt.effectiveGasPrice);
-            pairs.push(["Gas Price", formatted ?? String(receipt.effectiveGasPrice)]);
-          }
+        if (tx.nonce) {
+          const formatted = formatHexWithRaw(tx.nonce);
+          pairs.push(["Nonce", formatted ?? String(tx.nonce)]);
+        }
+        if (tx.gasPrice) {
+          const formatted = formatGweiWithRaw(tx.gasPrice);
+          pairs.push(["Gas Price", formatted ?? String(tx.gasPrice)]);
         }
 
         const explorerURL = etherscanTxURL(hash, network);
@@ -88,7 +78,7 @@ Examples:
 
         if (verbose) {
           console.log("");
-          printJSON({ transaction: tx, receipt });
+          printJSON(tx);
         }
       } catch (err) {
         exitWithError(err);
