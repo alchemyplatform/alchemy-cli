@@ -3,6 +3,7 @@ import { adminClientFromFlags, resolveAppId } from "../lib/resolve.js";
 import type { App } from "../lib/admin-client.js";
 import { errInvalidArgs, errAppRequired, exitWithError } from "../lib/errors.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
+import * as config from "../lib/config.js";
 import { promptSelect, promptConfirm } from "../lib/terminal-ui.js";
 import {
   green,
@@ -569,7 +570,73 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps chains ─────────────────────────────────────────────────
+  // ── apps select ────────────────────────────────────────────────────
+
+  cmd
+    .command("select [id]")
+    .description("Select an app to use as the default")
+    .action(async (id?: string) => {
+      try {
+        const admin = adminClientFromFlags(program);
+        let selected: App;
+
+        if (id) {
+          selected = await withSpinner("Fetching app…", "App fetched", () =>
+            admin.getApp(id),
+          );
+        } else {
+          const result = await withSpinner("Fetching apps…", "Apps fetched", () =>
+            admin.listAllApps(),
+          );
+
+          if (result.apps.length === 0) {
+            emptyState("No apps found.");
+            return;
+          }
+
+          if (isJSONMode()) {
+            printJSON({ apps: result.apps.map(maskAppSecrets) });
+            return;
+          }
+
+          const appId = await promptSelect({
+            message: "Select an app",
+            options: result.apps.map((app) => ({
+              value: app.id,
+              label: app.name,
+              hint: `${app.chainNetworks.length} networks`,
+            })),
+            cancelMessage: "Cancelled app selection.",
+          });
+
+          if (!appId) return;
+          const found = result.apps.find((a) => a.id === appId);
+          if (!found) return;
+          selected = found;
+        }
+
+        const cfg = config.load();
+        config.save({
+          ...cfg,
+          app: {
+            id: selected.id,
+            name: selected.name,
+            apiKey: selected.apiKey,
+            webhookApiKey: selected.webhookApiKey,
+          },
+        });
+
+        if (isJSONMode()) {
+          printJSON(maskAppSecrets(selected));
+          return;
+        }
+
+        console.log(`  ${green("✓")} Selected app: ${selected.name}`);
+        console.log(`  ${dim("Saved to config")}`);
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
 
   cmd
     .command("chains")

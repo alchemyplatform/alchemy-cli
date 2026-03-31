@@ -1,4 +1,5 @@
 import {
+  errAuthRequired,
   errInvalidAccessKey,
   errAccessDenied,
   errNotFound,
@@ -6,7 +7,8 @@ import {
   errAdminAPI,
   errInvalidArgs,
 } from "./errors.js";
-import { isLocalhost, parseBaseURLOverride, fetchWithTimeout } from "./client-utils.js";
+import { isLocalhost, parseBaseURLOverride, fetchWithTimeout, getBaseDomain } from "./client-utils.js";
+import { debug } from "./output.js";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -56,21 +58,35 @@ interface ListAppsResponse {
 
 // ── Client ───────────────────────────────────────────────────────────
 
+export type AdminCredential =
+  | { type: "access_key"; key: string }
+  | { type: "auth_token"; token: string };
+
 export class AdminClient {
-  private static readonly ADMIN_API_HOST = "admin-api.alchemy.com";
+  private static get ADMIN_API_HOST(): string { return `admin-api.${getBaseDomain()}`; }
   // Test/debug only: used by mock E2E to route admin requests locally.
   private static readonly ADMIN_API_BASE_URL_ENV = "ALCHEMY_ADMIN_API_BASE_URL";
-  private accessKey: string;
+  private credential: AdminCredential;
 
-  constructor(accessKey: string) {
-    this.validateAccessKey(accessKey);
-    this.accessKey = accessKey;
+  constructor(credential: string | AdminCredential) {
+    if (typeof credential === "string") {
+      // Legacy: treat as access key
+      this.validateAccessKey(credential);
+      this.credential = { type: "access_key", key: credential };
+    } else {
+      if (credential.type === "access_key") {
+        this.validateAccessKey(credential.key);
+      } else if (!credential.token.trim()) {
+        throw errAuthRequired();
+      }
+      this.credential = credential;
+    }
   }
 
   protected baseURL(): string {
     const override = this.baseURLOverride();
     if (override) return override.toString().replace(/\/$/, "");
-    return "https://admin-api.alchemy.com";
+    return `https://admin-api.${getBaseDomain()}`;
   }
 
   protected allowedHosts(): Set<string> {
@@ -117,19 +133,23 @@ export class AdminClient {
     body?: unknown,
   ): Promise<T> {
     const url = `${this.baseURL()}${path}`;
+    debug(`${method} ${url}`);
     this.assertSafeRequestTarget(url);
     const resp = await fetchWithTimeout(url, {
       method,
       redirect: "error",
       headers: {
-        Authorization: `Bearer ${this.accessKey}`,
+        Authorization: `Bearer ${this.credential.type === "access_key" ? this.credential.key : this.credential.token}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
       ...(body !== undefined && { body: JSON.stringify(body) }),
     });
 
-    if (resp.status === 401) throw errInvalidAccessKey();
+    if (resp.status === 401) {
+      debug(`401 Unauthorized from ${url}`);
+      throw errInvalidAccessKey();
+    }
     if (resp.status === 403) {
       const detail = await resp.text().catch(() => "");
       // Try to extract a reason from the response body

@@ -1,3 +1,5 @@
+import { getBaseDomain } from "./client-utils.js";
+
 export const SENSITIVE_ERROR_CODES = new Set([
   "AUTH_REQUIRED",
   "INVALID_API_KEY",
@@ -5,7 +7,10 @@ export const SENSITIVE_ERROR_CODES = new Set([
   "ACCESS_KEY_REQUIRED",
 ]);
 
-export const ALCHEMY_KEY_PATH_MARKERS = ["alchemy.com/v2/", "alchemy.com/nft/v3/"] as const;
+export function getAlchemyKeyPathMarkers(): string[] {
+  const domain = getBaseDomain();
+  return [`${domain}/v2/`, `${domain}/nft/v3/`];
+}
 
 export function isSecretBoundaryChar(char: string): boolean {
   return (
@@ -49,7 +54,7 @@ export function redactAfterMarker(input: string, marker: string): string {
 
 export function redactSensitiveText(value: string): string {
   let redacted = value;
-  for (const marker of ALCHEMY_KEY_PATH_MARKERS) {
+  for (const marker of getAlchemyKeyPathMarkers()) {
     redacted = redactAfterMarker(redacted, marker);
   }
   return redacted;

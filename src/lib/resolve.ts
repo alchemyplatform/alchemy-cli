@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { load } from "./config.js";
 import type { Config } from "./config.js";
 import type { AlchemyClient } from "./client-interface.js";
+import { getBaseDomain } from "./client-utils.js";
 import { Client } from "./client.js";
 import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
@@ -46,10 +47,28 @@ export function resolveAppId(program: Command, cfg?: Config): string | undefined
   return undefined;
 }
 
+export function resolveAuthToken(cfg?: Config): string | undefined {
+  const config = cfg ?? load();
+  if (!config.auth_token?.trim()) return undefined;
+  // Check expiry
+  if (config.auth_token_expires_at) {
+    const expiry = new Date(config.auth_token_expires_at);
+    if (!Number.isNaN(expiry.getTime()) && expiry <= new Date()) {
+      return undefined;
+    }
+  }
+  return config.auth_token;
+}
+
 export function adminClientFromFlags(program: Command): AdminClient {
-  const accessKey = resolveAccessKey(program);
-  if (!accessKey) throw errAccessKeyRequired();
-  return new AdminClient(accessKey);
+  const cfg = load();
+  const accessKey = resolveAccessKey(program, cfg);
+  if (accessKey) return new AdminClient(accessKey);
+
+  const authToken = resolveAuthToken(cfg);
+  if (authToken) return new AdminClient({ type: "auth_token", token: authToken });
+
+  throw errAccessKeyRequired();
 }
 
 export function resolveX402(program: Command, cfg?: Config): boolean {
@@ -57,6 +76,14 @@ export function resolveX402(program: Command, cfg?: Config): boolean {
   if (opts.x402) return true;
   const config = cfg ?? load();
   return config.x402 === true;
+}
+
+export function resolveX402Client(program: Command): X402Client | null {
+  const cfg = load();
+  if (!resolveX402(program, cfg)) return null;
+  const walletKey = resolveWalletKey(program, cfg);
+  if (!walletKey) return null;
+  return new X402Client(walletKey, resolveNetwork(program, cfg));
 }
 
 export function resolveWalletKey(program: Command, cfg?: Config): string | undefined {
@@ -113,7 +140,7 @@ function appNetworkToSlug(rpcUrl: string): string | null {
     return null;
   }
 
-  const suffix = ".g.alchemy.com";
+  const suffix = `.g.${getBaseDomain()}`;
   if (!parsed.hostname.endsWith(suffix)) return null;
 
   const slug = parsed.hostname.slice(0, -suffix.length);

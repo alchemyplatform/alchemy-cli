@@ -3,16 +3,19 @@ import { exitWithError } from "../lib/errors.js";
 import { printJSON, isJSONMode } from "../lib/output.js";
 import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 import { callApiData } from "../lib/rest.js";
-import { resolveAPIKey } from "../lib/resolve.js";
+import { resolveAPIKey, resolveX402Client } from "../lib/resolve.js";
 
 async function runDataCall(
-  apiKey: string | undefined,
+  program: Command,
   title: string,
   path: string,
   body: unknown,
 ): Promise<unknown> {
+  const x402 = resolveX402Client(program);
   return withSpinner(`Fetching ${title}…`, `${title} fetched`, () =>
-    callApiData(apiKey, path, { method: "POST", body }),
+    x402
+      ? x402.callRest(`data/v1${path}`, { method: "POST", body })
+      : callApiData(resolveAPIKey(program), path, { method: "POST", body }),
   );
 }
 
@@ -25,9 +28,8 @@ export function registerPortfolio(program: Command) {
     .requiredOption("--body <json>", "JSON body for /assets/tokens/by-address")
     .action(async (opts: { body: string }) => {
       try {
-        const apiKey = resolveAPIKey(program);
         const result = await runDataCall(
-          apiKey,
+          program,
           "token portfolio",
           "/assets/tokens/by-address",
           JSON.parse(opts.body),
@@ -45,9 +47,8 @@ export function registerPortfolio(program: Command) {
     .requiredOption("--body <json>", "JSON body for /assets/tokens/balances/by-address")
     .action(async (opts: { body: string }) => {
       try {
-        const apiKey = resolveAPIKey(program);
         const result = await runDataCall(
-          apiKey,
+          program,
           "token balances",
           "/assets/tokens/balances/by-address",
           JSON.parse(opts.body),
@@ -65,9 +66,8 @@ export function registerPortfolio(program: Command) {
     .requiredOption("--body <json>", "JSON body for /assets/nfts/by-address")
     .action(async (opts: { body: string }) => {
       try {
-        const apiKey = resolveAPIKey(program);
         const result = await runDataCall(
-          apiKey,
+          program,
           "NFT portfolio",
           "/assets/nfts/by-address",
           JSON.parse(opts.body),
@@ -85,9 +85,8 @@ export function registerPortfolio(program: Command) {
     .requiredOption("--body <json>", "JSON body for /assets/nfts/contracts/by-address")
     .action(async (opts: { body: string }) => {
       try {
-        const apiKey = resolveAPIKey(program);
         const result = await runDataCall(
-          apiKey,
+          program,
           "NFT contracts",
           "/assets/nfts/contracts/by-address",
           JSON.parse(opts.body),

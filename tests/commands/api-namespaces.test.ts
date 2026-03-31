@@ -42,7 +42,7 @@ describe("new API namespace commands", () => {
   it("prices symbol calls prices REST API", async () => {
     const callApiPrices = vi.fn().mockResolvedValue({ data: [] });
     vi.doMock("../../src/lib/rest.js", () => ({ callApiPrices }));
-    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "k" }));
+    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "k", resolveX402Client: () => null }));
     vi.doMock("../../src/lib/validators.js", () => ({ splitCommaList: (s: string) => s.split(",") }));
     vi.doMock("../../src/lib/output.js", () => ({ isJSONMode: () => true, printJSON: vi.fn() }));
     vi.doMock("../../src/lib/ui.js", () => ({

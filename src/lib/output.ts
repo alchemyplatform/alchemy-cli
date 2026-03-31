@@ -4,7 +4,7 @@ export {
   redactSensitiveText,
   redactAfterMarker,
   isSecretBoundaryChar,
-  ALCHEMY_KEY_PATH_MARKERS,
+  getAlchemyKeyPathMarkers,
   SENSITIVE_ERROR_CODES,
 } from "./redact.js";
 

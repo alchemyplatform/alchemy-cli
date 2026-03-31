@@ -13,6 +13,11 @@ vi.mock("@alchemy/x402", () => ({
   createPayment: createPaymentMock,
 }));
 
+vi.mock("../../src/lib/config.js", () => ({
+  load: () => ({}),
+  save: vi.fn(),
+}));
+
 function jsonResponse(status: number, body: unknown, headers?: HeadersInit): Response {
   return new Response(JSON.stringify(body), {
     status,

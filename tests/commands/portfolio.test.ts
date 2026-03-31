@@ -12,7 +12,7 @@ describe("portfolio command", () => {
     const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
     const callApiData = vi.fn().mockResolvedValue({ items: [{ symbol: "ETH" }] });
     vi.doMock("../../src/lib/rest.js", () => ({ callApiData }));
-    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key" }));
+    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key", resolveX402Client: () => null }));
 
     const { registerPortfolio } = await import("../../src/commands/portfolio.js");
     await runRegisteredCommand(registerPortfolio, [
@@ -38,7 +38,7 @@ describe("portfolio command", () => {
     const { exitWithError } = installBaseCommandMocks({ jsonMode: true });
     const callApiData = vi.fn();
     vi.doMock("../../src/lib/rest.js", () => ({ callApiData }));
-    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key" }));
+    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key", resolveX402Client: () => null }));
 
     const { registerPortfolio } = await import("../../src/commands/portfolio.js");
     await runRegisteredCommand(registerPortfolio, [

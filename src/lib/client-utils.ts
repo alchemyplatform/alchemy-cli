@@ -1,6 +1,21 @@
 import { CLIError, errInvalidArgs, errNetwork } from "./errors.js";
 import { timeout as globalTimeout } from "./output.js";
 
+const DEFAULT_BASE_DOMAIN = "alchemy.com";
+
+/**
+ * Returns the base domain for all Alchemy endpoints.
+ * Defaults to "alchemy.com". Can be overridden by setting both
+ * ALCHEMY_UNSAFE_OVERRIDES=1 and ALCHEMY_BASE_DOMAIN=<domain>.
+ * This is intended for internal development/testing only.
+ */
+export function getBaseDomain(): string {
+  if (process.env.ALCHEMY_UNSAFE_OVERRIDES === "1" && process.env.ALCHEMY_BASE_DOMAIN) {
+    return process.env.ALCHEMY_BASE_DOMAIN;
+  }
+  return DEFAULT_BASE_DOMAIN;
+}
+
 export function isLocalhost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
@@ -39,6 +54,10 @@ export function parseBaseURLOverride(envVarName: string): URL | null {
 
 const BREADCRUMB_HEADER = "alchemy-cli";
 
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export async function fetchWithTimeout(
   url: string,
   init: RequestInit,
@@ -66,7 +85,7 @@ export async function fetchWithTimeout(
       // Extract the hostname from the URL for a clearer error message
       try {
         const hostname = new URL(url).hostname;
-        const networkSlug = hostname.replace(/\.g\.alchemy\.com$/, "");
+        const networkSlug = hostname.replace(new RegExp(`\\.g\\.${escapeRegExp(getBaseDomain())}$`), "");
         if (networkSlug !== hostname) {
           throw errInvalidArgs(
             `Unknown network '${networkSlug}'. Run 'alchemy network list' to see available networks.`,

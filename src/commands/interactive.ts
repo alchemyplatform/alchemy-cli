@@ -114,7 +114,8 @@ function formatSetupMethodLabel(): string {
   const method = getSetupMethod(loadConfig());
   if (method === "api_key") return "API key";
   if (method === "access_key_app") return "Access key + app";
-  if (method === "x402_wallet") return "x402 wallet";
+  if (method === "x402_wallet") return "SIWx wallet";
+  if (method === "auth_token") return "Auth token";
   return "Not configured";
 }
 

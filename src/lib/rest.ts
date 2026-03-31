@@ -1,4 +1,4 @@
-import { fetchWithTimeout } from "./client-utils.js";
+import { fetchWithTimeout, getBaseDomain } from "./client-utils.js";
 import {
   errAuthRequired,
   errInvalidAPIKey,
@@ -60,7 +60,7 @@ export async function callApiData<T>(
   options: Omit<RestRequestOptions, "path"> = {},
 ): Promise<T> {
   if (!apiKey) throw errAuthRequired();
-  const base = new URL(`https://api.g.alchemy.com/data/v1/${apiKey}/`);
+  const base = new URL(`https://api.g.${getBaseDomain()}/data/v1/${apiKey}/`);
   const url = withQuery(new URL(path.replace(/^\//, ""), base), options.query);
   return requestJSON<T>(url, { ...options, path });
 }
@@ -71,7 +71,7 @@ export async function callApiPrices<T>(
   options: Omit<RestRequestOptions, "path"> = {},
 ): Promise<T> {
   if (!apiKey) throw errAuthRequired();
-  const base = new URL(`https://api.g.alchemy.com/prices/v1/${apiKey}/`);
+  const base = new URL(`https://api.g.${getBaseDomain()}/prices/v1/${apiKey}/`);
   const url = withQuery(new URL(path.replace(/^\//, ""), base), options.query);
   return requestJSON<T>(url, { ...options, path });
 }
@@ -86,7 +86,7 @@ export async function callNotify<T>(
       "Webhook API key required. Set ALCHEMY_WEBHOOK_API_KEY (or ALCHEMY_NOTIFY_AUTH_TOKEN) or pass --webhook-api-key.",
     );
   }
-  const base = new URL("https://dashboard.alchemy.com/api/");
+  const base = new URL(`https://dashboard.${getBaseDomain()}/api/`);
   const url = withQuery(new URL(path.replace(/^\//, ""), base), options.query);
   return requestJSON<T>(url, {
     ...options,
