@@ -54,7 +54,7 @@ export function getSetupStatus(cfg: Config): SetupStatus {
   return {
     complete: false,
     satisfiedBy: null,
-    missing: ["Provide one auth path: alchemy auth OR api-key OR access-key+app OR x402+wallet-key-file"],
+    missing: ["Provide one auth path: alchemy auth OR api-key OR access-key+app OR SIWx wallet"],
     nextCommands: [
       "alchemy auth",
       "alchemy config set api-key <key>",

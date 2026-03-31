@@ -78,6 +78,14 @@ export function resolveX402(program: Command, cfg?: Config): boolean {
   return config.x402 === true;
 }
 
+export function resolveX402Client(program: Command): X402Client | null {
+  const cfg = load();
+  if (!resolveX402(program, cfg)) return null;
+  const walletKey = resolveWalletKey(program, cfg);
+  if (!walletKey) return null;
+  return new X402Client(walletKey, resolveNetwork(program, cfg));
+}
+
 export function resolveWalletKey(program: Command, cfg?: Config): string | undefined {
   const opts = program.opts();
 

@@ -10,6 +10,8 @@ import {
   ErrorCode,
 } from "./errors.js";
 import { parseBaseURLOverride, fetchWithTimeout, getBaseDomain } from "./client-utils.js";
+import { load as loadConfig, save as saveConfig } from "./config.js";
+import { debug } from "./output.js";
 
 export class X402Client implements AlchemyClient {
   readonly network: string;
@@ -50,17 +52,44 @@ export class X402Client implements AlchemyClient {
     return new URL(`/${this.network}/nft/v3`, this.baseURL()).toString();
   }
 
+  private static readonly SIWE_TTL = "1h";
+  private static readonly SIWE_EXPIRY_BUFFER_MS = 5 * 60 * 1000; // refresh 5min before expiry
+
   private async ensureSiweToken(): Promise<string> {
     if (this.siweToken) return this.siweToken;
+
+    // Try to load a cached token from config
+    const cfg = loadConfig();
+    if (cfg.siwe_token && cfg.siwe_token_expires_at) {
+      const expiry = new Date(cfg.siwe_token_expires_at);
+      const remaining = expiry.getTime() - Date.now();
+      debug(`SIWE: found cached token (length=${cfg.siwe_token.length}, remaining=${Math.round(remaining / 1000)}s)`);
+      if (!Number.isNaN(expiry.getTime()) && remaining > X402Client.SIWE_EXPIRY_BUFFER_MS) {
+        this.siweToken = cfg.siwe_token;
+        return this.siweToken;
+      }
+      debug("SIWE: cached token expired or expiring soon");
+    } else {
+      debug("SIWE: no cached token in config");
+    }
+
+    // Generate a fresh token and cache it
+    debug("SIWE: generating fresh token");
     this.siweToken = await signSiwe({
       privateKey: this.privateKey,
-      expiresAfter: "1h",
+      expiresAfter: X402Client.SIWE_TTL,
     });
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    debug(`SIWE: saving token to config (length=${this.siweToken.length}, expires=${expiresAt})`);
+    saveConfig({ ...loadConfig(), siwe_token: this.siweToken, siwe_token_expires_at: expiresAt });
     return this.siweToken;
   }
 
   private refreshSiweToken(): void {
     this.siweToken = null;
+    // Clear cached token so next ensureSiweToken generates a fresh one
+    const cfg = loadConfig();
+    saveConfig({ ...cfg, siwe_token: undefined, siwe_token_expires_at: undefined });
   }
 
   async call(method: string, params: unknown[] | Record<string, unknown> = []): Promise<unknown> {
@@ -121,6 +150,53 @@ export class X402Client implements AlchemyClient {
         Authorization: `SIWE ${this.siweToken!}`,
         ...extra,
       },
+    });
+
+    await this.ensureSiweToken();
+    let resp = await this.doFetch(urlStr, buildInit());
+
+    resp = await this.handleAuthAndPayment(resp, {
+      authRetry: async () => {
+        this.refreshSiweToken();
+        await this.ensureSiweToken();
+        return this.doFetch(urlStr, buildInit());
+      },
+      paymentRetry: async (paymentSig) =>
+        this.doFetch(urlStr, buildInit({ "Payment-Signature": paymentSig })),
+    });
+
+    if (resp.status === 429) throw errRateLimited();
+    if (resp.status === 402) throw await this.parsePaymentError(resp);
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      throw errNetwork(`HTTP ${resp.status}: ${text}`);
+    }
+
+    return resp.json();
+  }
+
+  async callRest(
+    path: string,
+    options: { method?: string; body?: unknown; query?: Record<string, string | undefined> } = {},
+  ): Promise<unknown> {
+    const base = new URL(`/${path.replace(/^\//, "")}`, this.baseURL());
+    if (options.query) {
+      for (const [k, v] of Object.entries(options.query)) {
+        if (v !== undefined && v !== "") base.searchParams.set(k, v);
+      }
+    }
+    const urlStr = base.toString();
+    const method = options.method ?? "GET";
+
+    const buildInit = (extra?: Record<string, string>): RequestInit => ({
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `SIWE ${this.siweToken!}`,
+        ...extra,
+      },
+      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
     });
 
     await this.ensureSiweToken();

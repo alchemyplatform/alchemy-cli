@@ -3,7 +3,7 @@ import { exitWithError } from "../lib/errors.js";
 import { printJSON, isJSONMode } from "../lib/output.js";
 import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 import { callApiPrices } from "../lib/rest.js";
-import { resolveAPIKey } from "../lib/resolve.js";
+import { resolveAPIKey, resolveX402Client } from "../lib/resolve.js";
 import { splitCommaList } from "../lib/validators.js";
 
 export function registerPrices(program: Command) {
@@ -14,12 +14,14 @@ export function registerPrices(program: Command) {
     .description("Get spot prices by symbol (comma-separated)")
     .action(async (symbols: string) => {
       try {
-        const apiKey = resolveAPIKey(program);
         const values = splitCommaList(symbols);
         const query = new URLSearchParams();
         for (const symbol of values) query.append("symbols", symbol);
+        const x402 = resolveX402Client(program);
         const result = await withSpinner("Fetching prices…", "Prices fetched", () =>
-          callApiPrices(apiKey, `/tokens/by-symbol?${query.toString()}`),
+          x402
+            ? x402.callRest(`prices/v1/tokens/by-symbol?${query.toString()}`)
+            : callApiPrices(resolveAPIKey(program), `/tokens/by-symbol?${query.toString()}`),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);
@@ -34,10 +36,12 @@ export function registerPrices(program: Command) {
     .requiredOption("--addresses <json>", "JSON array of {network,address}")
     .action(async (opts: { addresses: string }) => {
       try {
-        const apiKey = resolveAPIKey(program);
         const body = { addresses: JSON.parse(opts.addresses) as unknown[] };
+        const x402 = resolveX402Client(program);
         const result = await withSpinner("Fetching prices…", "Prices fetched", () =>
-          callApiPrices(apiKey, "/tokens/by-address", { method: "POST", body }),
+          x402
+            ? x402.callRest("prices/v1/tokens/by-address", { method: "POST", body })
+            : callApiPrices(resolveAPIKey(program), "/tokens/by-address", { method: "POST", body }),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);
@@ -59,10 +63,12 @@ Examples:
     )
     .action(async (opts: { body: string }) => {
       try {
-        const apiKey = resolveAPIKey(program);
         const payload = JSON.parse(opts.body) as unknown;
+        const x402 = resolveX402Client(program);
         const result = await withSpinner("Fetching historical prices…", "Historical prices fetched", () =>
-          callApiPrices(apiKey, "/tokens/historical", { method: "POST", body: payload }),
+          x402
+            ? x402.callRest("prices/v1/tokens/historical", { method: "POST", body: payload })
+            : callApiPrices(resolveAPIKey(program), "/tokens/historical", { method: "POST", body: payload }),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);

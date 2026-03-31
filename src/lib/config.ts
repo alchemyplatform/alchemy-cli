@@ -23,6 +23,8 @@ export interface Config {
   x402?: boolean;
   auth_token?: string;
   auth_token_expires_at?: string;
+  siwe_token?: string;
+  siwe_token_expires_at?: string;
 }
 
 export const KEY_MAP: Record<string, keyof Config> = {
@@ -83,6 +85,8 @@ const configSchema = z
     x402: z.boolean().optional().catch(undefined),
     auth_token: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     auth_token_expires_at: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    siwe_token: safeTextSchema(MAX_PATH_LEN).optional().catch(undefined),
+    siwe_token_expires_at: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
   })
   .strip();
 

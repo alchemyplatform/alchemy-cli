@@ -15,7 +15,7 @@ import { getUpdateNoticeLines } from "../lib/update-check.js";
 import { selectOrCreateApp } from "./config.js";
 import { generateAndPersistWallet, importAndPersistWallet } from "./wallet.js";
 
-type OnboardingMethod = "browser-login" | "api-key" | "access-key" | "x402" | "exit";
+type OnboardingMethod = "browser-login" | "api-key" | "access-key" | "siwx" | "exit";
 
 function printNextSteps(method: Exclude<OnboardingMethod, "exit">): void {
   const commandsByMethod: Record<Exclude<OnboardingMethod, "exit">, string[]> = {
@@ -25,7 +25,7 @@ function printNextSteps(method: Exclude<OnboardingMethod, "exit">): void {
       "alchemy config set access-key <key>",
       "alchemy config set app <app-id>",
     ],
-    x402: [
+    siwx: [
       "alchemy wallet generate",
       "alchemy config set wallet-key-file <path>",
       "alchemy config set x402 true",
@@ -87,15 +87,15 @@ async function runAccessKeyOnboarding(): Promise<void> {
   await selectOrCreateApp(new AdminClient(key.trim()));
 }
 
-async function runX402Onboarding(): Promise<void> {
+async function runSiwxOnboarding(): Promise<void> {
   const action = await promptSelect({
-    message: "x402 wallet setup",
+    message: "SIWx wallet setup",
     options: [
       { label: "Generate a new wallet", value: "generate" },
       { label: "Import wallet from key file", value: "import" },
     ],
     initialValue: "generate",
-    cancelMessage: "Skipped x402 setup.",
+    cancelMessage: "Skipped SIWx setup.",
   });
   if (!action) return;
 
@@ -114,7 +114,21 @@ async function runX402Onboarding(): Promise<void> {
 
   const cfg = loadConfig();
   saveConfig({ ...cfg, x402: true });
-  console.log(`  ${green("✓")} x402 enabled with wallet ${wallet.address}`);
+  console.log(`  ${green("✓")} SIWx enabled with wallet ${wallet.address}`);
+
+  // Sign SIWE token immediately so it's cached for subsequent commands
+  try {
+    const { signSiwe } = await import("@alchemy/x402");
+    const { readFileSync } = await import("node:fs");
+    const keyPath = wallet.keyFile;
+    const privateKey = readFileSync(keyPath, "utf-8").trim();
+    const siweToken = await signSiwe({ privateKey, expiresAfter: "1h" });
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    saveConfig({ ...loadConfig(), siwe_token: siweToken, siwe_token_expires_at: expiresAt });
+    console.log(`  ${green("✓")} Signed SIWE token (cached for 1h)`);
+  } catch {
+    // Non-fatal — token will be signed on first API call
+  }
 }
 
 export async function runOnboarding(
@@ -154,9 +168,9 @@ export async function runOnboarding(
         value: "access-key",
       },
       {
-        label: "x402",
-        hint: "Agentic API access and payment",
-        value: "x402",
+        label: "SIWx",
+        hint: "Sign-In with Ethereum/Solana wallet",
+        value: "siwx",
       },
       {
         label: "exit",
@@ -186,6 +200,8 @@ export async function runOnboarding(
         auth_token_expires_at: result.expiresAt,
       });
       console.log(`  ${green("✓")} Logged in successfully`);
+      const { selectAppAfterAuth } = await import("./auth.js");
+      await selectAppAfterAuth(result.token);
       return true;
     } catch (err) {
       console.log(`  ${dim(`Login failed: ${err instanceof Error ? err.message : String(err)}`)}`);
@@ -211,11 +227,11 @@ export async function runOnboarding(
     }
     return complete;
   }
-  await runX402Onboarding();
+  await runSiwxOnboarding();
   const cfg = loadConfig();
   const complete = cfg.x402 === true && Boolean(cfg.wallet_key_file?.trim());
   if (!complete) {
-    printNextSteps("x402");
+    printNextSteps("siwx");
   }
   return complete;
 }

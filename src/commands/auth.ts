@@ -171,7 +171,7 @@ export function registerAuth(program: Command) {
     });
 }
 
-async function selectAppAfterAuth(authToken: string): Promise<void> {
+export async function selectAppAfterAuth(authToken: string): Promise<void> {
   let apps: App[];
   try {
     const admin = new AdminClient({ type: "auth_token", token: authToken });
