@@ -315,11 +315,11 @@ Examples:
         validateAddress(opts.contract);
         const client = clientFromFlags(program);
         const result = await withSpinner("Fetching token allowance…", "Token allowance fetched", () =>
-          client.call("alchemy_getTokenAllowance", [
-            opts.owner,
-            opts.spender,
-            opts.contract,
-          ]),
+          client.call("alchemy_getTokenAllowance", [{
+            owner: opts.owner,
+            spender: opts.spender,
+            contract: opts.contract,
+          }]),
         );
         if (isJSONMode()) printJSON(result);
         else printSyntaxJSON(result);
