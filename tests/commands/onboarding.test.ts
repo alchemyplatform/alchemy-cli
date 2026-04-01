@@ -14,7 +14,7 @@ describe("onboarding flow", () => {
     vi.doMock("../../src/lib/update-check.js", () => ({
       getUpdateNoticeLines: vi.fn().mockReturnValue([
         "  Update available 0.2.0 -> 9.9.9",
-        "  Run npm i -g @alchemy/cli to update",
+        "  Run npm i -g @alchemy/cli@latest to update",
       ]),
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -60,7 +60,7 @@ describe("onboarding flow", () => {
     vi.doMock("../../src/lib/update-check.js", () => ({
       getUpdateNoticeLines: vi.fn().mockReturnValue([
         "  Update available 0.2.0 -> 9.9.9",
-        "  Run npm i -g @alchemy/cli to update",
+        "  Run npm i -g @alchemy/cli@latest to update",
       ]),
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -101,7 +101,7 @@ describe("onboarding flow", () => {
     vi.doMock("../../src/lib/update-check.js", () => ({
       getUpdateNoticeLines: vi.fn().mockReturnValue([
         "  Update available 0.2.0 -> 9.9.9",
-        "  Run npm i -g @alchemy/cli to update",
+        "  Run npm i -g @alchemy/cli@latest to update",
       ]),
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -142,7 +142,7 @@ describe("onboarding flow", () => {
     vi.doMock("../../src/lib/update-check.js", () => ({
       getUpdateNoticeLines: vi.fn().mockReturnValue([
         "  Update available 0.2.0 -> 9.9.9",
-        "  Run npm i -g @alchemy/cli to update",
+        "  Run npm i -g @alchemy/cli@latest to update",
       ]),
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -185,7 +185,7 @@ describe("onboarding flow", () => {
     vi.doMock("../../src/lib/update-check.js", () => ({
       getUpdateNoticeLines: vi.fn().mockReturnValue([
         "  Update available 0.2.0 -> 9.9.9",
-        "  Run npm i -g @alchemy/cli to update",
+        "  Run npm i -g @alchemy/cli@latest to update",
       ]),
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -216,6 +216,6 @@ describe("onboarding flow", () => {
     const completed = await runOnboarding({} as never, "9.9.9");
     expect(completed).toBe(false);
     expect(logSpy).toHaveBeenCalledWith("  Update available 0.2.0 -> 9.9.9");
-    expect(logSpy).toHaveBeenCalledWith("  Run npm i -g @alchemy/cli to update");
+    expect(logSpy).toHaveBeenCalledWith("  Run npm i -g @alchemy/cli@latest to update");
   });
 });

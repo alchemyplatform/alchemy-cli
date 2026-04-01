@@ -111,7 +111,7 @@ describe("getUpdateStatus", () => {
       currentVersion: "0.0.0",
       latestVersion: "9.9.9",
       updateAvailable: true,
-      installCommand: "npm i -g @alchemy/cli",
+      installCommand: "npm i -g @alchemy/cli@latest",
       checkedAt,
     });
     expect(execFileSync).not.toHaveBeenCalled();
@@ -132,7 +132,7 @@ describe("getUpdateStatus", () => {
       currentVersion: "0.0.0",
       latestVersion: "9.9.9",
       updateAvailable: true,
-      installCommand: "npm i -g @alchemy/cli",
+      installCommand: "npm i -g @alchemy/cli@latest",
       checkedAt,
     });
   });
@@ -151,7 +151,7 @@ describe("getUpdateStatus", () => {
       currentVersion: "0.0.0",
       latestVersion: null,
       updateAvailable: false,
-      installCommand: "npm i -g @alchemy/cli",
+      installCommand: "npm i -g @alchemy/cli@latest",
       checkedAt: null,
     });
   });
@@ -167,7 +167,7 @@ describe("printUpdateNotice", () => {
     const output = writeSpy.mock.calls[0][0] as string;
     expect(output).toContain("Update available");
     expect(output).toContain("1.0.0");
-    expect(output).toContain("npm i -g @alchemy/cli");
+    expect(output).toContain("npm i -g @alchemy/cli@latest");
 
     writeSpy.mockRestore();
   });
