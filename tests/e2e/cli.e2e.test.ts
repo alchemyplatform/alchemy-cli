@@ -417,7 +417,7 @@ describe("CLI mock E2E", () => {
       currentVersion: "0.2.0",
       latestVersion: "9.9.9",
       updateAvailable: true,
-      installCommand: "npm i -g @alchemy/cli",
+      installCommand: "npm i -g @alchemy/cli@latest",
       checkedAt,
     });
   });
