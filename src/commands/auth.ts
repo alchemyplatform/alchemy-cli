@@ -5,7 +5,7 @@ import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
 import { printHuman, isJSONMode, debug } from "../lib/output.js";
-import { promptAutocomplete, promptConfirm } from "../lib/terminal-ui.js";
+import { promptAutocomplete, promptText } from "../lib/terminal-ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { resolveAuthToken } from "../lib/resolve.js";
 import { green, dim, bold, brand, maskIf, withSpinner } from "../lib/ui.js";
@@ -57,12 +57,11 @@ export function registerAuth(program: Command) {
         }
 
         if (!yes && !isJSONMode() && isInteractiveAllowed(program)) {
-          const proceed = await promptConfirm({
-            message: "Press Enter to open browser and log in",
-            initialValue: true,
+          const answer = await promptText({
+            message: "Press Enter to open browser and link your Alchemy account",
             cancelMessage: "Login cancelled.",
           });
-          if (proceed === null || !proceed) return;
+          if (answer === null) return;
         }
 
         if (!isJSONMode()) {

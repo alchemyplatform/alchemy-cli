@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import { load as loadConfig, save as saveConfig } from "../lib/config.js";
-import { promptConfirm } from "../lib/terminal-ui.js";
+import { promptText } from "../lib/terminal-ui.js";
 import {
   brand,
   bold,
@@ -27,12 +27,11 @@ export async function runOnboarding(
     console.log("");
   }
 
-  const proceed = await promptConfirm({
-    message: "Press Enter to open browser and log in",
-    initialValue: true,
+  const answer = await promptText({
+    message: "Press Enter to open browser and link your Alchemy account",
     cancelMessage: "Skipped onboarding.",
   });
-  if (proceed === null || !proceed) {
+  if (answer === null) {
     return false;
   }
 
