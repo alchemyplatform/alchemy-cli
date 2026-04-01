@@ -39,25 +39,19 @@ alchemy completions fish > ~/.config/fish/completions/alchemy.fish
 
 ### Authentication Quick Start
 
-Authentication is required before making requests. Configure auth first, then run commands.
-
-If you are using the CLI as a human in an interactive terminal, the easiest path is:
+Authentication is required before making requests. The recommended path is browser login:
 
 ```bash
-alchemy
+alchemy auth
 ```
 
-Then follow the setup flow in the terminal UI to configure auth.
+This opens a browser to link your Alchemy account, then prompts you to select an app. The selected app's API key is saved to your config automatically. Pass `-y` to skip the confirmation prompt.
 
-Know which auth method does what:
+If you run `alchemy` with no command and no auth configured, the CLI will guide you through browser login automatically.
 
-- **API key** - direct auth for blockchain queries (`balance`, `tx`, `block`, `nfts`, `tokens`, `rpc`)
-- **Access key** - Admin/API app management; app setup/selection can also provide API key auth for blockchain queries
-- **x402 wallet auth** - wallet-authenticated, pay-per-request model for supported blockchain queries
+If you have an auth token but haven't selected an app yet, the CLI will prompt you to pick one before running any command that requires an API key. Teams with many apps can type to search by name.
 
 If you use Notify webhooks, add webhook auth on top via `alchemy config set webhook-api-key <key>`, `--webhook-api-key`, or `ALCHEMY_WEBHOOK_API_KEY`.
-
-For setup commands, env vars, and resolution order, see [Authentication Reference](#authentication-reference).
 
 ### Usage By Workflow
 
@@ -165,6 +159,9 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 | Command | What it does | Example |
 |---|---|---|
 | `(no command)` | Starts interactive REPL mode (TTY only) | `alchemy` |
+| `auth` (`auth login`) | Log in via browser (PKCE) | `alchemy auth` |
+| `auth status` | Show current authentication status | `alchemy auth status` |
+| `auth logout` | Clear saved authentication token | `alchemy auth logout` |
 | `apps list` | Lists apps (supports pagination/filtering) | `alchemy apps list --all` |
 | `apps chains` | Lists Admin API chain identifiers (e.g. `ETH_MAINNET`) | `alchemy apps chains` |
 | `apps get <id>` | Gets app details | `alchemy apps get <app-id>` |
@@ -231,6 +228,7 @@ Additional env vars:
 
 | Command | Flags |
 |---|---|
+| `auth login` | `--force`, `-y, --yes` |
 | `nfts` | `--limit <n>`, `--page-key <key>` |
 | `nfts metadata` | `--contract <address>` (required), `--token-id <id>` (required) |
 | `tokens` | `--page-key <key>` |
@@ -258,74 +256,27 @@ Additional env vars:
 
 ## Authentication Reference
 
-The CLI supports three auth inputs:
+```bash
+# Interactive login — opens browser to link your Alchemy account
+alchemy auth
 
-- API key for blockchain queries (`balance`, `tx`, `block`, `nfts`, `tokens`, `rpc`)
-- Access key for Admin API operations (`apps`, `chains`, configured network lookups`) and app setup/selection, which can also supply the API key used by blockchain query commands
-- x402 wallet key for wallet-authenticated blockchain queries in a pay-per-request model
+# Skip the confirmation prompt
+alchemy auth -y
+
+# Force re-authentication
+alchemy auth login --force
+
+# Check auth status
+alchemy auth status
+
+# Log out
+alchemy auth logout
+```
+
+After login, the CLI prompts you to select an app. The app's API key is saved to config and used for all subsequent commands. If you skip app selection during login, the CLI will prompt you to pick one before running any command that needs an API key.
 
 Notify/webhook commands use a webhook API key with resolution order:
 `--webhook-api-key` -> `ALCHEMY_WEBHOOK_API_KEY` -> `ALCHEMY_NOTIFY_AUTH_TOKEN` -> config `webhook-api-key` -> configured app webhook key.
-
-Get API/access keys at [alchemy.com](https://dashboard.alchemy.com/).
-
-#### API key
-
-```bash
-# Config
-alchemy config set api-key <your-key>
-
-# Environment variable
-export ALCHEMY_API_KEY=<your-key>
-
-# Per-command override
-alchemy balance 0x... --api-key <your-key>
-```
-
-Resolution order: `--api-key` -> `ALCHEMY_API_KEY` -> config file -> configured app API key.
-
-#### Access key
-
-```bash
-# Config (in TTY, this may trigger app setup flow)
-alchemy config set access-key <your-key>
-
-# Environment variable
-export ALCHEMY_ACCESS_KEY=<your-key>
-
-# Per-command override
-alchemy apps list --access-key <your-key>
-```
-
-Resolution order: `--access-key` -> `ALCHEMY_ACCESS_KEY` -> config file.
-
-#### x402 wallet auth
-
-x402 is a wallet-authenticated, pay-per-request usage model for supported blockchain queries.
-The CLI can generate or import the wallet key used for these requests.
-
-```bash
-# Generate/import a wallet managed by CLI
-alchemy wallet generate
-# or
-alchemy wallet import ./private-key.txt
-
-# Use x402 per command
-alchemy balance 0x... --x402
-
-# Or enable by default
-alchemy config set x402 true
-```
-
-Generated/imported wallets are stored as unique key files under `~/.config/alchemy/wallet-keys/` so creating another wallet does not overwrite prior private keys.
-
-You can also provide wallet key directly:
-
-```bash
-export ALCHEMY_WALLET_KEY=0x...
-```
-
-Wallet key resolution order: `--wallet-key-file` -> `ALCHEMY_WALLET_KEY` -> `wallet-key-file` in config.
 
 ## REPL Mode
 
