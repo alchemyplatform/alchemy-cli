@@ -22,7 +22,7 @@ describe("update-check command", () => {
         currentVersion: "0.2.0",
         latestVersion: "0.3.0",
         updateAvailable: true,
-        installCommand: "npm i -g @alchemy/cli",
+        installCommand: "npm i -g @alchemy/cli@latest",
         checkedAt: 1_700_000_000_000,
       }),
     }));
@@ -39,7 +39,7 @@ describe("update-check command", () => {
       currentVersion: "0.2.0",
       latestVersion: "0.3.0",
       updateAvailable: true,
-      installCommand: "npm i -g @alchemy/cli",
+      installCommand: "npm i -g @alchemy/cli@latest",
       checkedAt: 1_700_000_000_000,
     });
   });
@@ -59,7 +59,7 @@ describe("update-check command", () => {
         currentVersion: "0.2.0",
         latestVersion: "0.3.0",
         updateAvailable: true,
-        installCommand: "npm i -g @alchemy/cli",
+        installCommand: "npm i -g @alchemy/cli@latest",
         checkedAt: 1_700_000_000_000,
       }),
     }));
@@ -77,7 +77,7 @@ describe("update-check command", () => {
       ["Latest version", "0.3.0"],
       ["Update available", "yes"],
       ["Checked at", "2023-11-14T22:13:20.000Z"],
-      ["Install", "npm i -g @alchemy/cli"],
+      ["Install", "npm i -g @alchemy/cli@latest"],
     ]);
   });
 });

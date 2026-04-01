@@ -7,7 +7,7 @@ import { esc } from "./colors.js";
 declare const __CLI_VERSION__: string;
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const UPDATE_INSTALL_COMMAND = "npm i -g @alchemy/cli";
+const UPDATE_INSTALL_COMMAND = "npm i -g @alchemy/cli@latest";
 
 interface UpdateCache {
   latest: string;
