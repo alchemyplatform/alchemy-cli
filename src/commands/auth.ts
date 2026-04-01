@@ -5,7 +5,7 @@ import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
 import { printHuman, isJSONMode, debug } from "../lib/output.js";
-import { promptSelect } from "../lib/terminal-ui.js";
+import { promptAutocomplete, promptConfirm } from "../lib/terminal-ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { resolveAuthToken } from "../lib/resolve.js";
 import { green, dim, bold, brand, maskIf, withSpinner } from "../lib/ui.js";
@@ -13,13 +13,16 @@ import { green, dim, bold, brand, maskIf, withSpinner } from "../lib/ui.js";
 export function registerAuth(program: Command) {
   const cmd = program
     .command("auth")
-    .description("Authenticate with your Alchemy account");
+    .description("Authenticate with your Alchemy account")
+    .option("-y, --yes", "Skip confirmation prompt and open browser immediately");
 
   cmd
     .command("login", { isDefault: true })
     .description("Log in via browser")
     .option("--force", "Force re-authentication even if a valid token exists")
-    .action(async (opts: { force?: boolean }) => {
+    .option("-y, --yes", "Skip confirmation prompt and open browser immediately")
+    .action(async (opts: { force?: boolean; yes?: boolean }) => {
+      const yes = opts.yes || cmd.opts().yes;
       try {
         // Skip browser flow if we already have a valid token
         if (!opts.force) {
@@ -49,9 +52,21 @@ export function registerAuth(program: Command) {
           console.log(`  ${brand("◆")} ${bold("Alchemy Authentication")}`);
           console.log(`  ${dim("────────────────────────────────────")}`);
           console.log("");
-          console.log(`  Opening browser to log in...`);
           console.log(`  ${dim(getLoginUrl(AUTH_PORT))}`);
           console.log("");
+        }
+
+        if (!yes && !isJSONMode() && isInteractiveAllowed(program)) {
+          const proceed = await promptConfirm({
+            message: "Press Enter to open browser and log in",
+            initialValue: true,
+            cancelMessage: "Login cancelled.",
+          });
+          if (proceed === null || !proceed) return;
+        }
+
+        if (!isJSONMode()) {
+          console.log(`  Opening browser to log in...`);
           console.log(`  ${dim("Waiting for authentication...")}`);
         }
 
@@ -200,8 +215,9 @@ export async function selectAppAfterAuth(authToken: string): Promise<void> {
     console.log(`  ${green("✓")} Auto-selected app: ${bold(selectedApp.name)}`);
   } else {
     console.log("");
-    const appId = await promptSelect({
+    const appId = await promptAutocomplete({
       message: "Select an app",
+      placeholder: "Type to search by name",
       options: apps.map((app) => ({
         value: app.id,
         label: app.name,
