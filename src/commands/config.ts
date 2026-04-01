@@ -392,7 +392,7 @@ export function registerConfig(program: Command) {
   cmd
     .command("list")
     .description("List all config values")
-    .action(() => {
+    .action(async () => {
       const cfg = config.load();
       const hasApiKeyMismatch = Boolean(
         cfg.api_key &&
@@ -405,7 +405,16 @@ export function registerConfig(program: Command) {
         return;
       }
 
+      const { resolveAuthToken } = await import("../lib/resolve.js");
+      const validToken = resolveAuthToken(cfg);
+      const authStatus = cfg.auth_token
+        ? validToken
+          ? `${green("✓")} authenticated${cfg.auth_token_expires_at ? ` ${dim(`(expires ${cfg.auth_token_expires_at})`)}` : ""}`
+          : `${yellow("◆")} expired${cfg.auth_token_expires_at ? ` ${dim(`(${cfg.auth_token_expires_at})`)}` : ""}`
+        : dim("(not set) — run 'alchemy auth' to log in");
+
       const pairs: Array<[string, string]> = [
+        ["auth", authStatus],
         [
           "api-key",
           cfg.api_key
@@ -413,11 +422,12 @@ export function registerConfig(program: Command) {
             : dim("(not set)"),
         ],
         ["access-key", cfg.access_key ? maskIf(cfg.access_key) : dim("(not set)")],
+        ["webhook-api-key", cfg.webhook_api_key ? maskIf(cfg.webhook_api_key) : dim("(not set)")],
         [
           "app",
           cfg.app
             ? `${cfg.app.name} ${dim(`(${cfg.app.id})`)}`
-            : dim("(not set) — set automatically via 'config set access-key' or 'config set app'"),
+            : dim("(not set) — set automatically via 'alchemy auth' or 'config set app'"),
         ],
         ["network", cfg.network || dim("(not set, defaults to eth-mainnet)")],
         [

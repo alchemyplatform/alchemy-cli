@@ -326,7 +326,7 @@ program
       `  ${hDim("Docs:")} ${hBrand("https://www.alchemy.com/docs")}`,
     ].join("\n");
   })
-  .hook("preAction", () => {
+  .hook("preAction", async (thisCommand, actionCommand) => {
     const opts = program.opts();
     if (opts.color === false) setNoColor(true);
     const cfg = loadConfig();
@@ -338,6 +338,30 @@ program
       reveal: Boolean(opts.reveal),
       timeout: opts.timeout,
     });
+
+    // If we have an auth token but no API key, prompt for app selection
+    // before running commands that need one (skip for auth/config/setup/help/etc.)
+    const cmdName = actionCommand.name();
+    const skipAppPrompt = [
+      "auth", "config", "setup", "help", "version",
+      "completions", "agent-prompt", "update-check", "wallet",
+    ];
+    if (
+      !skipAppPrompt.includes(cmdName) &&
+      isInteractiveAllowed(program) &&
+      !opts.apiKey &&
+      !process.env.ALCHEMY_API_KEY
+    ) {
+      const { resolveAuthToken } = await import("./lib/resolve.js");
+      const authToken = resolveAuthToken(cfg);
+      const hasApiKey = Boolean(cfg.api_key?.trim() || cfg.app?.apiKey);
+      if (authToken && !hasApiKey) {
+        const { selectAppAfterAuth } = await import("./commands/auth.js");
+        console.log("");
+        console.log(`  No app selected. Please select an app to continue.`);
+        await selectAppAfterAuth(authToken);
+      }
+    }
   })
   .hook("postAction", () => {
     if (!isJSONMode() && !quiet) {

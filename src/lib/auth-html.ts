@@ -4,7 +4,7 @@ const SHARED_STYLE = `
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     display: flex; justify-content: center; align-items: center;
     min-height: 100vh;
-    background: #000;
+    background: linear-gradient(180deg, #4F46E5 0%, #06B6D4 100%);
     color: #fff;
     overflow: hidden;
   }
@@ -21,7 +21,7 @@ const SHARED_STYLE = `
     letter-spacing: -0.01em;
   }
   p {
-    color: #6b6b6b;
+    color: #fff;
     font-size: 0.875rem;
   }
 `;
