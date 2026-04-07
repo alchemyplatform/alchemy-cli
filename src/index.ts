@@ -32,6 +32,7 @@ import { registerSolana } from "./commands/solana.js";
 import { registerGas } from "./commands/gas.js";
 import { registerLogs } from "./commands/logs.js";
 import { registerCompletions } from "./commands/completions.js";
+import { registerSend } from "./commands/send.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
@@ -67,6 +68,10 @@ const ROOT_COMMAND_PILLARS = [
   {
     label: "Data",
     commands: ["tokens", "nfts", "transfers", "prices", "portfolio", "simulate"],
+  },
+  {
+    label: "Execution",
+    commands: ["send"],
   },
   {
     label: "Wallets",
@@ -439,6 +444,9 @@ registerTransfers(program);
 registerPrices(program);
 registerPortfolio(program);
 registerSimulate(program);
+
+// Execution
+registerSend(program);
 
 // Wallets
 registerWallet(program);

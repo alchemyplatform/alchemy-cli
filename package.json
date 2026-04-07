@@ -42,6 +42,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@alchemy/wallet-apis": "5.0.0-beta.22",
     "@alchemy/x402": "^0.4.0",
     "@noble/hashes": "^2.0.1",
     "cli-table3": "^0.6.5",
