@@ -157,8 +157,6 @@ async function performSend(
   const txHash = status.receipts?.[0]?.transactionHash;
   const confirmed = status.status === "success";
 
-  const gasLabel = paymaster ? "Sponsored" : "Wallet-paid";
-
   if (isJSONMode()) {
     printJSON({
       from,
@@ -166,7 +164,7 @@ async function performSend(
       amount: amountArg,
       token: tokenAddress ?? symbol,
       network,
-      gas: paymaster ? "sponsored" : "wallet-paid",
+      sponsored: !!paymaster,
       txHash: txHash ?? null,
       callId: id,
       status: status.status,
@@ -177,8 +175,11 @@ async function performSend(
       ["To", to],
       ["Amount", green(`${amountArg} ${symbol}`)],
       ["Network", network],
-      ["Gas", paymaster ? green(gasLabel) : gasLabel],
     ];
+
+    if (paymaster) {
+      pairs.push(["Gas", green("Sponsored")]);
+    }
 
     if (txHash) {
       pairs.push(["Tx Hash", txHash]);
