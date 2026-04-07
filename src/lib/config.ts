@@ -25,6 +25,8 @@ export interface Config {
   auth_token_expires_at?: string;
   siwe_token?: string;
   siwe_token_expires_at?: string;
+  gas_mode?: string;
+  gas_policy_id?: string;
 }
 
 export const KEY_MAP: Record<string, keyof Config> = {
@@ -45,6 +47,10 @@ export const KEY_MAP: Record<string, keyof Config> = {
   auth_token: "auth_token",
   "auth-token-expires-at": "auth_token_expires_at",
   auth_token_expires_at: "auth_token_expires_at",
+  "gas-mode": "gas_mode",
+  gas_mode: "gas_mode",
+  "gas-policy-id": "gas_policy_id",
+  gas_policy_id: "gas_policy_id",
 };
 
 const SAFE_ID_RE = /^[A-Za-z0-9:_-]{1,128}$/;
@@ -87,6 +93,8 @@ const configSchema = z
     auth_token_expires_at: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     siwe_token: safeTextSchema(MAX_PATH_LEN).optional().catch(undefined),
     siwe_token_expires_at: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    gas_mode: z.enum(["sponsored", "wallet-paid"]).optional().catch(undefined),
+    gas_policy_id: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
   })
   .strip();
 
@@ -173,6 +181,8 @@ export function validKeys(): string[] {
     "verbose",
     "wallet-key-file",
     "x402",
+    "gas-mode",
+    "gas-policy-id",
   ];
 }
 
@@ -189,5 +199,7 @@ export function toMap(cfg: Config): Record<string, string> {
   if (cfg.x402 !== undefined) m["x402"] = String(cfg.x402);
   if (cfg.auth_token) m["auth-token"] = maskIf(cfg.auth_token);
   if (cfg.auth_token_expires_at) m["auth-token-expires-at"] = cfg.auth_token_expires_at;
+  if (cfg.gas_mode) m["gas-mode"] = cfg.gas_mode;
+  if (cfg.gas_policy_id) m["gas-policy-id"] = cfg.gas_policy_id;
   return m;
 }

@@ -108,6 +108,22 @@ export function resolveWalletKey(program: Command, cfg?: Config): string | undef
   return undefined;
 }
 
+export function resolveGasMode(program: Command, cfg?: Config): string | undefined {
+  const opts = program.opts();
+  if (opts.gasMode) return opts.gasMode;
+  if (process.env.ALCHEMY_GAS_MODE) return process.env.ALCHEMY_GAS_MODE;
+  const config = cfg ?? load();
+  return config.gas_mode;
+}
+
+export function resolveGasPolicyId(program: Command, cfg?: Config): string | undefined {
+  const opts = program.opts();
+  if (opts.gasPolicyId) return opts.gasPolicyId;
+  if (process.env.ALCHEMY_GAS_POLICY_ID) return process.env.ALCHEMY_GAS_POLICY_ID;
+  const config = cfg ?? load();
+  return config.gas_policy_id;
+}
+
 export function clientFromFlags(program: Command, opts?: { defaultNetwork?: string }): AlchemyClient {
   const cfg = load();
   const network = resolveNetwork(program, cfg, opts?.defaultNetwork);
