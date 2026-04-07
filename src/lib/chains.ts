@@ -2,7 +2,7 @@ import type { Chain } from "viem";
 import * as viemChains from "viem/chains";
 import { errInvalidArgs } from "./errors.js";
 
-const SLUG_TO_CHAIN: Record<string, Chain> = {
+const NETWORK_TO_CHAIN: Record<string, Chain> = {
   "eth-mainnet": viemChains.mainnet,
   "eth-sepolia": viemChains.sepolia,
   "eth-holesky": viemChains.holesky,
@@ -44,9 +44,9 @@ const SLUG_TO_CHAIN: Record<string, Chain> = {
 };
 
 export function networkToChain(network: string): Chain {
-  const chain = SLUG_TO_CHAIN[network];
+  const chain = NETWORK_TO_CHAIN[network];
   if (!chain) {
-    const supported = Object.keys(SLUG_TO_CHAIN).sort().join(", ");
+    const supported = Object.keys(NETWORK_TO_CHAIN).sort().join(", ");
     throw errInvalidArgs(
       `Network "${network}" is not supported for wallet operations. Supported networks: ${supported}`,
     );
@@ -55,5 +55,5 @@ export function networkToChain(network: string): Chain {
 }
 
 export function supportedNetworks(): string[] {
-  return Object.keys(SLUG_TO_CHAIN).sort();
+  return Object.keys(NETWORK_TO_CHAIN).sort();
 }
