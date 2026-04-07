@@ -2,12 +2,23 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { Command } from "commander";
-import { generateWallet, getWalletAddress } from "@alchemy/x402";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import * as config from "../lib/config.js";
 import { resolveWalletKey } from "../lib/resolve.js";
 import { printHuman, isJSONMode, printJSON } from "../lib/output.js";
 import { errInvalidArgs, errWalletKeyRequired, exitWithError } from "../lib/errors.js";
 import { green, printKeyValueBox } from "../lib/ui.js";
+
+function createWallet(): { privateKey: `0x${string}`; address: `0x${string}` } {
+  const privateKey = generatePrivateKey();
+  const account = privateKeyToAccount(privateKey);
+  return { privateKey, address: account.address };
+}
+
+function getWalletAddress(privateKey: string): `0x${string}` {
+  const normalized = (privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`) as `0x${string}`;
+  return privateKeyToAccount(normalized).address;
+}
 
 const WALLET_KEYS_DIR = "wallet-keys";
 const UUID_SLICE_LEN = 8;
@@ -38,7 +49,7 @@ function persistWalletKey(privateKey: string, address: string): string {
 }
 
 export function generateAndPersistWallet(): { address: string; keyFile: string } {
-  const wallet = generateWallet();
+  const wallet = createWallet();
   const keyPath = persistWalletKey(wallet.privateKey, wallet.address);
 
   const cfg = config.load();
@@ -63,28 +74,35 @@ export function importAndPersistWallet(path: string): { address: string; keyFile
 }
 
 export function registerWallet(program: Command) {
-  const cmd = program.command("wallet").description("Manage x402 wallet");
+  const cmd = program.command("wallet").description("Manage wallet");
+
+  const createAction = () => {
+    try {
+      const wallet = generateAndPersistWallet();
+
+      if (isJSONMode()) {
+        printJSON(wallet);
+      } else {
+        printKeyValueBox([
+          ["Address", green(wallet.address)],
+          ["Key file", wallet.keyFile],
+        ]);
+        console.log(`  ${green("✓")} Wallet created and saved to config`);
+      }
+    } catch (err) {
+      exitWithError(err);
+    }
+  };
+
+  cmd
+    .command("create")
+    .description("Create a new wallet")
+    .action(createAction);
 
   cmd
     .command("generate")
-    .description("Generate a new wallet for x402 authentication")
-    .action(() => {
-      try {
-        const wallet = generateAndPersistWallet();
-
-        if (isJSONMode()) {
-          printJSON(wallet);
-        } else {
-          printKeyValueBox([
-            ["Address", green(wallet.address)],
-            ["Key file", wallet.keyFile],
-          ]);
-          console.log(`  ${green("✓")} Wallet generated and saved to config`);
-        }
-      } catch (err) {
-        exitWithError(err);
-      }
-    });
+    .description("Generate a new wallet (alias for create)")
+    .action(createAction);
 
   cmd
     .command("import")

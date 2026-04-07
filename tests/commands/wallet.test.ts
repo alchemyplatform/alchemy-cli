@@ -33,12 +33,9 @@ describe("wallet command", () => {
       green: (s: string) => s,
       printKeyValueBox: vi.fn(),
     }));
-    vi.doMock("@alchemy/x402", () => ({
-      generateWallet: () => ({
-        privateKey: "0xwallet",
-        address: "0xaddress",
-      }),
-      getWalletAddress: vi.fn(),
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: () => "0xwallet",
+      privateKeyToAccount: (key: string) => ({ address: key === "0xwallet" ? "0xaddress" : "0xunknown" }),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
@@ -79,6 +76,61 @@ describe("wallet command", () => {
     else process.env.ALCHEMY_CONFIG = originalAlchemyCfg;
   });
 
+  it("wallet create writes key/config and emits JSON", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+    const originalHome = process.env.HOME;
+    const originalXdg = process.env.XDG_CONFIG_HOME;
+    const originalAlchemyCfg = process.env.ALCHEMY_CONFIG;
+    const tempHome = mkdtempSync(join(tmpdir(), "alchemy-wallet-test-"));
+    process.env.HOME = tempHome;
+    delete process.env.XDG_CONFIG_HOME;
+    delete process.env.ALCHEMY_CONFIG;
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: () => "0xwallet",
+      privateKeyToAccount: (key: string) => ({ address: key === "0xwallet" ? "0xaddress" : "0xunknown" }),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "create"], {
+      from: "node",
+    });
+
+    const printedWallet = printJSON.mock.calls[0]?.[0] as {
+      address: string;
+      keyFile: string;
+    };
+    expect(printedWallet).toMatchObject({ address: "0xaddress" });
+    expect(printedWallet.keyFile).toMatch(
+      new RegExp(`${tempHome}/\\.config/alchemy/wallet-keys/wallet-key-[a-z0-9]{1,12}-\\d+-[a-f0-9]{8}\\.txt$`),
+    );
+    expect(exitWithError).not.toHaveBeenCalled();
+
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+    if (originalXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = originalXdg;
+    if (originalAlchemyCfg === undefined) delete process.env.ALCHEMY_CONFIG;
+    else process.env.ALCHEMY_CONFIG = originalAlchemyCfg;
+  });
+
   it("wallet import forwards read failures to exitWithError", async () => {
     const exitWithError = vi.fn();
 
@@ -106,9 +158,9 @@ describe("wallet command", () => {
       green: (s: string) => s,
       printKeyValueBox: vi.fn(),
     }));
-    vi.doMock("@alchemy/x402", () => ({
-      generateWallet: vi.fn(),
-      getWalletAddress: vi.fn(),
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: vi.fn(),
+      privateKeyToAccount: vi.fn(),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
@@ -149,9 +201,9 @@ describe("wallet command", () => {
       green: (s: string) => s,
       printKeyValueBox: vi.fn(),
     }));
-    vi.doMock("@alchemy/x402", () => ({
-      generateWallet: vi.fn(),
-      getWalletAddress: () => "0xaddress",
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: vi.fn(),
+      privateKeyToAccount: () => ({ address: "0xaddress" }),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
