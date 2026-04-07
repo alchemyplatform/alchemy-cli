@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import * as config from "../lib/config.js";
 import { resolveWalletKey } from "../lib/resolve.js";
+import QRCode from "qrcode";
 import { printHuman, isJSONMode, printJSON } from "../lib/output.js";
 import { errInvalidArgs, errWalletKeyRequired, exitWithError } from "../lib/errors.js";
 import { green, printKeyValueBox } from "../lib/ui.js";
@@ -140,6 +141,29 @@ export function registerWallet(program: Command) {
           `${address}\n`,
           { address },
         );
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  cmd
+    .command("qr")
+    .description("Display the wallet address as a QR code")
+    .action(async () => {
+      try {
+        const key = resolveWalletKey(program);
+        if (!key) throw errWalletKeyRequired();
+
+        const address = getWalletAddress(key);
+
+        if (isJSONMode()) {
+          printJSON({ address });
+        } else {
+          const qr = await QRCode.toString(address, { type: "terminal", small: true });
+          console.log();
+          console.log(qr);
+          console.log(`  ${address}`);
+        }
       } catch (err) {
         exitWithError(err);
       }
