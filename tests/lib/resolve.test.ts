@@ -139,6 +139,32 @@ describe("resolve.ts precedence", () => {
     expect(x402Ctor).not.toHaveBeenCalled();
   });
 
+  it("resolveGasSponsored order: flag > env > config", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ gas_sponsored: true }),
+    }));
+    const { resolveGasSponsored } = await import("../../src/lib/resolve.js");
+
+    process.env.ALCHEMY_GAS_SPONSORED = "false";
+    expect(resolveGasSponsored(makeProgram({ gasSponsored: true }))).toBe(true);
+    expect(resolveGasSponsored(makeProgram({}))).toBe(false);
+    delete process.env.ALCHEMY_GAS_SPONSORED;
+    expect(resolveGasSponsored(makeProgram({}))).toBe(true);
+  });
+
+  it("resolveGasPolicyId order: flag > env > config", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ gas_policy_id: "cfg-policy" }),
+    }));
+    const { resolveGasPolicyId } = await import("../../src/lib/resolve.js");
+
+    process.env.ALCHEMY_GAS_POLICY_ID = "env-policy";
+    expect(resolveGasPolicyId(makeProgram({ gasPolicyId: "flag-policy" }))).toBe("flag-policy");
+    expect(resolveGasPolicyId(makeProgram({}))).toBe("env-policy");
+    delete process.env.ALCHEMY_GAS_POLICY_ID;
+    expect(resolveGasPolicyId(makeProgram({}))).toBe("cfg-policy");
+  });
+
   it("clientFromFlags throws AUTH_REQUIRED when x402 is enabled without wallet key", async () => {
     vi.doMock("node:fs", () => ({
       readFileSync: () => "",

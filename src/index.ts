@@ -32,6 +32,7 @@ import { registerSolana } from "./commands/solana.js";
 import { registerGas } from "./commands/gas.js";
 import { registerLogs } from "./commands/logs.js";
 import { registerCompletions } from "./commands/completions.js";
+import { registerSend } from "./commands/send.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
@@ -47,7 +48,7 @@ const hDim = esc("2");
 const ROOT_OPTION_GROUPS = [
   {
     label: "Auth & Network",
-    matchers: ["--api-key", "--access-key", "--network", "--x402", "--wallet-key-file"],
+    matchers: ["--api-key", "--access-key", "--network", "--x402", "--wallet-key-file", "--gas-sponsored", "--gas-policy-id"],
   },
   {
     label: "Output & Formatting",
@@ -67,6 +68,10 @@ const ROOT_COMMAND_PILLARS = [
   {
     label: "Data",
     commands: ["tokens", "nfts", "transfers", "prices", "portfolio", "simulate"],
+  },
+  {
+    label: "Execution",
+    commands: ["send"],
   },
   {
     label: "Wallets",
@@ -150,6 +155,8 @@ program
   )
   .option("--x402", "Use x402 wallet-based gateway auth")
   .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
+  .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
+  .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
   .option("--json", "Force JSON output (auto-enabled when piped)")
   .option("-q, --quiet", "Suppress non-essential output")
   .option("--verbose", "Enable verbose output")
@@ -437,6 +444,9 @@ registerTransfers(program);
 registerPrices(program);
 registerPortfolio(program);
 registerSimulate(program);
+
+// Execution
+registerSend(program);
 
 // Wallets
 registerWallet(program);

@@ -353,6 +353,40 @@ export function registerConfig(program: Command) {
       }
     });
 
+  setCmd
+    .command("gas-sponsored <enabled>")
+    .description("Enable or disable gas sponsorship by default (true|false)")
+    .action((enabled: string) => {
+      try {
+        const normalized = enabled.trim().toLowerCase();
+        if (normalized !== "true" && normalized !== "false") {
+          throw errInvalidArgs("gas-sponsored must be 'true' or 'false'");
+        }
+        const gas_sponsored = normalized === "true";
+        const cfg = config.load();
+        config.save({ ...cfg, gas_sponsored });
+        printHuman(
+          `${green("✓")} Set gas-sponsored to ${gas_sponsored}\n`,
+          { key: "gas-sponsored", value: String(gas_sponsored), status: "set" },
+        );
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  setCmd
+    .command("gas-policy-id <id>")
+    .description("Set the gas policy ID for sponsored transactions")
+    .action((id: string) => {
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, gas_policy_id: id });
+        printHuman(`${green("✓")} Set gas-policy-id\n`, { key: "gas-policy-id", status: "set" });
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
   // ── config get ─────────────────────────────────────────────────────
 
   cmd
@@ -369,6 +403,7 @@ export function registerConfig(program: Command) {
           network: "eth-mainnet",
           verbose: "false",
           x402: "false",
+          gas_sponsored: "false",
         };
         const normalizedKey = config.KEY_MAP[key] ?? key;
         const defaultValue = defaults[normalizedKey] ?? defaults[key];
@@ -444,6 +479,13 @@ export function registerConfig(program: Command) {
             ? String(cfg.x402)
             : dim("(not set, defaults to false)"),
         ],
+        [
+          "gas-sponsored",
+          cfg.gas_sponsored !== undefined
+            ? String(cfg.gas_sponsored)
+            : dim("(not set, defaults to false)"),
+        ],
+        ["gas-policy-id", cfg.gas_policy_id || dim("(not set)")],
       ];
 
       printKeyValueBox(pairs);

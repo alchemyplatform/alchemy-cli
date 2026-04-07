@@ -64,6 +64,22 @@ describe("config set/get", () => {
   it("returns undefined for unknown key get", () => {
     expect(config.get({}, "unknown")).toBeUndefined();
   });
+
+  it("sets and gets gas-sponsored", () => {
+    const cfg: config.Config = {};
+    const { ok, config: updated } = config.set(cfg, "gas-sponsored", "true");
+    expect(ok).toBe(true);
+    expect(updated.gas_sponsored).toBe(true);
+    expect(config.get(updated, "gas-sponsored")).toBe("true");
+  });
+
+  it("sets and gets gas-policy-id", () => {
+    const cfg: config.Config = {};
+    const { ok, config: updated } = config.set(cfg, "gas-policy-id", "policy-123");
+    expect(ok).toBe(true);
+    expect(config.get(updated, "gas-policy-id")).toBe("policy-123");
+    expect(config.get(updated, "gas_policy_id")).toBe("policy-123");
+  });
 });
 
 describe("config toMap", () => {

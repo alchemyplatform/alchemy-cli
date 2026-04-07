@@ -42,16 +42,20 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@alchemy/wallet-apis": "5.0.0-beta.22",
     "@alchemy/x402": "^0.4.0",
     "@noble/hashes": "^2.0.1",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.3",
+    "qrcode": "^1.5.4",
+    "viem": "^2.47.10",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.6.0",
     "@changesets/cli": "^2.30.0",
     "@types/node": "^25.3.0",
+    "@types/qrcode": "^1.5.6",
     "@vitest/coverage-v8": "^4.0.18",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",

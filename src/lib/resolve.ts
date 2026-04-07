@@ -108,6 +108,24 @@ export function resolveWalletKey(program: Command, cfg?: Config): string | undef
   return undefined;
 }
 
+export function resolveGasSponsored(program: Command, cfg?: Config): boolean {
+  const opts = program.opts();
+  if (opts.gasSponsored) return true;
+  if (process.env.ALCHEMY_GAS_SPONSORED) {
+    return process.env.ALCHEMY_GAS_SPONSORED.trim().toLowerCase() === "true";
+  }
+  const config = cfg ?? load();
+  return config.gas_sponsored === true;
+}
+
+export function resolveGasPolicyId(program: Command, cfg?: Config): string | undefined {
+  const opts = program.opts();
+  if (opts.gasPolicyId) return opts.gasPolicyId;
+  if (process.env.ALCHEMY_GAS_POLICY_ID) return process.env.ALCHEMY_GAS_POLICY_ID;
+  const config = cfg ?? load();
+  return config.gas_policy_id;
+}
+
 export function clientFromFlags(program: Command, opts?: { defaultNetwork?: string }): AlchemyClient {
   const cfg = load();
   const network = resolveNetwork(program, cfg, opts?.defaultNetwork);
