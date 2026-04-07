@@ -2,7 +2,7 @@ import { createSmartWalletClient, alchemyWalletTransport } from "@alchemy/wallet
 import { privateKeyToAccount } from "viem/accounts";
 import type { Chain, Address } from "viem";
 import type { Command } from "commander";
-import { resolveAPIKey, resolveWalletKey, resolveNetwork, resolveGasMode, resolveGasPolicyId } from "./resolve.js";
+import { resolveAPIKey, resolveWalletKey, resolveNetwork, resolveGasSponsored, resolveGasPolicyId } from "./resolve.js";
 import { networkToChain } from "./chains.js";
 import { errAuthRequired, errWalletKeyRequired, errInvalidArgs } from "./errors.js";
 
@@ -32,18 +32,18 @@ export function buildWalletClient(program: Command): WalletContext {
 
   const network = resolveNetwork(program);
   const chain = networkToChain(network);
-  const gasMode = resolveGasMode(program);
+  const gasSponsored = resolveGasSponsored(program);
   const gasPolicyId = resolveGasPolicyId(program);
 
-  if (gasMode === "sponsored" && !gasPolicyId) {
+  if (gasSponsored && !gasPolicyId) {
     throw errInvalidArgs(
-      "Gas mode \"sponsored\" requires a gas policy ID. Set one with --gas-policy-id or `alchemy config set gas-policy-id <id>`.",
+      "Gas sponsorship requires a gas policy ID. Set one with --gas-policy-id or `alchemy config set gas-policy-id <id>`.",
     );
   }
 
   const signer = privateKeyToAccount(normalizeKey(walletKey));
 
-  const paymaster = gasMode === "sponsored" && gasPolicyId
+  const paymaster = gasSponsored && gasPolicyId
     ? { policyId: gasPolicyId }
     : undefined;
 

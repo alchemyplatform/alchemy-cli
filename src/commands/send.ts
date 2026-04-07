@@ -82,7 +82,7 @@ Examples:
   alchemy send 0xAbC...123 1.5                          Send 1.5 ETH
   alchemy send vitalik.eth 0.1 -n base-mainnet          Send 0.1 ETH on Base
   alchemy send 0xAbC...123 100 --token 0xA0b8...USDC    Send 100 USDC
-  alchemy send 0xAbC...123 1 --gas-mode sponsored --gas-policy-id <id>`,
+  alchemy send 0xAbC...123 1 --gas-sponsored --gas-policy-id <id>`,
     )
     .action(async (toArg: string, amountArg: string, opts: { token?: string }) => {
       try {

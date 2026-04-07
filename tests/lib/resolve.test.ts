@@ -139,17 +139,17 @@ describe("resolve.ts precedence", () => {
     expect(x402Ctor).not.toHaveBeenCalled();
   });
 
-  it("resolveGasMode order: flag > env > config", async () => {
+  it("resolveGasSponsored order: flag > env > config", async () => {
     vi.doMock("../../src/lib/config.js", () => ({
-      load: () => ({ gas_mode: "wallet-paid" }),
+      load: () => ({ gas_sponsored: true }),
     }));
-    const { resolveGasMode } = await import("../../src/lib/resolve.js");
+    const { resolveGasSponsored } = await import("../../src/lib/resolve.js");
 
-    process.env.ALCHEMY_GAS_MODE = "sponsored";
-    expect(resolveGasMode(makeProgram({ gasMode: "sponsored" }))).toBe("sponsored");
-    expect(resolveGasMode(makeProgram({}))).toBe("sponsored");
-    delete process.env.ALCHEMY_GAS_MODE;
-    expect(resolveGasMode(makeProgram({}))).toBe("wallet-paid");
+    process.env.ALCHEMY_GAS_SPONSORED = "false";
+    expect(resolveGasSponsored(makeProgram({ gasSponsored: true }))).toBe(true);
+    expect(resolveGasSponsored(makeProgram({}))).toBe(false);
+    delete process.env.ALCHEMY_GAS_SPONSORED;
+    expect(resolveGasSponsored(makeProgram({}))).toBe(true);
   });
 
   it("resolveGasPolicyId order: flag > env > config", async () => {

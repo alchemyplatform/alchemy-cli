@@ -108,12 +108,14 @@ export function resolveWalletKey(program: Command, cfg?: Config): string | undef
   return undefined;
 }
 
-export function resolveGasMode(program: Command, cfg?: Config): string | undefined {
+export function resolveGasSponsored(program: Command, cfg?: Config): boolean {
   const opts = program.opts();
-  if (opts.gasMode) return opts.gasMode;
-  if (process.env.ALCHEMY_GAS_MODE) return process.env.ALCHEMY_GAS_MODE;
+  if (opts.gasSponsored) return true;
+  if (process.env.ALCHEMY_GAS_SPONSORED) {
+    return process.env.ALCHEMY_GAS_SPONSORED.trim().toLowerCase() === "true";
+  }
   const config = cfg ?? load();
-  return config.gas_mode;
+  return config.gas_sponsored === true;
 }
 
 export function resolveGasPolicyId(program: Command, cfg?: Config): string | undefined {

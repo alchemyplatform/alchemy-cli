@@ -65,12 +65,12 @@ describe("config set/get", () => {
     expect(config.get({}, "unknown")).toBeUndefined();
   });
 
-  it("sets and gets gas-mode", () => {
+  it("sets and gets gas-sponsored", () => {
     const cfg: config.Config = {};
-    const { ok, config: updated } = config.set(cfg, "gas-mode", "sponsored");
+    const { ok, config: updated } = config.set(cfg, "gas-sponsored", "true");
     expect(ok).toBe(true);
-    expect(config.get(updated, "gas-mode")).toBe("sponsored");
-    expect(config.get(updated, "gas_mode")).toBe("sponsored");
+    expect(updated.gas_sponsored).toBe(true);
+    expect(config.get(updated, "gas-sponsored")).toBe("true");
   });
 
   it("sets and gets gas-policy-id", () => {
