@@ -24,24 +24,24 @@ function hasX402Wallet(cfg: Config): boolean {
   return cfg.x402 === true && Boolean(cfg.wallet_key_file?.trim());
 }
 
-function hasAuthToken(cfg: Config): boolean {
-  return resolveAuthToken(cfg) !== undefined;
+async function hasAuthToken(cfg: Config): Promise<boolean> {
+  return (await resolveAuthToken(cfg)) !== undefined;
 }
 
-export function getSetupMethod(cfg: Config): SetupMethod | null {
+export async function getSetupMethod(cfg: Config): Promise<SetupMethod | null> {
   if (hasAPIKey(cfg)) return "api_key";
   if (hasAccessKeyAndApp(cfg)) return "access_key_app";
   if (hasX402Wallet(cfg)) return "x402_wallet";
-  if (hasAuthToken(cfg)) return "auth_token";
+  if (await hasAuthToken(cfg)) return "auth_token";
   return null;
 }
 
-export function isSetupComplete(cfg: Config): boolean {
-  return getSetupMethod(cfg) !== null;
+export async function isSetupComplete(cfg: Config): Promise<boolean> {
+  return (await getSetupMethod(cfg)) !== null;
 }
 
-export function getSetupStatus(cfg: Config): SetupStatus {
-  const satisfiedBy = getSetupMethod(cfg);
+export async function getSetupStatus(cfg: Config): Promise<SetupStatus> {
+  const satisfiedBy = await getSetupMethod(cfg);
   if (satisfiedBy) {
     return {
       complete: true,
@@ -64,6 +64,6 @@ export function getSetupStatus(cfg: Config): SetupStatus {
   };
 }
 
-export function shouldRunOnboarding(program: Command, cfg: Config): boolean {
-  return isInteractiveAllowed(program) && !isSetupComplete(cfg);
+export async function shouldRunOnboarding(program: Command, cfg: Config): Promise<boolean> {
+  return isInteractiveAllowed(program) && !(await isSetupComplete(cfg));
 }

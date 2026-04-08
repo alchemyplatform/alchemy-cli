@@ -353,7 +353,7 @@ program
       !process.env.ALCHEMY_API_KEY
     ) {
       const { resolveAuthToken } = await import("./lib/resolve.js");
-      const authToken = resolveAuthToken(cfg);
+      const authToken = await resolveAuthToken(cfg);
       const hasApiKey = Boolean(cfg.api_key?.trim() || cfg.app?.apiKey);
       if (authToken && !hasApiKey) {
         const { selectAppAfterAuth } = await import("./commands/auth.js");
@@ -386,13 +386,13 @@ program
     }
 
     const cfg = loadConfig();
-    if (!isSetupComplete(cfg) && !isInteractiveAllowed(program)) {
-      throw errSetupRequired(getSetupStatus(cfg));
+    if (!(await isSetupComplete(cfg)) && !isInteractiveAllowed(program)) {
+      throw errSetupRequired(await getSetupStatus(cfg));
     }
 
     if (isInteractiveAllowed(program)) {
       let latestForInteractiveStartup: string | null = null;
-      if (shouldRunOnboarding(program, cfg)) {
+      if (await shouldRunOnboarding(program, cfg)) {
         const { runOnboarding } = await import("./commands/onboarding.js");
         const latest = getAvailableUpdateOnce();
         const completed = await runOnboarding(program, latest);

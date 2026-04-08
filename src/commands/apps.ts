@@ -90,7 +90,7 @@ export function registerApps(program: Command) {
     .option("--id <appId>", "Filter by exact app id (client-side)")
     .action(async (opts) => {
       try {
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const fetchAll = Boolean(opts.all);
         const hasSearch = typeof opts.search === "string";
         const hasId = typeof opts.id === "string";
@@ -239,7 +239,7 @@ export function registerApps(program: Command) {
     .description("Get app details")
     .action(async (id: string) => {
       try {
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const app = await withSpinner("Fetching app…", "App fetched", () =>
           admin.getApp(id),
         );
@@ -289,7 +289,7 @@ export function registerApps(program: Command) {
 
         if (handleDryRun(opts, "create", payload, `Would create app "${opts.name}" on networks: ${networks.join(", ")}`)) return;
 
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const app = await withSpinner("Creating app…", "App created", () =>
           admin.createApp({
             name: opts.name,
@@ -338,7 +338,7 @@ export function registerApps(program: Command) {
           }
         }
 
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         await withSpinner("Deleting app…", "App deleted", () =>
           admin.deleteApp(id),
         );
@@ -376,7 +376,7 @@ export function registerApps(program: Command) {
 
         if (handleDryRun(opts, "update", payload, `Would update app ${id}`)) return;
 
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const app = await withSpinner("Updating app…", "App updated", () =>
           admin.updateApp(id, {
             name: opts.name,
@@ -408,7 +408,7 @@ export function registerApps(program: Command) {
 
         if (handleDryRun(opts, "networks", { id, networks }, `Would update networks for app ${id}: ${networks.join(", ")}`)) return;
 
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const app = await withSpinner(
           "Updating networks…",
           "Networks updated",
@@ -441,7 +441,7 @@ export function registerApps(program: Command) {
 
         if (handleDryRun(opts, "address-allowlist", { id, addresses: entries }, `Would update address allowlist for app ${id}`)) return;
 
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const app = await withSpinner(
           "Updating address allowlist…",
           "Address allowlist updated",
@@ -474,7 +474,7 @@ export function registerApps(program: Command) {
 
         if (handleDryRun(opts, "origin-allowlist", { id, origins: entries }, `Would update origin allowlist for app ${id}`)) return;
 
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const app = await withSpinner(
           "Updating origin allowlist…",
           "Origin allowlist updated",
@@ -507,7 +507,7 @@ export function registerApps(program: Command) {
 
         if (handleDryRun(opts, "ip-allowlist", { id, ips: entries }, `Would update IP allowlist for app ${id}`)) return;
 
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const app = await withSpinner(
           "Updating IP allowlist…",
           "IP allowlist updated",
@@ -535,7 +535,7 @@ export function registerApps(program: Command) {
     .option("--app-id <id>", "App ID (overrides saved app)")
     .action(async (opts: { appId?: string }) => {
       try {
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const appId = opts.appId || resolveAppId(program);
         if (!appId) throw errAppRequired();
 
@@ -577,7 +577,7 @@ export function registerApps(program: Command) {
     .description("Select an app to use as the default")
     .action(async (id?: string) => {
       try {
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         let selected: App;
 
         if (id) {
@@ -643,7 +643,7 @@ export function registerApps(program: Command) {
     .description("List Admin API chain identifiers for app configuration (e.g. ETH_MAINNET)")
     .action(async () => {
       try {
-        const admin = adminClientFromFlags(program);
+        const admin = await adminClientFromFlags(program);
         const chains = await withSpinner(
           "Fetching chains…",
           "Chains fetched",

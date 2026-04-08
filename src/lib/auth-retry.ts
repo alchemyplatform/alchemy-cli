@@ -13,7 +13,7 @@ export async function withAuthRetry<T>(
   fn: (authToken: string) => Promise<T>,
 ): Promise<T> {
   const cfg = load();
-  const token = resolveAuthToken(cfg);
+  const token = await resolveAuthToken(cfg);
   if (!token) {
     throw new Error("Not authenticated or session expired. Run 'alchemy auth' to log in.");
   }

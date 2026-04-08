@@ -27,7 +27,7 @@ export function registerAuth(program: Command) {
       try {
         // Skip browser flow if we already have a valid token
         if (!opts.force) {
-          const existing = resolveAuthToken();
+          const existing = await resolveAuthToken();
           if (existing) {
             printHuman(
               `  ${green("✓")} Already authenticated\n` +
@@ -41,7 +41,7 @@ export function registerAuth(program: Command) {
 
         // If --force, revoke the existing token server-side before re-authenticating
         if (opts.force) {
-          const existingCreds = getCredentials();
+          const existingCreds = await getCredentials();
           const tokenToRevoke = existingCreds?.auth_token;
           // Also check legacy config for tokens not yet migrated
           if (!tokenToRevoke) {
@@ -93,11 +93,11 @@ export function registerAuth(program: Command) {
         }
 
         const expiresAt = result.expiresAt;
-        const backend = getStorageBackend();
+        const backend = await getStorageBackend();
 
         printHuman(
           `  ${green("✓")} Logged in successfully\n` +
-            `  ${dim("Credentials stored in")} ${backend === "keychain" ? "macOS Keychain" : "~/.config/alchemy/.credentials.json"}\n` +
+            `  ${dim("Credentials stored in")} ${backend}\n` +
             `  ${dim("Expires:")} ${expiresAt}\n`,
           {
             status: "authenticated",
@@ -124,11 +124,11 @@ export function registerAuth(program: Command) {
   cmd
     .command("status")
     .description("Show current authentication status")
-    .action(() => {
+    .action(async () => {
       try {
-        const creds = getCredentials();
+        const creds = await getCredentials();
         const cfg = config.load();
-        const validToken = resolveAuthToken(cfg);
+        const validToken = await resolveAuthToken(cfg);
 
         // Check if there's any token at all (credential storage or legacy config)
         const hasToken = creds?.auth_token || cfg.auth_token;
@@ -149,9 +149,9 @@ export function registerAuth(program: Command) {
         }
 
         const expiresAt = creds?.auth_token_expires_at || cfg.auth_token_expires_at || "unknown";
-        const backend = getStorageBackend();
+        const backend = await getStorageBackend();
         const storedIn = creds?.auth_token
-          ? (backend === "keychain" ? "macOS Keychain" : "credential file")
+          ? backend
           : "config file (legacy)";
 
         printHuman(
@@ -177,7 +177,7 @@ export function registerAuth(program: Command) {
     .action(async () => {
       try {
         // Find the active token from credential storage or legacy config
-        const creds = getCredentials();
+        const creds = await getCredentials();
         const cfg = config.load();
         const activeToken = creds?.auth_token || cfg.auth_token;
 

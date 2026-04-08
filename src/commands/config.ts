@@ -407,13 +407,13 @@ export function registerConfig(program: Command) {
 
       const { resolveAuthToken } = await import("../lib/resolve.js");
       const { getCredentials, getStorageBackend } = await import("../lib/credential-storage.js");
-      const validToken = resolveAuthToken(cfg);
-      const creds = getCredentials();
+      const validToken = await resolveAuthToken(cfg);
+      const creds = await getCredentials();
       const hasToken = creds?.auth_token || cfg.auth_token;
       const expiresAt = creds?.auth_token_expires_at || cfg.auth_token_expires_at;
-      const backend = getStorageBackend();
+      const backend = await getStorageBackend();
       const storageName = creds?.auth_token
-        ? (backend === "keychain" ? "keychain" : "credential file")
+        ? backend
         : (cfg.auth_token ? "config (legacy)" : "");
       const authStatus = hasToken
         ? validToken

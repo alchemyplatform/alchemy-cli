@@ -48,9 +48,9 @@ export function resolveAppId(program: Command, cfg?: Config): string | undefined
   return undefined;
 }
 
-export function resolveAuthToken(cfg?: Config): string | undefined {
+export async function resolveAuthToken(cfg?: Config): Promise<string | undefined> {
   // 1. Check secure credential storage (Keychain / credential file)
-  const creds = getCredentials();
+  const creds = await getCredentials();
   if (creds?.auth_token?.trim()) {
     if (creds.auth_token_expires_at) {
       const expiry = new Date(creds.auth_token_expires_at);
@@ -73,12 +73,12 @@ export function resolveAuthToken(cfg?: Config): string | undefined {
   return config.auth_token;
 }
 
-export function adminClientFromFlags(program: Command): AdminClient {
+export async function adminClientFromFlags(program: Command): Promise<AdminClient> {
   const cfg = load();
   const accessKey = resolveAccessKey(program, cfg);
   if (accessKey) return new AdminClient(accessKey);
 
-  const authToken = resolveAuthToken(cfg);
+  const authToken = await resolveAuthToken(cfg);
   if (authToken) return new AdminClient({ type: "auth_token", token: authToken });
 
   throw errAccessKeyRequired();
@@ -167,7 +167,7 @@ export async function resolveConfiguredNetworkSlugs(
   const appId = appIdOverride || resolveAppId(program);
   if (!appId) throw errAppRequired();
 
-  const admin = adminClientFromFlags(program);
+  const admin = await adminClientFromFlags(program);
   const app = await admin.getApp(appId);
   const slugs = app.chainNetworks
     .map((network) => appNetworkToSlug(network.rpcUrl))
