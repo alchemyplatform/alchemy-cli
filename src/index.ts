@@ -48,7 +48,7 @@ const hDim = esc("2");
 const ROOT_OPTION_GROUPS = [
   {
     label: "Auth & Network",
-    matchers: ["--api-key", "--access-key", "--network", "--x402", "--wallet-key-file", "--gas-sponsored", "--gas-policy-id"],
+    matchers: ["--api-key", "--access-key", "--network", "--x402", "--wallet-key-file", "--solana-wallet-key-file", "--gas-sponsored", "--gas-policy-id"],
   },
   {
     label: "Output & Formatting",
@@ -155,6 +155,7 @@ program
   )
   .option("--x402", "Use x402 wallet-based gateway auth")
   .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
+  .option("--solana-wallet-key-file <path>", "Path to Solana wallet private key file")
   .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
   .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
   .option("--json", "Force JSON output (auto-enabled when piped)")

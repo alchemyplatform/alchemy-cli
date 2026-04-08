@@ -108,6 +108,25 @@ export function resolveWalletKey(program: Command, cfg?: Config): string | undef
   return undefined;
 }
 
+export function resolveSolanaWalletKey(program: Command, cfg?: Config): string | undefined {
+  const opts = program.opts();
+
+  if (opts.solanaWalletKeyFile) {
+    return readFileSync(opts.solanaWalletKeyFile, "utf-8").trim();
+  }
+
+  if (process.env.ALCHEMY_SOLANA_WALLET_KEY) {
+    return process.env.ALCHEMY_SOLANA_WALLET_KEY;
+  }
+
+  const config = cfg ?? load();
+  if (config.solana_wallet_key_file) {
+    return readFileSync(config.solana_wallet_key_file, "utf-8").trim();
+  }
+
+  return undefined;
+}
+
 export function resolveGasSponsored(program: Command, cfg?: Config): boolean {
   const opts = program.opts();
   if (opts.gasSponsored) return true;

@@ -25,6 +25,8 @@ export interface Config {
   auth_token_expires_at?: string;
   siwe_token?: string;
   siwe_token_expires_at?: string;
+  solana_wallet_key_file?: string;
+  solana_wallet_address?: string;
   gas_sponsored?: boolean;
   gas_policy_id?: string;
 }
@@ -47,6 +49,10 @@ export const KEY_MAP: Record<string, keyof Config> = {
   auth_token: "auth_token",
   "auth-token-expires-at": "auth_token_expires_at",
   auth_token_expires_at: "auth_token_expires_at",
+  "solana-wallet-key-file": "solana_wallet_key_file",
+  solana_wallet_key_file: "solana_wallet_key_file",
+  "solana-wallet-address": "solana_wallet_address",
+  solana_wallet_address: "solana_wallet_address",
   "gas-sponsored": "gas_sponsored",
   gas_sponsored: "gas_sponsored",
   "gas-policy-id": "gas_policy_id",
@@ -93,6 +99,8 @@ const configSchema = z
     auth_token_expires_at: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     siwe_token: safeTextSchema(MAX_PATH_LEN).optional().catch(undefined),
     siwe_token_expires_at: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    solana_wallet_key_file: safeTextSchema(MAX_PATH_LEN).optional().catch(undefined),
+    solana_wallet_address: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     gas_sponsored: z.boolean().optional().catch(undefined),
     gas_policy_id: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
   })
@@ -199,6 +207,8 @@ export function toMap(cfg: Config): Record<string, string> {
   if (cfg.x402 !== undefined) m["x402"] = String(cfg.x402);
   if (cfg.auth_token) m["auth-token"] = maskIf(cfg.auth_token);
   if (cfg.auth_token_expires_at) m["auth-token-expires-at"] = cfg.auth_token_expires_at;
+  if (cfg.solana_wallet_key_file) m["solana-wallet-key-file"] = cfg.solana_wallet_key_file;
+  if (cfg.solana_wallet_address) m["solana-wallet-address"] = cfg.solana_wallet_address;
   if (cfg.gas_sponsored !== undefined) m["gas-sponsored"] = String(cfg.gas_sponsored);
   if (cfg.gas_policy_id) m["gas-policy-id"] = cfg.gas_policy_id;
   return m;
