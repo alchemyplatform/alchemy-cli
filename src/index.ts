@@ -32,7 +32,7 @@ import { registerSolana } from "./commands/solana.js";
 import { registerGas } from "./commands/gas.js";
 import { registerLogs } from "./commands/logs.js";
 import { registerCompletions } from "./commands/completions.js";
-import { registerSend } from "./commands/send.js";
+import { registerSend } from "./commands/send/index.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";

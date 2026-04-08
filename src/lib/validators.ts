@@ -7,6 +7,7 @@ export function splitCommaList(input: string): string[] {
 }
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+const SOLANA_ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 
 export async function readStdinArg(name: string): Promise<string> {
@@ -67,6 +68,14 @@ export async function resolveAddress(input: string, client: AlchemyClient): Prom
   }
   validateAddress(input);
   return input;
+}
+
+export function validateSolanaAddress(addr: string): void {
+  if (!SOLANA_ADDRESS_RE.test(addr)) {
+    throw errInvalidArgs(
+      `Invalid Solana address "${addr}". Expected base58-encoded address (32-44 characters).`,
+    );
+  }
 }
 
 export function validateTxHash(hash: string): void {
