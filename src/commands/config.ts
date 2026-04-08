@@ -406,11 +406,19 @@ export function registerConfig(program: Command) {
       }
 
       const { resolveAuthToken } = await import("../lib/resolve.js");
+      const { getCredentials, getStorageBackend } = await import("../lib/credential-storage.js");
       const validToken = resolveAuthToken(cfg);
-      const authStatus = cfg.auth_token
+      const creds = getCredentials();
+      const hasToken = creds?.auth_token || cfg.auth_token;
+      const expiresAt = creds?.auth_token_expires_at || cfg.auth_token_expires_at;
+      const backend = getStorageBackend();
+      const storageName = creds?.auth_token
+        ? (backend === "keychain" ? "keychain" : "credential file")
+        : (cfg.auth_token ? "config (legacy)" : "");
+      const authStatus = hasToken
         ? validToken
-          ? `${green("✓")} authenticated${cfg.auth_token_expires_at ? ` ${dim(`(expires ${cfg.auth_token_expires_at})`)}` : ""}`
-          : `${yellow("◆")} expired${cfg.auth_token_expires_at ? ` ${dim(`(${cfg.auth_token_expires_at})`)}` : ""}`
+          ? `${green("✓")} authenticated${expiresAt ? ` ${dim(`(expires ${expiresAt})`)}` : ""}${storageName ? ` ${dim(`[${storageName}]`)}` : ""}`
+          : `${yellow("◆")} expired${expiresAt ? ` ${dim(`(${expiresAt})`)}` : ""}`
         : dim("(not set) — run 'alchemy auth' to log in");
 
       const pairs: Array<[string, string]> = [

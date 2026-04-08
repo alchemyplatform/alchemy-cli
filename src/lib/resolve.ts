@@ -9,6 +9,7 @@ import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
 import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errWalletKeyRequired } from "./errors.js";
 import { debug } from "./output.js";
+import { getCredentials } from "./credential-storage.js";
 
 export function resolveAPIKey(program: Command, cfg?: Config): string | undefined {
   const opts = program.opts();
@@ -48,9 +49,21 @@ export function resolveAppId(program: Command, cfg?: Config): string | undefined
 }
 
 export function resolveAuthToken(cfg?: Config): string | undefined {
+  // 1. Check secure credential storage (Keychain / credential file)
+  const creds = getCredentials();
+  if (creds?.auth_token?.trim()) {
+    if (creds.auth_token_expires_at) {
+      const expiry = new Date(creds.auth_token_expires_at);
+      if (!Number.isNaN(expiry.getTime()) && expiry <= new Date()) {
+        return undefined;
+      }
+    }
+    return creds.auth_token;
+  }
+
+  // 2. Legacy fallback: check config file (for users who haven't re-authenticated yet)
   const config = cfg ?? load();
   if (!config.auth_token?.trim()) return undefined;
-  // Check expiry
   if (config.auth_token_expires_at) {
     const expiry = new Date(config.auth_token_expires_at);
     if (!Number.isNaN(expiry.getTime()) && expiry <= new Date()) {

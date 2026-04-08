@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, getLoginUrl, performBrowserLogin, revokeToken } from "../lib/auth.js";
+import { AUTH_PORT, getLoginUrl, performBrowserLogin, revokeToken, getAuthorizeUrl } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -9,6 +9,7 @@ import { promptAutocomplete, promptText } from "../lib/terminal-ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { resolveAuthToken } from "../lib/resolve.js";
 import { green, dim, bold, brand, maskIf, withSpinner } from "../lib/ui.js";
+import { saveCredentials, deleteCredentials, getCredentials, getStorageBackend } from "../lib/credential-storage.js";
 
 export function registerAuth(program: Command) {
   const cmd = program
@@ -40,11 +41,19 @@ export function registerAuth(program: Command) {
 
         // If --force, revoke the existing token server-side before re-authenticating
         if (opts.force) {
-          const cfg = config.load();
-          if (cfg.auth_token) {
-            await revokeToken(cfg.auth_token);
-            config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+          const existingCreds = getCredentials();
+          const tokenToRevoke = existingCreds?.auth_token;
+          // Also check legacy config for tokens not yet migrated
+          if (!tokenToRevoke) {
+            const cfg = config.load();
+            if (cfg.auth_token) {
+              await revokeToken(cfg.auth_token);
+              config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+            }
+          } else {
+            await revokeToken(tokenToRevoke);
           }
+          deleteCredentials();
         }
 
         if (!isJSONMode()) {
@@ -71,23 +80,29 @@ export function registerAuth(program: Command) {
 
         const result = await performBrowserLogin();
 
-        // Save token to config
-        const cfg = config.load();
-        config.save({
-          ...cfg,
+        // Save token to secure credential storage (Keychain on macOS, file fallback)
+        saveCredentials({
           auth_token: result.token,
           auth_token_expires_at: result.expiresAt,
         });
+
+        // Clean up any legacy token from config.json
+        const cfg = config.load();
+        if (cfg.auth_token) {
+          config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+        }
+
         const expiresAt = result.expiresAt;
+        const backend = getStorageBackend();
 
         printHuman(
           `  ${green("✓")} Logged in successfully\n` +
-            `  ${dim("Token saved to")} ${config.configPath()}\n` +
+            `  ${dim("Credentials stored in")} ${backend === "keychain" ? "macOS Keychain" : "~/.config/alchemy/.credentials.json"}\n` +
             `  ${dim("Expires:")} ${expiresAt}\n`,
           {
             status: "authenticated",
             expiresAt,
-            configPath: config.configPath(),
+            storageBackend: backend,
           },
         );
 
@@ -111,10 +126,13 @@ export function registerAuth(program: Command) {
     .description("Show current authentication status")
     .action(() => {
       try {
+        const creds = getCredentials();
         const cfg = config.load();
         const validToken = resolveAuthToken(cfg);
 
-        if (!cfg.auth_token) {
+        // Check if there's any token at all (credential storage or legacy config)
+        const hasToken = creds?.auth_token || cfg.auth_token;
+        if (!hasToken) {
           printHuman(
             `  ${dim("Not authenticated. Run")} alchemy auth ${dim("to log in.")}\n`,
             { authenticated: false },
@@ -130,14 +148,22 @@ export function registerAuth(program: Command) {
           return;
         }
 
+        const expiresAt = creds?.auth_token_expires_at || cfg.auth_token_expires_at || "unknown";
+        const backend = getStorageBackend();
+        const storedIn = creds?.auth_token
+          ? (backend === "keychain" ? "macOS Keychain" : "credential file")
+          : "config file (legacy)";
+
         printHuman(
           `  ${green("✓")} Authenticated\n` +
             `  ${dim("Token:")} ${maskIf(validToken)}\n` +
-            `  ${dim("Expires:")} ${cfg.auth_token_expires_at || "unknown"}\n`,
+            `  ${dim("Storage:")} ${storedIn}\n` +
+            `  ${dim("Expires:")} ${expiresAt}\n`,
           {
             authenticated: true,
             expired: false,
-            expiresAt: cfg.auth_token_expires_at,
+            expiresAt,
+            storageBackend: storedIn,
           },
         );
       } catch (err) {
@@ -150,15 +176,26 @@ export function registerAuth(program: Command) {
     .description("Clear saved authentication token")
     .action(async () => {
       try {
+        // Find the active token from credential storage or legacy config
+        const creds = getCredentials();
         const cfg = config.load();
-        let revokeResult: Awaited<ReturnType<typeof revokeToken>> | undefined;
-        if (cfg.auth_token) {
-          revokeResult = await revokeToken(cfg.auth_token);
-        }
-        const { auth_token: _, auth_token_expires_at: __, ...rest } = cfg as Record<string, unknown>;
-        config.save(rest as config.Config);
+        const activeToken = creds?.auth_token || cfg.auth_token;
 
-        if (!cfg.auth_token) {
+        let revokeResult: Awaited<ReturnType<typeof revokeToken>> | undefined;
+        if (activeToken) {
+          revokeResult = await revokeToken(activeToken);
+        }
+
+        // Clear from secure credential storage
+        deleteCredentials();
+
+        // Clear any legacy token from config.json
+        if (cfg.auth_token) {
+          const { auth_token: _, auth_token_expires_at: __, ...rest } = cfg as Record<string, unknown>;
+          config.save(rest as config.Config);
+        }
+
+        if (!activeToken) {
           printHuman(
             `  ${dim("No active session.")}\n`,
             { status: "no_session" },

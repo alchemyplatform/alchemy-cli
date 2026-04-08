@@ -41,9 +41,8 @@ export async function runOnboarding(
   console.log(`  ${dim("Waiting for authentication...")}`);
   try {
     const result = await performBrowserLogin();
-    const cfg = loadConfig();
-    saveConfig({
-      ...cfg,
+    const { saveCredentials } = await import("../lib/credential-storage.js");
+    saveCredentials({
       auth_token: result.token,
       auth_token_expires_at: result.expiresAt,
     });
