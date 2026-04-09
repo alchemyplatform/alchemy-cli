@@ -15,7 +15,6 @@ import { parseAmount, fetchTokenDecimals } from "./send/shared.js";
 
 const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 const NATIVE_DECIMALS = 18;
-const DEFAULT_SLIPPAGE_PERCENT = 0.5;
 
 function isNativeToken(address: string): boolean {
   return address.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
@@ -84,7 +83,7 @@ export function registerSwap(program: Command) {
     .requiredOption("--from <address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
     .requiredOption("--to <address>", "Token address to swap to")
     .requiredOption("--amount <number>", "Amount to swap (human-readable)")
-    .option("--slippage <percent>", "Max slippage percentage (default: 0.5)")
+    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
     .addHelpText(
       "after",
       `
@@ -108,7 +107,7 @@ Examples:
     .requiredOption("--from <address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
     .requiredOption("--to <address>", "Token address to swap to")
     .requiredOption("--amount <number>", "Amount to swap (human-readable)")
-    .option("--slippage <percent>", "Max slippage percentage (default: 0.5)")
+    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
     .addHelpText(
       "after",
       `
@@ -153,7 +152,7 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
   // Resolve to-token info for display
   const toInfo = await resolveTokenInfo(network, program, opts.to);
 
-  // Extract expected output from quote response
+  // Extract the minimum receive amount from the quote response.
   const quoteData = extractQuoteData(quote);
 
   if (isJSONMode()) {
@@ -163,8 +162,8 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
       fromAmount: opts.amount,
       fromSymbol: fromInfo.symbol,
       toSymbol: toInfo.symbol,
-      expectedOutput: quoteData.expectedOutput ? formatTokenAmount(quoteData.expectedOutput, toInfo.decimals) : null,
-      slippage: String(slippage ?? DEFAULT_SLIPPAGE_PERCENT),
+      minimumOutput: quoteData.minimumOutput ? formatTokenAmount(quoteData.minimumOutput, toInfo.decimals) : null,
+      slippage: slippage === undefined ? null : String(slippage),
       network,
       quoteType: quoteData.type,
     });
@@ -173,14 +172,14 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
       ["From", green(`${opts.amount} ${fromInfo.symbol}`)],
     ];
 
-    if (quoteData.expectedOutput) {
-      pairs.push(["To", green(`~${formatTokenAmount(quoteData.expectedOutput, toInfo.decimals)} ${toInfo.symbol}`)]);
+    if (quoteData.minimumOutput) {
+      pairs.push(["Minimum Receive", green(`${formatTokenAmount(quoteData.minimumOutput, toInfo.decimals)} ${toInfo.symbol}`)]);
     } else {
       pairs.push(["To", `${toInfo.symbol}`]);
     }
 
     pairs.push(
-      ["Slippage", `${slippage ?? DEFAULT_SLIPPAGE_PERCENT}%`],
+      ["Slippage", slippage === undefined ? "API default" : `${slippage}%`],
       ["Network", network],
     );
 
@@ -283,7 +282,7 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
       fromAmount: opts.amount,
       fromSymbol: fromInfo.symbol,
       toSymbol: toInfo.symbol,
-      slippage: String(slippage ?? DEFAULT_SLIPPAGE_PERCENT),
+      slippage: slippage === undefined ? null : String(slippage),
       network,
       sponsored: !!paymaster,
       txHash: txHash ?? null,
@@ -294,7 +293,7 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
     const pairs: [string, string][] = [
       ["From", `${opts.amount} ${fromInfo.symbol}`],
       ["To", toInfo.symbol],
-      ["Slippage", `${slippage ?? DEFAULT_SLIPPAGE_PERCENT}%`],
+      ["Slippage", slippage === undefined ? "API default" : `${slippage}%`],
       ["Network", network],
     ];
 
@@ -314,11 +313,11 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function extractQuoteData(quote: any): { type: string; expectedOutput?: bigint } {
+function extractQuoteData(quote: any): { type: string; minimumOutput?: bigint } {
   const type = quote.type ?? "unknown";
 
   if (quote.quote?.minimumToAmount !== undefined) {
-    return { type, expectedOutput: BigInt(quote.quote.minimumToAmount) };
+    return { type, minimumOutput: BigInt(quote.quote.minimumToAmount) };
   }
 
   return { type };

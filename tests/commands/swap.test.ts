@@ -85,7 +85,8 @@ describe("swap command", () => {
       fromAmount: "1.0",
       fromSymbol: "POL",
       toSymbol: "USDC",
-      expectedOutput: "30",
+      minimumOutput: "30",
+      slippage: null,
       network: "polygon-mainnet",
       quoteType: "user-operation-v070",
     }));
@@ -186,6 +187,7 @@ describe("swap command", () => {
     expect(sendPreparedCalls).toHaveBeenCalledWith(signedQuote);
     expect(sendCalls).not.toHaveBeenCalled();
     expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
+      slippage: null,
       status: "success",
       txHash: "0xtxhash",
     }));
@@ -388,6 +390,7 @@ describe("swap command", () => {
   });
 
   it("passes explicit slippage when provided", async () => {
+    const printJSON = vi.fn();
     const requestQuoteV0 = vi.fn().mockResolvedValue({
       rawCalls: false,
       type: "user-operation-v070",
@@ -423,7 +426,7 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
-      printJSON: vi.fn(),
+      printJSON,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
@@ -453,5 +456,77 @@ describe("swap command", () => {
       fromAmount: 1000000000000000000n,
       slippage: 125n,
     }));
+    expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
+      minimumOutput: "30",
+      slippage: "1.25",
+    }));
+  });
+
+  it("renders minimum receive and API-default slippage in human output", async () => {
+    const printKeyValueBox = vi.fn();
+    const requestQuoteV0 = vi.fn().mockResolvedValue({
+      rawCalls: false,
+      type: "user-operation-v070",
+      quote: {
+        fromAmount: 1000000000000000000n,
+        minimumToAmount: 30000000n,
+        expiry: 123,
+      },
+      chainId: 137,
+      data: {},
+      feePayment: {
+        sponsored: false,
+        tokenAddress: USDC,
+        maxAmount: 0n,
+      },
+    });
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: {
+          extend: () => ({ requestQuoteV0 }),
+        },
+        network: "polygon-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({
+        call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
+      }),
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValueBox,
+      green: (s: string) => s,
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", NATIVE_TOKEN,
+      "--to", USDC,
+      "--amount", "1.0",
+    ], { from: "node" });
+
+    expect(printKeyValueBox).toHaveBeenCalledWith(expect.arrayContaining([
+      ["From", "1.0 POL"],
+      ["Minimum Receive", "30 USDC"],
+      ["Slippage", "API default"],
+      ["Network", "polygon-mainnet"],
+    ]));
   });
 });
