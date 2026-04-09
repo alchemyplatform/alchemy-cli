@@ -187,13 +187,11 @@ export function registerAuth(program: Command) {
         }
 
         // Clear from secure credential storage
-        deleteCredentials();
+        await deleteCredentials();
 
-        // Clear any legacy token from config.json
-        if (cfg.auth_token) {
-          const { auth_token: _, auth_token_expires_at: __, ...rest } = cfg as Record<string, unknown>;
-          config.save(rest as config.Config);
-        }
+        // Clear auth-related fields from config (token, expiry, and app selected during login)
+        const { auth_token: _, auth_token_expires_at: __, app: ___, ...rest } = cfg as Record<string, unknown>;
+        config.save(rest as config.Config);
 
         if (!activeToken) {
           printHuman(
