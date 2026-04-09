@@ -70,20 +70,37 @@ export function registerAuth(program: Command) {
           console.log("");
         }
 
+        // Race the prompt against the callback — if the user pastes the URL
+        // and completes auth in the browser, we don't need them to press Enter.
+        let browserOpened = false;
         if (!yes && !isJSONMode() && isInteractiveAllowed(program)) {
-          const answer = await promptText({
-            message: "Press Enter to open browser, or paste the URL above to log in manually",
-            cancelMessage: "Login cancelled.",
-          });
-          if (answer === null) return;
+          const promptResult = await Promise.race([
+            promptText({
+              message: "Press Enter to open browser, or paste the URL above to log in manually",
+              cancelMessage: "Login cancelled.",
+            }),
+            callbackPromise.then(() => "callback_received" as const),
+          ]);
+          if (promptResult === null) return; // user cancelled
+          if (promptResult !== "callback_received") {
+            // User pressed Enter — open browser
+            if (!isJSONMode()) {
+              console.log(`  Opening browser to log in...`);
+              console.log(`  ${dim("Waiting for authentication...")}`);
+            }
+            openBrowser(prepared.authorizeUrl);
+            browserOpened = true;
+          }
         }
 
-        if (!isJSONMode()) {
-          console.log(`  Opening browser to log in...`);
-          console.log(`  ${dim("Waiting for authentication...")}`);
+        if (!browserOpened && yes) {
+          if (!isJSONMode()) {
+            console.log(`  Opening browser to log in...`);
+            console.log(`  ${dim("Waiting for authentication...")}`);
+          }
+          openBrowser(prepared.authorizeUrl);
         }
 
-        openBrowser(prepared.authorizeUrl);
         const callback = await callbackPromise;
 
         // Validate state to prevent CSRF
