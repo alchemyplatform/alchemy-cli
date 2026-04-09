@@ -26,8 +26,6 @@ import { registerPrices } from "./commands/prices.js";
 import { registerPortfolio } from "./commands/portfolio.js";
 import { registerSimulate } from "./commands/simulate.js";
 import { registerWebhooks } from "./commands/webhooks.js";
-import { registerBundler } from "./commands/bundler.js";
-import { registerGasManager } from "./commands/gas-manager.js";
 import { registerSolana } from "./commands/solana.js";
 import { registerGas } from "./commands/gas.js";
 import { registerLogs } from "./commands/logs.js";
@@ -75,7 +73,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Wallets",
-    commands: ["wallet", "bundler", "gas-manager", "webhooks"],
+    commands: ["wallet", "webhooks"],
   },
   {
     label: "Chains",
@@ -450,8 +448,6 @@ registerSend(program);
 
 // Wallets
 registerWallet(program);
-registerBundler(program);
-registerGasManager(program);
 registerWebhooks(program);
 
 // Chains

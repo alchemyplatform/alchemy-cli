@@ -136,11 +136,6 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 | `wallet generate` | Generates wallet for x402 and saves to config | `alchemy wallet generate` |
 | `wallet import <path>` | Imports wallet key file for x402 | `alchemy wallet import ./private-key.txt` |
 | `wallet address` | Prints configured wallet address | `alchemy wallet address` |
-| `bundler send-user-operation ...` | Sends ERC-4337 user op | `alchemy bundler send-user-operation --user-op '{...}' --entry-point 0x...` |
-| `bundler estimate-user-operation-gas ...` | Estimates ERC-4337 user op gas | `alchemy bundler estimate-user-operation-gas --user-op '{...}' --entry-point 0x...` |
-| `bundler get-user-operation-receipt ...` | Gets ERC-4337 user op receipt | `alchemy bundler get-user-operation-receipt --user-op-hash 0x...` |
-| `gas-manager request-gas-and-paymaster --body <json>` | Requests paymaster data | `alchemy gas-manager request-gas-and-paymaster --body '{...}'` |
-| `gas-manager request-paymaster-token-quote --body <json>` | Gets paymaster token quote | `alchemy gas-manager request-paymaster-token-quote --body '{...}'` |
 | `webhooks list` | Lists Notify webhooks | `alchemy webhooks list --webhook-api-key <key>` |
 | `webhooks create --body <json>` | Creates Notify webhook | `alchemy webhooks create --body '{...}' --webhook-api-key <key>` |
 | `webhooks update --body <json>` | Updates Notify webhook | `alchemy webhooks update --body '{...}' --webhook-api-key <key>` |
@@ -239,10 +234,6 @@ Additional env vars:
 | `portfolio *` | `--body <json>` (required per subcommand) |
 | `simulate *` | `--tx <json>` or `--txs <json>` (required) |
 | `webhooks *` | `--webhook-api-key <key>` (or `ALCHEMY_WEBHOOK_API_KEY`, `ALCHEMY_NOTIFY_AUTH_TOKEN`, config `webhook-api-key`, or app webhook key) |
-| `bundler send-user-operation` | `--user-op <json>` (required), `--entry-point <address>` (required) |
-| `bundler estimate-user-operation-gas` | `--user-op <json>` (required), `--entry-point <address>` (required), `--state-override <json>` |
-| `bundler get-user-operation-receipt` | `--user-op-hash <hash>` (required) |
-| `gas-manager *` | `--body <json>` (required) |
 | `apps list` | `--cursor <cursor>`, `--limit <n>`, `--all`, `--search <query>`, `--id <appId>` |
 | `apps create` | `--name <name>` (required), `--networks <networks>` (required), `--description <desc>`, `--products <products>`, `--dry-run` |
 | `apps update` | `--name <name>`, `--description <desc>`, `--dry-run` |
