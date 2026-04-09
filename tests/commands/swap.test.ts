@@ -76,8 +76,8 @@ describe("swap command", () => {
       fromToken: NATIVE_TOKEN,
       toToken: USDC,
       fromAmount: 1000000000000000000n,
-      slippage: 50n,
     }));
+    expect(requestQuoteV0.mock.calls[0]?.[0]?.slippage).toBeUndefined();
 
     expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
       fromToken: NATIVE_TOKEN,
@@ -176,7 +176,12 @@ describe("swap command", () => {
       "--amount", "1.0",
     ], { from: "node" });
 
-    expect(requestQuoteV0).toHaveBeenCalled();
+    expect(requestQuoteV0).toHaveBeenCalledWith(expect.objectContaining({
+      fromToken: NATIVE_TOKEN,
+      toToken: USDC,
+      fromAmount: 1000000000000000000n,
+    }));
+    expect(requestQuoteV0.mock.calls[0]?.[0]?.slippage).toBeUndefined();
     expect(signPreparedCalls).toHaveBeenCalledWith(quote);
     expect(sendPreparedCalls).toHaveBeenCalledWith(signedQuote);
     expect(sendCalls).not.toHaveBeenCalled();
@@ -380,5 +385,73 @@ describe("swap command", () => {
     ], { from: "node" });
 
     expect(exitWithError).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes explicit slippage when provided", async () => {
+    const requestQuoteV0 = vi.fn().mockResolvedValue({
+      rawCalls: false,
+      type: "user-operation-v070",
+      quote: {
+        fromAmount: 1000000000000000000n,
+        minimumToAmount: 30000000n,
+        expiry: 123,
+      },
+      chainId: 137,
+      data: {},
+      feePayment: {
+        sponsored: false,
+        tokenAddress: USDC,
+        maxAmount: 0n,
+      },
+    });
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: {
+          extend: () => ({ requestQuoteV0 }),
+        },
+        network: "polygon-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({
+        call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
+      }),
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", NATIVE_TOKEN,
+      "--to", USDC,
+      "--amount", "1.0",
+      "--slippage", "1.25",
+    ], { from: "node" });
+
+    expect(requestQuoteV0).toHaveBeenCalledWith(expect.objectContaining({
+      fromToken: NATIVE_TOKEN,
+      toToken: USDC,
+      fromAmount: 1000000000000000000n,
+      slippage: 125n,
+    }));
   });
 });

@@ -5,6 +5,7 @@ import {
   type RequestQuoteV0Result,
 } from "@alchemy/wallet-apis/experimental";
 import { buildWalletClient } from "../lib/smart-wallet.js";
+import type { PaymasterConfig } from "../lib/smart-wallet.js";
 import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError, errInvalidArgs } from "../lib/errors.js";
@@ -51,6 +52,26 @@ interface SwapOpts {
 
 type PaymasterPermitQuote = Extract<RequestQuoteV0Result, { type: "paymaster-permit" }>;
 type RawCallsQuote = Extract<RequestQuoteV0Result, { rawCalls: true }>;
+
+function createQuoteRequest(
+  fromToken: string,
+  toToken: string,
+  fromAmount: bigint,
+  slippagePercent: number | undefined,
+  paymaster?: PaymasterConfig,
+) {
+  const request = {
+    fromToken: fromToken as Address,
+    toToken: toToken as Address,
+    fromAmount,
+    ...(slippagePercent !== undefined
+      ? { slippage: slippagePercentToBasisPoints(slippagePercent) }
+      : {}),
+    ...(paymaster ? { capabilities: { paymaster } } : {}),
+  };
+
+  return request as Parameters<ReturnType<ReturnType<typeof buildWalletClient>["client"]["extend"]>["requestQuoteV0"]>[0];
+}
 
 export function registerSwap(program: Command) {
   const cmd = program.command("swap").description("Swap tokens on the same chain");
@@ -118,21 +139,15 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
   const fromInfo = await resolveTokenInfo(network, program, opts.from);
   const rawAmount = parseAmount(opts.amount, fromInfo.decimals);
 
-  const slippage = opts.slippage ? parseFloat(opts.slippage) : DEFAULT_SLIPPAGE_PERCENT;
-  if (isNaN(slippage) || slippage < 0 || slippage > 100) {
+  const slippage = opts.slippage ? parseFloat(opts.slippage) : undefined;
+  if (slippage !== undefined && (isNaN(slippage) || slippage < 0 || slippage > 100)) {
     throw errInvalidArgs("Slippage must be a number between 0 and 100.");
   }
 
   const quote = await withSpinner(
     "Fetching quote…",
     "Quote received",
-    () => swapClient.requestQuoteV0({
-      fromToken: opts.from as Address,
-      toToken: opts.to as Address,
-      fromAmount: rawAmount,
-      slippage: slippagePercentToBasisPoints(slippage),
-      capabilities: paymaster ? { paymaster } : undefined,
-    }),
+    () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
   );
 
   // Resolve to-token info for display
@@ -149,7 +164,7 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
       fromSymbol: fromInfo.symbol,
       toSymbol: toInfo.symbol,
       expectedOutput: quoteData.expectedOutput ? formatTokenAmount(quoteData.expectedOutput, toInfo.decimals) : null,
-      slippage: String(slippage),
+      slippage: String(slippage ?? DEFAULT_SLIPPAGE_PERCENT),
       network,
       quoteType: quoteData.type,
     });
@@ -165,7 +180,7 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
     }
 
     pairs.push(
-      ["Slippage", `${slippage}%`],
+      ["Slippage", `${slippage ?? DEFAULT_SLIPPAGE_PERCENT}%`],
       ["Network", network],
     );
 
@@ -185,8 +200,8 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
   const fromInfo = await resolveTokenInfo(network, program, opts.from);
   const rawAmount = parseAmount(opts.amount, fromInfo.decimals);
 
-  const slippage = opts.slippage ? parseFloat(opts.slippage) : DEFAULT_SLIPPAGE_PERCENT;
-  if (isNaN(slippage) || slippage < 0 || slippage > 100) {
+  const slippage = opts.slippage ? parseFloat(opts.slippage) : undefined;
+  if (slippage !== undefined && (isNaN(slippage) || slippage < 0 || slippage > 100)) {
     throw errInvalidArgs("Slippage must be a number between 0 and 100.");
   }
 
@@ -194,13 +209,7 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
   let quote = await withSpinner(
     "Fetching quote…",
     "Quote received",
-    () => swapClient.requestQuoteV0({
-      fromToken: opts.from as Address,
-      toToken: opts.to as Address,
-      fromAmount: rawAmount,
-      slippage: slippagePercentToBasisPoints(slippage),
-      capabilities: paymaster ? { paymaster } : undefined,
-    }),
+    () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
   );
 
   // If the quote requires an ERC-7597 permit, sign it and refresh the quote
@@ -274,7 +283,7 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
       fromAmount: opts.amount,
       fromSymbol: fromInfo.symbol,
       toSymbol: toInfo.symbol,
-      slippage: String(slippage),
+      slippage: String(slippage ?? DEFAULT_SLIPPAGE_PERCENT),
       network,
       sponsored: !!paymaster,
       txHash: txHash ?? null,
@@ -285,7 +294,7 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
     const pairs: [string, string][] = [
       ["From", `${opts.amount} ${fromInfo.symbol}`],
       ["To", toInfo.symbol],
-      ["Slippage", `${slippage}%`],
+      ["Slippage", `${slippage ?? DEFAULT_SLIPPAGE_PERCENT}%`],
       ["Network", network],
     ];
 
