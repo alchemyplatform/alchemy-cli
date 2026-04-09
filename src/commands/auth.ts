@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, prepareBrowserLogin, performBrowserLogin, revokeToken } from "../lib/auth.js";
+import { AUTH_PORT, prepareBrowserLogin, performBrowserLogin, revokeToken, waitForCallback, openBrowser, exchangeCodeForToken } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -56,8 +56,10 @@ export function registerAuth(program: Command) {
           await deleteCredentials();
         }
 
-        // Prepare PKCE + URL once so the displayed URL is the same one used for login
+        // Prepare PKCE + URL and start callback server immediately so the
+        // URL is usable even if the user pastes it before pressing Enter.
         const prepared = prepareBrowserLogin();
+        const callbackPromise = waitForCallback(AUTH_PORT);
 
         if (!isJSONMode()) {
           console.log("");
@@ -70,7 +72,7 @@ export function registerAuth(program: Command) {
 
         if (!yes && !isJSONMode() && isInteractiveAllowed(program)) {
           const answer = await promptText({
-            message: "Press Enter to open browser and link your Alchemy account",
+            message: "Press Enter to open browser, or paste the URL above to log in manually",
             cancelMessage: "Login cancelled.",
           });
           if (answer === null) return;
@@ -81,7 +83,25 @@ export function registerAuth(program: Command) {
           console.log(`  ${dim("Waiting for authentication...")}`);
         }
 
-        const result = await performBrowserLogin(prepared);
+        openBrowser(prepared.authorizeUrl);
+        const callback = await callbackPromise;
+
+        // Validate state to prevent CSRF
+        if (callback.state !== prepared.state) {
+          callback.sendError("State mismatch — possible CSRF attack.");
+          throw new Error("OAuth state mismatch. Authentication aborted.");
+        }
+
+        let result;
+        try {
+          result = await exchangeCodeForToken(callback.code, AUTH_PORT, {
+            codeVerifier: prepared.codeVerifier,
+          });
+          callback.sendSuccess();
+        } catch (err) {
+          callback.sendError("Failed to complete authentication. Please try again.");
+          throw err;
+        }
 
         // Save token to secure credential storage (Keychain on macOS, file fallback)
         await saveCredentials({

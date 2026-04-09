@@ -235,17 +235,26 @@ export async function exchangeCodeForToken(
 
 /**
  * Runs the full OAuth 2.0 PKCE browser login flow.
+ *
  * Pass a PreparedLogin from prepareBrowserLogin() so the displayed URL
  * and the actual OAuth flow use the same state/PKCE values.
+ *
+ * The callback server is started immediately so the URL is usable
+ * even before the browser opens (e.g. if the user pastes it manually).
+ * Pass `skipBrowserOpen: true` if the caller opens the browser itself.
  */
 export async function performBrowserLogin(
   prepared?: PreparedLogin,
-  port = AUTH_PORT,
+  options?: { port?: number; skipBrowserOpen?: boolean },
 ): Promise<TokenExchangeResult> {
+  const port = options?.port ?? AUTH_PORT;
   const { authorizeUrl, codeVerifier, state } = prepared ?? prepareBrowserLogin(port);
 
+  // Start server first so the URL works even if pasted before the browser opens
   const callbackPromise = waitForCallback(port);
-  openBrowser(authorizeUrl);
+  if (!options?.skipBrowserOpen) {
+    openBrowser(authorizeUrl);
+  }
   const callback = await callbackPromise;
 
   // Validate state to prevent CSRF
