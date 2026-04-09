@@ -1,6 +1,7 @@
 # Live Test Setup
 
 These tests hit real chains and are intentionally separate from the default fast test suite.
+They are for manual local verification only and should not run in CI/CD.
 
 Use a local `.env.local` in the repo root for these values.
 

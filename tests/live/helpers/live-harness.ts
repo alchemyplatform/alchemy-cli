@@ -1,4 +1,5 @@
-import { mkdtempSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RunCLIResult } from "../../e2e/helpers/run-cli.js";
@@ -20,25 +21,38 @@ export function parseJSON<T>(text: string): T {
   return JSON.parse(text.trim()) as T;
 }
 
+const liveConfigRootDir = mkdtempSync(join(tmpdir(), "alchemy-cli-live-"));
+let liveConfigCleanupRegistered = false;
+
+function cleanupLiveConfigRootDir(): void {
+  rmSync(liveConfigRootDir, { recursive: true, force: true });
+}
+
+function ensureLiveConfigCleanup(): void {
+  if (liveConfigCleanupRegistered) return;
+  liveConfigCleanupRegistered = true;
+  process.once("exit", cleanupLiveConfigRootDir);
+}
+
 function createIsolatedConfigPath(): string {
-  const dir = mkdtempSync(join(tmpdir(), "alchemy-cli-live-"));
-  return join(dir, "config.json");
+  ensureLiveConfigCleanup();
+  return join(liveConfigRootDir, `${randomUUID()}.json`);
 }
 
 function buildFundingMessage(config: LiveConfig, scope: LiveScope, balances: Awaited<ReturnType<typeof getLiveBalanceStatus>>): string {
-  const lines = [
-    "Live test wallets need funding before this suite can run.",
+  const introLine = "Live test wallets need funding before this suite can run.";
+  const evmLines = [
     `EVM sender: ${config.evmAddress}`,
     `EVM balance: ${formatEvmBalance(balances.evmWei ?? 0n)} (minimum ${formatEvmBalance(config.minEvmWei)})`,
+  ];
+  const solanaLines = [
     `Solana sender: ${config.solanaAddress}`,
     `Solana balance: ${formatSolBalance(balances.solLamports ?? 0n)} (minimum ${formatSolBalance(config.minSolLamports)})`,
   ];
 
-  if (scope === "evm" && !balances.evmReady) return lines.slice(0, 3).join("\n");
-  if (scope === "solana" && !balances.solanaReady) {
-    return [lines[0], lines[3], lines[4]].join("\n");
-  }
-  return lines.join("\n");
+  if (scope === "evm" && !balances.evmReady) return [introLine, ...evmLines].join("\n");
+  if (scope === "solana" && !balances.solanaReady) return [introLine, ...solanaLines].join("\n");
+  return [introLine, ...evmLines, ...solanaLines].join("\n");
 }
 
 export async function requireLiveConfig(scope: LiveScope = "all"): Promise<LiveConfig> {
