@@ -33,6 +33,7 @@ import { registerGas } from "./commands/gas.js";
 import { registerLogs } from "./commands/logs.js";
 import { registerCompletions } from "./commands/completions.js";
 import { registerSend } from "./commands/send/index.js";
+import { registerContract } from "./commands/contract.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
@@ -71,7 +72,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Execution",
-    commands: ["send"],
+    commands: ["send", "contract"],
   },
   {
     label: "Wallets",
@@ -448,6 +449,7 @@ registerSimulate(program);
 
 // Execution
 registerSend(program);
+registerContract(program);
 
 // Wallets
 registerWallet(program);
