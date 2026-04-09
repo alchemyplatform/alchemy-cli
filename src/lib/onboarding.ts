@@ -24,24 +24,27 @@ function hasX402Wallet(cfg: Config): boolean {
   return cfg.x402 === true && Boolean(cfg.wallet_key_file?.trim());
 }
 
-async function hasAuthToken(cfg: Config): Promise<boolean> {
-  return (await resolveAuthToken(cfg)) !== undefined;
+function hasAuthTokenAndApp(cfg: Config): boolean {
+  // Auth token alone is not enough for RPC commands — they need an API key,
+  // which comes from having a selected app. Without an app, non-interactive
+  // commands fail with AUTH_REQUIRED despite isSetupComplete returning true.
+  return resolveAuthToken(cfg) !== undefined && Boolean(cfg.app?.apiKey);
 }
 
-export async function getSetupMethod(cfg: Config): Promise<SetupMethod | null> {
+export function getSetupMethod(cfg: Config): SetupMethod | null {
   if (hasAPIKey(cfg)) return "api_key";
   if (hasAccessKeyAndApp(cfg)) return "access_key_app";
   if (hasX402Wallet(cfg)) return "x402_wallet";
-  if (await hasAuthToken(cfg)) return "auth_token";
+  if (hasAuthTokenAndApp(cfg)) return "auth_token";
   return null;
 }
 
-export async function isSetupComplete(cfg: Config): Promise<boolean> {
-  return (await getSetupMethod(cfg)) !== null;
+export function isSetupComplete(cfg: Config): boolean {
+  return getSetupMethod(cfg) !== null;
 }
 
-export async function getSetupStatus(cfg: Config): Promise<SetupStatus> {
-  const satisfiedBy = await getSetupMethod(cfg);
+export function getSetupStatus(cfg: Config): SetupStatus {
+  const satisfiedBy = getSetupMethod(cfg);
   if (satisfiedBy) {
     return {
       complete: true,
@@ -64,6 +67,6 @@ export async function getSetupStatus(cfg: Config): Promise<SetupStatus> {
   };
 }
 
-export async function shouldRunOnboarding(program: Command, cfg: Config): Promise<boolean> {
-  return isInteractiveAllowed(program) && !(await isSetupComplete(cfg));
+export function shouldRunOnboarding(program: Command, cfg: Config): boolean {
+  return isInteractiveAllowed(program) && !isSetupComplete(cfg);
 }

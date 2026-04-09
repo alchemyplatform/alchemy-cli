@@ -110,8 +110,8 @@ const NETWORK_NAMES = getRPCNetworkIds();
 
 const REPL_HISTORY_MAX = 100;
 
-async function formatSetupMethodLabel(): Promise<string> {
-  const method = await getSetupMethod(loadConfig());
+function formatSetupMethodLabel(): string {
+  const method = getSetupMethod(loadConfig());
   if (method === "api_key") return "API key";
   if (method === "access_key_app") return "Access key + app";
   if (method === "x402_wallet") return "SIWx wallet";
@@ -252,12 +252,12 @@ export async function startREPL(
     return best.slice(input.length);
   };
 
-  const printIntro = async (): Promise<void> => {
+  const printIntro = (): void => {
     if (isJSONMode()) return;
     process.stdout.write(brandedHelp({ force: true }));
     console.log("");
     console.log(`  ${brand("◆")} ${bold("Welcome to Alchemy CLI")}`);
-    console.log(`  ${green("✓")} ${dim(`Configured auth: ${await formatSetupMethodLabel()}`)}`);
+    console.log(`  ${green("✓")} ${dim(`Configured auth: ${formatSetupMethodLabel()}`)}`);
     console.log(`  ${dim("Run commands directly (no 'alchemy' prefix).")}`);
     console.log("");
     if (latestUpdate) {
@@ -536,6 +536,7 @@ export async function startREPL(
       stdin.off("keypress", onKeypress);
       resolve();
     });
-    void printIntro().then(() => prompt());
+    printIntro();
+    prompt();
   });
 }

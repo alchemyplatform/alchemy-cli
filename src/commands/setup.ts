@@ -10,8 +10,8 @@ export function registerSetup(program: Command) {
   cmd
     .command("status")
     .description("Show setup status and remediation commands")
-    .action(async () => {
-      const status = await getSetupStatus(loadConfig());
+    .action(() => {
+      const status = getSetupStatus(loadConfig());
       if (isJSONMode()) {
         printJSON(status);
         return;

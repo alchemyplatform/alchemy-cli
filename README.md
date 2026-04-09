@@ -109,7 +109,7 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 | Command | What it does | Example |
 |---|---|---|
-| `tokens [address]` | Lists ERC-20 balances for an address | `alchemy tokens 0x...` |
+| `tokens balances [address]` | Lists ERC-20 balances for an address | `alchemy tokens balances 0x...` |
 | `tokens metadata <contract>` | Gets ERC-20 metadata | `alchemy tokens metadata 0x...` |
 | `tokens allowance --owner --spender --contract` | Gets ERC-20 allowance | `alchemy tokens allowance --owner 0x... --spender 0x... --contract 0x...` |
 | `nfts [address]` | Lists NFTs owned by an address | `alchemy nfts 0x...` |
@@ -150,7 +150,7 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 | Command | What it does | Example |
 |---|---|---|
-| `network list` | Lists RPC network IDs for use with `--network` (e.g. `eth-mainnet`) | `alchemy network list --configured` |
+| `network list` | Lists RPC network IDs for use with `--network` (e.g. `eth-mainnet`) | `alchemy network list --search ethereum` |
 | `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"'` |
 | `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}'` |
 
@@ -251,7 +251,7 @@ Additional env vars:
 | `apps address-allowlist` | `--addresses <addrs>` (required), `--dry-run` |
 | `apps origin-allowlist` | `--origins <origins>` (required), `--dry-run` |
 | `apps ip-allowlist` | `--ips <ips>` (required), `--dry-run` |
-| `network list` | `--configured`, `--app-id <id>` |
+| `network list` | `--mainnet-only`, `--testnet-only`, `--search <term>` |
 | `config reset` | `-y, --yes` |
 
 ## Authentication Reference

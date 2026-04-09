@@ -386,13 +386,13 @@ program
     }
 
     const cfg = loadConfig();
-    if (!(await isSetupComplete(cfg)) && !isInteractiveAllowed(program)) {
-      throw errSetupRequired(await getSetupStatus(cfg));
+    if (!isSetupComplete(cfg) && !isInteractiveAllowed(program)) {
+      throw errSetupRequired(getSetupStatus(cfg));
     }
 
     if (isInteractiveAllowed(program)) {
       let latestForInteractiveStartup: string | null = null;
-      if (await shouldRunOnboarding(program, cfg)) {
+      if (shouldRunOnboarding(program, cfg)) {
         const { runOnboarding } = await import("./commands/onboarding.js");
         const latest = getAvailableUpdateOnce();
         const completed = await runOnboarding(program, latest);
