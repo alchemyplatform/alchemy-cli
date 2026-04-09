@@ -29,14 +29,14 @@ export async function withAuthRetry<T>(
     }
 
     // Clear expired credentials and re-authenticate
-    deleteCredentials();
+    await deleteCredentials();
     // Also clear legacy config token
     if (cfg.auth_token) {
       save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
     }
 
     const result = await performBrowserLogin();
-    saveCredentials({
+    await saveCredentials({
       auth_token: result.token,
       auth_token_expires_at: result.expiresAt,
     });

@@ -52,10 +52,25 @@ export function getAuthorizeUrl(
   return url.toString();
 }
 
-// Keep for display in auth command (shows the base URL the user is directed to)
-export function getLoginUrl(port: number, codeChallenge?: string): string {
+export interface PreparedLogin {
+  authorizeUrl: string;
+  codeVerifier: string;
+  state: string;
+}
+
+/**
+ * Prepare PKCE values and build the authorize URL.
+ * Call this once, display the URL, then pass the result to performBrowserLogin.
+ */
+export function prepareBrowserLogin(port = AUTH_PORT): PreparedLogin {
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = deriveCodeChallenge(codeVerifier);
   const state = generateState();
-  return getAuthorizeUrl(port, codeChallenge || "", state);
+  return {
+    authorizeUrl: getAuthorizeUrl(port, codeChallenge, state),
+    codeVerifier,
+    state,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -220,17 +235,15 @@ export async function exchangeCodeForToken(
 
 /**
  * Runs the full OAuth 2.0 PKCE browser login flow.
- * Returns the token and expiry. Caller is responsible for saving credentials.
+ * Pass a PreparedLogin from prepareBrowserLogin() so the displayed URL
+ * and the actual OAuth flow use the same state/PKCE values.
  */
 export async function performBrowserLogin(
+  prepared?: PreparedLogin,
   port = AUTH_PORT,
 ): Promise<TokenExchangeResult> {
-  // PKCE: generate verifier/challenge pair to bind code to this CLI instance
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = deriveCodeChallenge(codeVerifier);
-  const state = generateState();
+  const { authorizeUrl, codeVerifier, state } = prepared ?? prepareBrowserLogin(port);
 
-  const authorizeUrl = getAuthorizeUrl(port, codeChallenge, state);
   const callbackPromise = waitForCallback(port);
   openBrowser(authorizeUrl);
   const callback = await callbackPromise;

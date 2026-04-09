@@ -35,14 +35,15 @@ export async function runOnboarding(
     return false;
   }
 
-  const { performBrowserLogin, AUTH_PORT, getLoginUrl } = await import("../lib/auth.js");
+  const { performBrowserLogin, prepareBrowserLogin } = await import("../lib/auth.js");
+  const prepared = prepareBrowserLogin();
   console.log(`  Opening browser to log in...`);
-  console.log(`  ${dim(getLoginUrl(AUTH_PORT))}`);
+  console.log(`  ${dim(prepared.authorizeUrl)}`);
   console.log(`  ${dim("Waiting for authentication...")}`);
   try {
-    const result = await performBrowserLogin();
+    const result = await performBrowserLogin(prepared);
     const { saveCredentials } = await import("../lib/credential-storage.js");
-    saveCredentials({
+    await saveCredentials({
       auth_token: result.token,
       auth_token_expires_at: result.expiresAt,
     });

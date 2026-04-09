@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, getLoginUrl, performBrowserLogin, revokeToken, getAuthorizeUrl } from "../lib/auth.js";
+import { AUTH_PORT, prepareBrowserLogin, performBrowserLogin, revokeToken } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -53,15 +53,18 @@ export function registerAuth(program: Command) {
           } else {
             await revokeToken(tokenToRevoke);
           }
-          deleteCredentials();
+          await deleteCredentials();
         }
+
+        // Prepare PKCE + URL once so the displayed URL is the same one used for login
+        const prepared = prepareBrowserLogin();
 
         if (!isJSONMode()) {
           console.log("");
           console.log(`  ${brand("◆")} ${bold("Alchemy Authentication")}`);
           console.log(`  ${dim("────────────────────────────────────")}`);
           console.log("");
-          console.log(`  ${dim(getLoginUrl(AUTH_PORT))}`);
+          console.log(`  ${dim(prepared.authorizeUrl)}`);
           console.log("");
         }
 
@@ -78,10 +81,10 @@ export function registerAuth(program: Command) {
           console.log(`  ${dim("Waiting for authentication...")}`);
         }
 
-        const result = await performBrowserLogin();
+        const result = await performBrowserLogin(prepared);
 
         // Save token to secure credential storage (Keychain on macOS, file fallback)
-        saveCredentials({
+        await saveCredentials({
           auth_token: result.token,
           auth_token_expires_at: result.expiresAt,
         });
