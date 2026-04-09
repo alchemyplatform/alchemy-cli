@@ -115,7 +115,7 @@ function formatSetupMethodLabel(): string {
   if (method === "api_key") return "API key";
   if (method === "access_key_app") return "Access key + app";
   if (method === "x402_wallet") return "SIWx wallet";
-  if (method === "auth_token") return "Auth token";
+  if (method === "auth_token") return "Browser login + app";
   return "Not configured";
 }
 

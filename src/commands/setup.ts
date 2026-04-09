@@ -17,9 +17,15 @@ export function registerSetup(program: Command) {
         return;
       }
 
+      const methodLabels: Record<string, string> = {
+        api_key: "API key",
+        access_key_app: "Access key + app",
+        x402_wallet: "SIWx wallet",
+        auth_token: "Browser login + app",
+      };
       printKeyValueBox([
         ["Complete", status.complete ? "yes" : "no"],
-        ["Satisfied by", status.satisfiedBy ?? dim("(none)")],
+        ["Satisfied by", status.satisfiedBy ? methodLabels[status.satisfiedBy] ?? status.satisfiedBy : dim("(none)")],
       ]);
       if (status.missing.length > 0) {
         console.log("");
