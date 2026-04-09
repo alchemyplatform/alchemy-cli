@@ -8,14 +8,17 @@ import { AUTH_SUCCESS_HTML, authErrorHtml } from "./auth-html.js";
 
 const AUTH_PORT = 16424;
 const AUTH_CALLBACK_PATH = "/callback";
-// Default token TTL: 90 days in seconds. Server caps at CLI_SESSION_MAX_AGE_SECONDS
-// (authchemy settings.ts). If the server cap changes, update this value to match.
-const DEFAULT_EXPIRES_IN_SECONDS = 90 * 24 * 60 * 60;
+// Public OAuth client — security relies on PKCE, not client secrets.
+const OAUTH_CLIENT_ID = "alchemy-cli";
 
 // Environment-based auth URL
 function getAuthBaseUrl(): string {
   return process.env.ALCHEMY_AUTH_URL || `https://auth.${getBaseDomain()}`;
 }
+
+// ---------------------------------------------------------------------------
+// PKCE helpers
+// ---------------------------------------------------------------------------
 
 function generateCodeVerifier(): string {
   return randomBytes(32).toString("base64url");
@@ -25,18 +28,54 @@ function deriveCodeChallenge(verifier: string): string {
   return createHash("sha256").update(verifier).digest("base64url");
 }
 
-export function getLoginUrl(
+function generateState(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+// ---------------------------------------------------------------------------
+// OAuth Authorization URL
+// ---------------------------------------------------------------------------
+
+export function getAuthorizeUrl(
   port: number,
-  codeChallenge?: string,
+  codeChallenge: string,
+  state: string,
 ): string {
   const base = getAuthBaseUrl();
-  const redirect = encodeURIComponent(`http://localhost:${port}${AUTH_CALLBACK_PATH}`);
-  let url = `${base}/login?redirectUrl=${redirect}&_t=${Date.now()}`;
-  if (codeChallenge) {
-    url += `&code_challenge=${encodeURIComponent(codeChallenge)}`;
-  }
-  return url;
+  const url = new URL(`${base}/oauth/authorize`);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", OAUTH_CLIENT_ID);
+  url.searchParams.set("redirect_uri", `http://localhost:${port}${AUTH_CALLBACK_PATH}`);
+  url.searchParams.set("code_challenge", codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("state", state);
+  return url.toString();
 }
+
+export interface PreparedLogin {
+  authorizeUrl: string;
+  codeVerifier: string;
+  state: string;
+}
+
+/**
+ * Prepare PKCE values and build the authorize URL.
+ * Call this once, display the URL, then pass the result to performBrowserLogin.
+ */
+export function prepareBrowserLogin(port = AUTH_PORT): PreparedLogin {
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = deriveCodeChallenge(codeVerifier);
+  const state = generateState();
+  return {
+    authorizeUrl: getAuthorizeUrl(port, codeChallenge, state),
+    codeVerifier,
+    state,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Browser
+// ---------------------------------------------------------------------------
 
 export function openBrowser(url: string): void {
   const cmd =
@@ -49,8 +88,13 @@ export function openBrowser(url: string): void {
   execFile(cmd, [url]);
 }
 
+// ---------------------------------------------------------------------------
+// Callback server
+// ---------------------------------------------------------------------------
+
 interface CallbackResult {
   code: string;
+  state: string | null;
   sendSuccess: () => void;
   sendError: (message: string) => void;
 }
@@ -96,6 +140,7 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
 
       resolve({
         code,
+        state: url.searchParams.get("state"),
         sendSuccess: () => {
           res.writeHead(200, { "Content-Type": "text/html" });
           res.end(AUTH_SUCCESS_HTML);
@@ -129,6 +174,10 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
   });
 }
 
+// ---------------------------------------------------------------------------
+// Token exchange — standard OAuth 2.0 token endpoint
+// ---------------------------------------------------------------------------
+
 export interface TokenExchangeResult {
   token: string;
   expiresAt: string;
@@ -137,65 +186,85 @@ export interface TokenExchangeResult {
 export async function exchangeCodeForToken(
   code: string,
   port: number,
-  options?: { expiresInSeconds?: number; codeVerifier?: string },
+  options: { codeVerifier: string },
 ): Promise<TokenExchangeResult> {
   const baseUrl = getAuthBaseUrl();
   const redirectUri = `http://localhost:${port}${AUTH_CALLBACK_PATH}`;
 
-  const body: Record<string, unknown> = {
+  // Standard OAuth 2.0 token request (application/x-www-form-urlencoded)
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
     code,
     redirect_uri: redirectUri,
-  };
-  if (options?.expiresInSeconds) {
-    body.expires_in_seconds = options.expiresInSeconds;
-  }
-  if (options?.codeVerifier) {
-    body.code_verifier = options.codeVerifier;
-  }
+    client_id: OAUTH_CLIENT_ID,
+    code_verifier: options.codeVerifier,
+  });
 
-  const response = await fetch(`${baseUrl}/api/cli/token`, {
+  const response = await fetch(`${baseUrl}/oauth/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
   });
 
   if (!response.ok) {
     const errBody = await response.json().catch(() => ({}));
-    throw new Error(
-      (errBody as { error?: string }).error || `Token exchange failed (HTTP ${response.status})`,
-    );
+    const errMsg =
+      (errBody as { error_description?: string }).error_description ||
+      (errBody as { error?: string }).error ||
+      `Token exchange failed (HTTP ${response.status})`;
+    throw new Error(errMsg);
   }
 
   const data = (await response.json()) as {
-    authToken: string;
-    expiresAt: string;
-    expiresInSeconds: number;
+    access_token: string;
+    token_type: string;
+    expires_in: number;
   };
-  if (!data.authToken) {
-    throw new Error("Token exchange response missing authToken");
+  if (!data.access_token) {
+    throw new Error("Token exchange response missing access_token");
   }
-  return { token: data.authToken, expiresAt: data.expiresAt };
+
+  // Compute expiry from expires_in seconds
+  const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
+  return { token: data.access_token, expiresAt };
 }
 
+// ---------------------------------------------------------------------------
+// Full browser login flow
+// ---------------------------------------------------------------------------
+
 /**
- * Runs the full browser login flow: bind server, open browser, exchange code.
- * Returns the token and expiry. Caller is responsible for saving to config.
+ * Runs the full OAuth 2.0 PKCE browser login flow.
+ *
+ * Pass a PreparedLogin from prepareBrowserLogin() so the displayed URL
+ * and the actual OAuth flow use the same state/PKCE values.
+ *
+ * The callback server is started immediately so the URL is usable
+ * even before the browser opens (e.g. if the user pastes it manually).
+ * Pass `skipBrowserOpen: true` if the caller opens the browser itself.
  */
 export async function performBrowserLogin(
-  port = AUTH_PORT,
-  options?: { expiresInSeconds?: number },
+  prepared?: PreparedLogin,
+  options?: { port?: number; skipBrowserOpen?: boolean },
 ): Promise<TokenExchangeResult> {
-  // PKCE: generate verifier/challenge pair to bind code to this CLI instance
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = deriveCodeChallenge(codeVerifier);
+  const port = options?.port ?? AUTH_PORT;
+  const { authorizeUrl, codeVerifier, state } = prepared ?? prepareBrowserLogin(port);
 
-  const loginUrl = getLoginUrl(port, codeChallenge);
+  // Start server first so the URL works even if pasted before the browser opens
   const callbackPromise = waitForCallback(port);
-  openBrowser(loginUrl);
+  if (!options?.skipBrowserOpen) {
+    openBrowser(authorizeUrl);
+  }
   const callback = await callbackPromise;
+
+  // Validate state to prevent CSRF
+  if (callback.state !== state) {
+    callback.sendError("State mismatch — possible CSRF attack.");
+    throw new Error("OAuth state mismatch. Authentication aborted.");
+  }
+
   try {
     const result = await exchangeCodeForToken(callback.code, port, {
-      expiresInSeconds: options?.expiresInSeconds ?? DEFAULT_EXPIRES_IN_SECONDS,
       codeVerifier,
     });
     callback.sendSuccess();
@@ -205,6 +274,10 @@ export async function performBrowserLogin(
     throw err;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Token revocation
+// ---------------------------------------------------------------------------
 
 export type RevokeResult = "revoked" | "already_invalid" | "server_error" | "network_error";
 
@@ -234,4 +307,4 @@ export async function revokeToken(token: string): Promise<RevokeResult> {
   }
 }
 
-export { AUTH_PORT, DEFAULT_EXPIRES_IN_SECONDS };
+export { AUTH_PORT, OAUTH_CLIENT_ID };

@@ -13,7 +13,7 @@ describe("onboarding flow", () => {
     vi.doMock("../../src/lib/auth.js", () => ({
       performBrowserLogin: vi.fn().mockRejectedValue(new Error("login failed")),
       AUTH_PORT: 16424,
-      getLoginUrl: vi.fn().mockReturnValue("https://auth.alchemy.com/login"),
+      prepareBrowserLogin: vi.fn().mockReturnValue({ authorizeUrl: "https://auth.alchemy.com/oauth/authorize", codeVerifier: "test", state: "test" }),
     }));
     vi.doMock("../../src/lib/update-check.js", () => ({
       getUpdateNoticeLines: vi.fn().mockReturnValue([]),
@@ -39,7 +39,7 @@ describe("onboarding flow", () => {
   });
 
   it("returns true when browser login succeeds", async () => {
-    const save = vi.fn();
+    const saveCredentials = vi.fn();
     vi.doMock("../../src/lib/terminal-ui.js", () => ({
       promptText: vi.fn().mockResolvedValue(""),
     }));
@@ -49,7 +49,7 @@ describe("onboarding flow", () => {
         expiresAt: "2099-01-01T00:00:00Z",
       }),
       AUTH_PORT: 16424,
-      getLoginUrl: vi.fn().mockReturnValue("https://auth.alchemy.com/login"),
+      prepareBrowserLogin: vi.fn().mockReturnValue({ authorizeUrl: "https://auth.alchemy.com/oauth/authorize", codeVerifier: "test", state: "test" }),
     }));
     vi.doMock("../../src/commands/auth.js", () => ({
       selectAppAfterAuth: vi.fn(),
@@ -59,7 +59,10 @@ describe("onboarding flow", () => {
     }));
     vi.doMock("../../src/lib/config.js", () => ({
       load: vi.fn().mockReturnValue({}),
-      save,
+      save: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/credential-storage.js", () => ({
+      saveCredentials,
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       brand: (s: string) => s,
@@ -75,7 +78,7 @@ describe("onboarding flow", () => {
     const { runOnboarding } = await import("../../src/commands/onboarding.js");
     const completed = await runOnboarding({} as never);
     expect(completed).toBe(true);
-    expect(save).toHaveBeenCalledWith({
+    expect(saveCredentials).toHaveBeenCalledWith({
       auth_token: "test_token",
       auth_token_expires_at: "2099-01-01T00:00:00Z",
     });
@@ -116,7 +119,7 @@ describe("onboarding flow", () => {
     vi.doMock("../../src/lib/auth.js", () => ({
       performBrowserLogin: vi.fn().mockRejectedValue(new Error("login failed")),
       AUTH_PORT: 16424,
-      getLoginUrl: vi.fn().mockReturnValue("https://auth.alchemy.com/login"),
+      prepareBrowserLogin: vi.fn().mockReturnValue({ authorizeUrl: "https://auth.alchemy.com/oauth/authorize", codeVerifier: "test", state: "test" }),
     }));
     vi.doMock("../../src/lib/update-check.js", () => ({
       getUpdateNoticeLines: vi.fn().mockReturnValue([

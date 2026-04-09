@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, getLoginUrl, performBrowserLogin, revokeToken } from "../lib/auth.js";
+import { AUTH_PORT, prepareBrowserLogin, performBrowserLogin, revokeToken, waitForCallback, openBrowser, exchangeCodeForToken } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -9,6 +9,7 @@ import { promptAutocomplete, promptText } from "../lib/terminal-ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { resolveAuthToken } from "../lib/resolve.js";
 import { green, dim, bold, brand, maskIf, withSpinner } from "../lib/ui.js";
+import { saveCredentials, deleteCredentials, getCredentials, getStorageBackend } from "../lib/credential-storage.js";
 
 export function registerAuth(program: Command) {
   const cmd = program
@@ -26,7 +27,7 @@ export function registerAuth(program: Command) {
       try {
         // Skip browser flow if we already have a valid token
         if (!opts.force) {
-          const existing = resolveAuthToken();
+          const existing = await resolveAuthToken();
           if (existing) {
             printHuman(
               `  ${green("✓")} Already authenticated\n` +
@@ -40,54 +41,108 @@ export function registerAuth(program: Command) {
 
         // If --force, revoke the existing token server-side before re-authenticating
         if (opts.force) {
-          const cfg = config.load();
-          if (cfg.auth_token) {
-            await revokeToken(cfg.auth_token);
-            config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+          const existingCreds = await getCredentials();
+          const tokenToRevoke = existingCreds?.auth_token;
+          // Also check legacy config for tokens not yet migrated
+          if (!tokenToRevoke) {
+            const cfg = config.load();
+            if (cfg.auth_token) {
+              await revokeToken(cfg.auth_token);
+              config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+            }
+          } else {
+            await revokeToken(tokenToRevoke);
           }
+          await deleteCredentials();
         }
+
+        // Prepare PKCE + URL and start callback server immediately so the
+        // URL is usable even if the user pastes it before pressing Enter.
+        const prepared = prepareBrowserLogin();
+        const callbackPromise = waitForCallback(AUTH_PORT);
 
         if (!isJSONMode()) {
           console.log("");
           console.log(`  ${brand("◆")} ${bold("Alchemy Authentication")}`);
           console.log(`  ${dim("────────────────────────────────────")}`);
           console.log("");
-          console.log(`  ${dim(getLoginUrl(AUTH_PORT))}`);
+          console.log(`  ${dim(prepared.authorizeUrl)}`);
           console.log("");
         }
 
+        // Race the prompt against the callback — if the user pastes the URL
+        // and completes auth in the browser, we don't need them to press Enter.
+        let browserOpened = false;
         if (!yes && !isJSONMode() && isInteractiveAllowed(program)) {
-          const answer = await promptText({
-            message: "Press Enter to open browser and link your Alchemy account",
-            cancelMessage: "Login cancelled.",
+          const promptResult = await Promise.race([
+            promptText({
+              message: "Press Enter to open browser, or paste the URL above to log in manually",
+              cancelMessage: "Login cancelled.",
+            }),
+            callbackPromise.then(() => "callback_received" as const),
+          ]);
+          if (promptResult === null) return; // user cancelled
+          if (promptResult !== "callback_received") {
+            // User pressed Enter — open browser
+            if (!isJSONMode()) {
+              console.log(`  Opening browser to log in...`);
+              console.log(`  ${dim("Waiting for authentication...")}`);
+            }
+            openBrowser(prepared.authorizeUrl);
+            browserOpened = true;
+          }
+        }
+
+        if (!browserOpened && yes) {
+          if (!isJSONMode()) {
+            console.log(`  Opening browser to log in...`);
+            console.log(`  ${dim("Waiting for authentication...")}`);
+          }
+          openBrowser(prepared.authorizeUrl);
+        }
+
+        const callback = await callbackPromise;
+
+        // Validate state to prevent CSRF
+        if (callback.state !== prepared.state) {
+          callback.sendError("State mismatch — possible CSRF attack.");
+          throw new Error("OAuth state mismatch. Authentication aborted.");
+        }
+
+        let result;
+        try {
+          result = await exchangeCodeForToken(callback.code, AUTH_PORT, {
+            codeVerifier: prepared.codeVerifier,
           });
-          if (answer === null) return;
+          callback.sendSuccess();
+        } catch (err) {
+          callback.sendError("Failed to complete authentication. Please try again.");
+          throw err;
         }
 
-        if (!isJSONMode()) {
-          console.log(`  Opening browser to log in...`);
-          console.log(`  ${dim("Waiting for authentication...")}`);
-        }
-
-        const result = await performBrowserLogin();
-
-        // Save token to config
-        const cfg = config.load();
-        config.save({
-          ...cfg,
+        // Save token to secure credential storage (Keychain on macOS, file fallback)
+        await saveCredentials({
           auth_token: result.token,
           auth_token_expires_at: result.expiresAt,
         });
+
+        // Clean up any legacy token from config.json
+        const cfg = config.load();
+        if (cfg.auth_token) {
+          config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+        }
+
         const expiresAt = result.expiresAt;
+        const backend = await getStorageBackend();
 
         printHuman(
           `  ${green("✓")} Logged in successfully\n` +
-            `  ${dim("Token saved to")} ${config.configPath()}\n` +
+            `  ${dim("Credentials stored in")} ${backend}\n` +
             `  ${dim("Expires:")} ${expiresAt}\n`,
           {
             status: "authenticated",
             expiresAt,
-            configPath: config.configPath(),
+            storageBackend: backend,
           },
         );
 
@@ -109,12 +164,15 @@ export function registerAuth(program: Command) {
   cmd
     .command("status")
     .description("Show current authentication status")
-    .action(() => {
+    .action(async () => {
       try {
+        const creds = await getCredentials();
         const cfg = config.load();
-        const validToken = resolveAuthToken(cfg);
+        const validToken = await resolveAuthToken(cfg);
 
-        if (!cfg.auth_token) {
+        // Check if there's any token at all (credential storage or legacy config)
+        const hasToken = creds?.auth_token || cfg.auth_token;
+        if (!hasToken) {
           printHuman(
             `  ${dim("Not authenticated. Run")} alchemy auth ${dim("to log in.")}\n`,
             { authenticated: false },
@@ -130,14 +188,22 @@ export function registerAuth(program: Command) {
           return;
         }
 
+        const expiresAt = creds?.auth_token_expires_at || cfg.auth_token_expires_at || "unknown";
+        const backend = await getStorageBackend();
+        const storedIn = creds?.auth_token
+          ? backend
+          : "config file (legacy)";
+
         printHuman(
           `  ${green("✓")} Authenticated\n` +
             `  ${dim("Token:")} ${maskIf(validToken)}\n` +
-            `  ${dim("Expires:")} ${cfg.auth_token_expires_at || "unknown"}\n`,
+            `  ${dim("Storage:")} ${storedIn}\n` +
+            `  ${dim("Expires:")} ${expiresAt}\n`,
           {
             authenticated: true,
             expired: false,
-            expiresAt: cfg.auth_token_expires_at,
+            expiresAt,
+            storageBackend: storedIn,
           },
         );
       } catch (err) {
@@ -150,15 +216,24 @@ export function registerAuth(program: Command) {
     .description("Clear saved authentication token")
     .action(async () => {
       try {
+        // Find the active token from credential storage or legacy config
+        const creds = await getCredentials();
         const cfg = config.load();
+        const activeToken = creds?.auth_token || cfg.auth_token;
+
         let revokeResult: Awaited<ReturnType<typeof revokeToken>> | undefined;
-        if (cfg.auth_token) {
-          revokeResult = await revokeToken(cfg.auth_token);
+        if (activeToken) {
+          revokeResult = await revokeToken(activeToken);
         }
-        const { auth_token: _, auth_token_expires_at: __, ...rest } = cfg as Record<string, unknown>;
+
+        // Clear from secure credential storage
+        await deleteCredentials();
+
+        // Clear auth-related fields from config (token, expiry, and app selected during login)
+        const { auth_token: _, auth_token_expires_at: __, app: ___, ...rest } = cfg as Record<string, unknown>;
         config.save(rest as config.Config);
 
-        if (!cfg.auth_token) {
+        if (!activeToken) {
           printHuman(
             `  ${dim("No active session.")}\n`,
             { status: "no_session" },

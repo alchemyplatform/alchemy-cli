@@ -5,6 +5,7 @@ import { isInteractiveAllowed as checkInteractive } from "./interaction.js";
 import { resolveAuthToken } from "./resolve.js";
 import { dim } from "./ui.js";
 import { isJSONMode } from "./output.js";
+import { deleteCredentials, saveCredentials } from "./credential-storage.js";
 import type { Command } from "commander";
 
 export async function withAuthRetry<T>(
@@ -12,7 +13,7 @@ export async function withAuthRetry<T>(
   fn: (authToken: string) => Promise<T>,
 ): Promise<T> {
   const cfg = load();
-  const token = resolveAuthToken(cfg);
+  const token = await resolveAuthToken(cfg);
   if (!token) {
     throw new Error("Not authenticated or session expired. Run 'alchemy auth' to log in.");
   }
@@ -27,12 +28,15 @@ export async function withAuthRetry<T>(
       console.log(`\n  ${dim("Session expired. Re-authenticating...")}`);
     }
 
-    // Clear expired token and re-authenticate
-    save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+    // Clear expired credentials and re-authenticate
+    await deleteCredentials();
+    // Also clear legacy config token
+    if (cfg.auth_token) {
+      save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+    }
+
     const result = await performBrowserLogin();
-    const freshCfg = load();
-    save({
-      ...freshCfg,
+    await saveCredentials({
       auth_token: result.token,
       auth_token_expires_at: result.expiresAt,
     });

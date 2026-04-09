@@ -353,7 +353,7 @@ program
       !process.env.ALCHEMY_API_KEY
     ) {
       const { resolveAuthToken } = await import("./lib/resolve.js");
-      const authToken = resolveAuthToken(cfg);
+      const authToken = await resolveAuthToken(cfg);
       const hasApiKey = Boolean(cfg.api_key?.trim() || cfg.app?.apiKey);
       if (authToken && !hasApiKey) {
         const { selectAppAfterAuth } = await import("./commands/auth.js");

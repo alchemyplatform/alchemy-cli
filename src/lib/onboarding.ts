@@ -24,15 +24,18 @@ function hasX402Wallet(cfg: Config): boolean {
   return cfg.x402 === true && Boolean(cfg.wallet_key_file?.trim());
 }
 
-function hasAuthToken(cfg: Config): boolean {
-  return resolveAuthToken(cfg) !== undefined;
+function hasAuthTokenAndApp(cfg: Config): boolean {
+  // Auth token alone is not enough for RPC commands — they need an API key,
+  // which comes from having a selected app. Without an app, non-interactive
+  // commands fail with AUTH_REQUIRED despite isSetupComplete returning true.
+  return resolveAuthToken(cfg) !== undefined && Boolean(cfg.app?.apiKey);
 }
 
 export function getSetupMethod(cfg: Config): SetupMethod | null {
   if (hasAPIKey(cfg)) return "api_key";
   if (hasAccessKeyAndApp(cfg)) return "access_key_app";
   if (hasX402Wallet(cfg)) return "x402_wallet";
-  if (hasAuthToken(cfg)) return "auth_token";
+  if (hasAuthTokenAndApp(cfg)) return "auth_token";
   return null;
 }
 

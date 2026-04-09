@@ -9,6 +9,7 @@ import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
 import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errWalletKeyRequired } from "./errors.js";
 import { debug } from "./output.js";
+import { getCredentials } from "./credential-storage.js";
 
 export function resolveAPIKey(program: Command, cfg?: Config): string | undefined {
   const opts = program.opts();
@@ -47,10 +48,22 @@ export function resolveAppId(program: Command, cfg?: Config): string | undefined
   return undefined;
 }
 
-export function resolveAuthToken(cfg?: Config): string | undefined {
+export async function resolveAuthToken(cfg?: Config): Promise<string | undefined> {
+  // 1. Check secure credential storage (Keychain / credential file)
+  const creds = await getCredentials();
+  if (creds?.auth_token?.trim()) {
+    if (creds.auth_token_expires_at) {
+      const expiry = new Date(creds.auth_token_expires_at);
+      if (!Number.isNaN(expiry.getTime()) && expiry <= new Date()) {
+        return undefined;
+      }
+    }
+    return creds.auth_token;
+  }
+
+  // 2. Legacy fallback: check config file (for users who haven't re-authenticated yet)
   const config = cfg ?? load();
   if (!config.auth_token?.trim()) return undefined;
-  // Check expiry
   if (config.auth_token_expires_at) {
     const expiry = new Date(config.auth_token_expires_at);
     if (!Number.isNaN(expiry.getTime()) && expiry <= new Date()) {
@@ -60,12 +73,12 @@ export function resolveAuthToken(cfg?: Config): string | undefined {
   return config.auth_token;
 }
 
-export function adminClientFromFlags(program: Command): AdminClient {
+export async function adminClientFromFlags(program: Command): Promise<AdminClient> {
   const cfg = load();
   const accessKey = resolveAccessKey(program, cfg);
   if (accessKey) return new AdminClient(accessKey);
 
-  const authToken = resolveAuthToken(cfg);
+  const authToken = await resolveAuthToken(cfg);
   if (authToken) return new AdminClient({ type: "auth_token", token: authToken });
 
   throw errAccessKeyRequired();
@@ -154,7 +167,7 @@ export async function resolveConfiguredNetworkSlugs(
   const appId = appIdOverride || resolveAppId(program);
   if (!appId) throw errAppRequired();
 
-  const admin = adminClientFromFlags(program);
+  const admin = await adminClientFromFlags(program);
   const app = await admin.getApp(appId);
   const slugs = app.chainNetworks
     .map((network) => appNetworkToSlug(network.rpcUrl))
