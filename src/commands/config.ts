@@ -473,6 +473,8 @@ export function registerConfig(program: Command) {
         ],
         ["wallet-key-file", cfg.wallet_key_file || dim("(not set)")],
         ["wallet-address", cfg.wallet_address || dim("(not set)")],
+        ["solana-wallet-key-file", cfg.solana_wallet_key_file || dim("(not set)")],
+        ["solana-wallet-address", cfg.solana_wallet_address || dim("(not set)")],
         [
           "x402",
           cfg.x402 !== undefined

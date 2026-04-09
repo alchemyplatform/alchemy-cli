@@ -194,6 +194,23 @@ export function errWalletKeyRequired(): CLIError {
   );
 }
 
+export function errSolanaWalletKeyRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "Solana wallet key required. Set ALCHEMY_SOLANA_WALLET_KEY, run 'alchemy wallet generate', or use --solana-wallet-key-file.",
+    "alchemy wallet generate",
+  );
+}
+
+export function errSolanaTransactionFailed(details?: string): CLIError {
+  return new CLIError(
+    ErrorCode.RPC_ERROR,
+    "Solana transaction failed.",
+    undefined,
+    details,
+  );
+}
+
 export function errAdminAPI(status: number, message: string): CLIError {
   return new CLIError(
     ErrorCode.ADMIN_API_ERROR,

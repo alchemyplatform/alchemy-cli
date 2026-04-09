@@ -279,6 +279,10 @@ const NATIVE_TOKEN_SYMBOLS: Record<string, string> = {
   sui: "SUI",
 };
 
+export function isSolanaNetwork(networkId: string): boolean {
+  return networkId.startsWith("solana-");
+}
+
 export function nativeTokenSymbol(networkId: string): string {
   // Extract the chain family prefix from the network slug (e.g. "polygon-mainnet" → "polygon")
   const prefix = networkId.replace(/-(mainnet|testnet|sepolia|holesky|hoodi|devnet|amoy|fuji|cardona|saigon|chiado|signet|mocha|blaze|curtis|bepolia).*$/, "");

@@ -15,6 +15,8 @@ import {
   errInvalidArgs,
   errNotFound,
   errRateLimited,
+  errSolanaWalletKeyRequired,
+  errSolanaTransactionFailed,
 } from "../../src/lib/errors.js";
 
 describe("CLIError", () => {
@@ -143,6 +145,16 @@ describe("convenience constructors", () => {
       name: "errAdminAPI",
       fn: () => errAdminAPI(500, "fail"),
       code: ErrorCode.ADMIN_API_ERROR,
+    },
+    {
+      name: "errSolanaWalletKeyRequired",
+      fn: errSolanaWalletKeyRequired,
+      code: ErrorCode.AUTH_REQUIRED,
+    },
+    {
+      name: "errSolanaTransactionFailed",
+      fn: () => errSolanaTransactionFailed("InstructionError"),
+      code: ErrorCode.RPC_ERROR,
     },
   ];
 
