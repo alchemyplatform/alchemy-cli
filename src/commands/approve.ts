@@ -20,12 +20,12 @@ import {
 } from "../lib/errors.js";
 import { promptConfirm } from "../lib/terminal-ui.js";
 import { withSpinner, printKeyValueBox, green, dim } from "../lib/ui.js";
-import { parseAmount, fetchTokenDecimals } from "./send/shared.js";
+import { parseAmount, fetchTokenDecimals, formatTokenAmount } from "./send/shared.js";
 
 const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 
 interface ApproveOpts {
-  spender: string;
+  tokenAddress: string;
   amount?: string;
   unlimited?: boolean;
   revoke?: boolean;
@@ -60,13 +60,6 @@ type ApprovalRequest =
 
 function isNativeToken(address: string): boolean {
   return address.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
-}
-
-function formatTokenAmount(rawAmount: bigint, decimals: number): string {
-  const str = rawAmount.toString().padStart(decimals + 1, "0");
-  const whole = str.slice(0, str.length - decimals) || "0";
-  const frac = str.slice(str.length - decimals).replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : whole;
 }
 
 function buildApprovalRequest(opts: ApproveOpts, tokenMeta: TokenMeta): ApprovalRequest {
@@ -204,8 +197,8 @@ export function registerApprove(program: Command) {
   program
     .command("approve")
     .description("Approve an ERC-20 token allowance for a spender")
-    .argument("<token_address>", "ERC-20 token contract address")
-    .requiredOption("--spender <spender_address>", "Address to approve spending")
+    .argument("<spender_address>", "Address to approve spending")
+    .requiredOption("--token-address <token_address>", "ERC-20 token contract address")
     .option("--amount <decimal_amount>", "Amount to approve in decimal token units (for example, 100.5)")
     .option("--unlimited", "Approve the maximum allowance")
     .option("--revoke", "Revoke approval (set allowance to 0)")
@@ -215,15 +208,15 @@ export function registerApprove(program: Command) {
       "after",
       `
 Examples:
-  alchemy approve 0xUSDC --spender 0xRouter --amount 100
-  alchemy approve 0xUSDC --spender 0xRouter --amount 100 --reset-first
-  alchemy approve 0xUSDC --spender 0xRouter --unlimited
-  alchemy approve 0xUSDC --spender 0xRouter --unlimited --yes
-  alchemy approve 0xUSDC --spender 0xRouter --revoke`,
+  alchemy approve 0xRouter --token-address 0xUSDC --amount 100
+  alchemy approve 0xRouter --token-address 0xUSDC --amount 100 --reset-first
+  alchemy approve 0xRouter --token-address 0xUSDC --unlimited
+  alchemy approve 0xRouter --token-address 0xUSDC --unlimited --yes
+  alchemy approve 0xRouter --token-address 0xUSDC --revoke`,
     )
-    .action(async (tokenArg: string, opts: ApproveOpts) => {
+    .action(async (spenderArg: string, opts: ApproveOpts) => {
       try {
-        await performApprove(program, tokenArg, opts);
+        await performApprove(program, spenderArg, opts);
       } catch (err) {
         exitWithError(err);
       }
@@ -232,13 +225,13 @@ Examples:
 
 async function performApprove(
   program: Command,
-  tokenArg: string,
+  spenderArg: string,
   opts: ApproveOpts,
 ) {
-  validateAddress(tokenArg);
-  validateAddress(opts.spender);
+  validateAddress(spenderArg);
+  validateAddress(opts.tokenAddress);
 
-  if (isNativeToken(tokenArg)) {
+  if (isNativeToken(opts.tokenAddress)) {
     throw errInvalidArgs("Native tokens do not support ERC-20 approvals. Provide an ERC-20 token contract address.");
   }
 
@@ -246,14 +239,14 @@ async function performApprove(
 
   const { client, network, address: from, paymaster } = buildWalletClient(program);
   const rpcClient = clientFromFlags(program);
-  const tokenMeta = await fetchTokenDecimals(program, tokenArg);
+  const tokenMeta = await fetchTokenDecimals(program, opts.tokenAddress);
   const approval = buildApprovalRequest(opts, tokenMeta);
 
-  if (!await confirmUnlimitedApproval(program, tokenMeta.symbol, opts.spender, opts)) {
+  if (!await confirmUnlimitedApproval(program, tokenMeta.symbol, spenderArg, opts)) {
     return;
   }
 
-  const currentAllowance = await readCurrentAllowance(rpcClient, tokenArg, from, opts.spender);
+  const currentAllowance = await readCurrentAllowance(rpcClient, opts.tokenAddress, from, spenderArg);
   const currentAllowanceDisplay = `${formatTokenAmount(currentAllowance, tokenMeta.decimals)} ${tokenMeta.symbol}`;
   const shouldResetFirst = opts.resetFirst === true && requiresAllowanceReset(currentAllowance, approval.rawAmount);
 
@@ -266,29 +259,29 @@ async function performApprove(
   const calls = shouldResetFirst
     ? [
         {
-          to: tokenArg as Address,
+          to: opts.tokenAddress as Address,
           data: encodeFunctionData({
             abi: erc20Abi,
             functionName: "approve",
-            args: [opts.spender as Address, 0n],
+            args: [spenderArg as Address, 0n],
           }),
         },
         {
-          to: tokenArg as Address,
+          to: opts.tokenAddress as Address,
           data: encodeFunctionData({
             abi: erc20Abi,
             functionName: "approve",
-            args: [opts.spender as Address, approval.rawAmount],
+            args: [spenderArg as Address, approval.rawAmount],
           }),
         },
       ]
     : [
         {
-          to: tokenArg as Address,
+          to: opts.tokenAddress as Address,
           data: encodeFunctionData({
             abi: erc20Abi,
             functionName: "approve",
-            args: [opts.spender as Address, approval.rawAmount],
+            args: [spenderArg as Address, approval.rawAmount],
           }),
         },
       ];
@@ -317,10 +310,10 @@ async function performApprove(
   if (isJSONMode()) {
     printJSON({
       from,
-      token: tokenArg,
+      token: opts.tokenAddress,
       tokenSymbol: tokenMeta.symbol,
       tokenDecimals: tokenMeta.decimals,
-      spender: opts.spender,
+      spender: spenderArg,
       approvalType: approval.kind,
       inputAmount: approval.inputAmount,
       requestedAllowanceRaw: approval.rawAmount.toString(),
@@ -337,8 +330,8 @@ async function performApprove(
   } else {
     const pairs: [string, string][] = [
       ["From", from],
-      ["Token", `${tokenMeta.symbol} (${tokenArg})`],
-      ["Spender", opts.spender],
+      ["Token", `${tokenMeta.symbol} (${opts.tokenAddress})`],
+      ["Spender", spenderArg],
       ["Current Allowance", currentAllowanceDisplay],
       ["Requested Allowance", green(approval.displayAmount)],
       ...(shouldResetFirst ? [["Allowance Update", "Reset to 0, then approve"]] as [string, string][] : []),

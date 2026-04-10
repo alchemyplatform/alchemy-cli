@@ -40,6 +40,13 @@ export function parseAmount(amount: string, decimals: number): bigint {
   }
 }
 
+export function formatTokenAmount(rawAmount: bigint, decimals: number): string {
+  const str = rawAmount.toString().padStart(decimals + 1, "0");
+  const whole = str.slice(0, str.length - decimals) || "0";
+  const frac = str.slice(str.length - decimals).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
+}
+
 export async function fetchTokenDecimals(
   program: Command,
   tokenAddress: string,

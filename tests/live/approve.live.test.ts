@@ -51,9 +51,9 @@ describe("live approve command", () => {
     const write = await runLiveEvmCLI(
       [
         "approve",
-        config.evmContractAddress,
-        "--spender",
         config.evmRecipient,
+        "--token-address",
+        config.evmContractAddress,
         "--amount",
         amount,
         "--reset-first",
@@ -112,9 +112,9 @@ describe("live approve command", () => {
     const write = await runLiveEvmCLI(
       [
         "approve",
-        config.evmContractAddress,
-        "--spender",
         config.evmRecipient,
+        "--token-address",
+        config.evmContractAddress,
         "--amount",
         amount,
         "--reset-first",

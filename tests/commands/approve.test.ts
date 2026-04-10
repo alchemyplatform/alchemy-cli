@@ -70,8 +70,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--amount", "100",
     ], { from: "node" });
 
@@ -132,8 +132,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--amount", "100",
     ], { from: "node" });
 
@@ -180,8 +180,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--unlimited",
     ], { from: "node" });
 
@@ -230,8 +230,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--unlimited",
       "--yes",
     ], { from: "node" });
@@ -294,8 +294,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--unlimited",
     ], { from: "node" });
 
@@ -355,8 +355,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--unlimited",
     ], { from: "node" });
 
@@ -404,8 +404,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--amount", "100",
       "--reset-first",
     ], { from: "node" });
@@ -465,8 +465,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--revoke",
     ], { from: "node" });
 
@@ -524,8 +524,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--amount", "100",
     ], { from: "node" });
 
@@ -577,8 +577,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
     ], { from: "node" });
 
     expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
@@ -624,8 +624,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--amount", "100",
       "--revoke",
     ], { from: "node" });
@@ -673,8 +673,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", TOKEN,
       "--revoke",
       "--reset-first",
     ], { from: "node" });
@@ -722,8 +722,8 @@ describe("approve command", () => {
     registerApprove(program);
 
     await program.parseAsync([
-      "node", "test", "approve", NATIVE_TOKEN,
-      "--spender", SPENDER,
+      "node", "test", "approve", SPENDER,
+      "--token-address", NATIVE_TOKEN,
       "--amount", "1",
     ], { from: "node" });
 
