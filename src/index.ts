@@ -1,5 +1,10 @@
 import { Command, Help } from "commander";
-import { EXIT_CODES, errInvalidArgs, errSetupRequired, exitWithError } from "./lib/errors.js";
+import {
+  EXIT_CODES,
+  errInvalidArgs,
+  errSetupRequired,
+  exitWithError,
+} from "./lib/errors.js";
 import { setFlags, isJSONMode, quiet } from "./lib/output.js";
 import { formatCommanderError } from "./lib/error-format.js";
 import { load as loadConfig } from "./lib/config.js";
@@ -33,10 +38,15 @@ import { registerCompletions } from "./commands/completions.js";
 import { registerSend } from "./commands/send/index.js";
 import { registerContract } from "./commands/contract.js";
 import { registerSwap } from "./commands/swap.js";
+import { registerStatus } from "./commands/status.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
-import { getSetupStatus, isSetupComplete, shouldRunOnboarding } from "./lib/onboarding.js";
+import {
+  getSetupStatus,
+  isSetupComplete,
+  shouldRunOnboarding,
+} from "./lib/onboarding.js";
 import { getAvailableUpdate, printUpdateNotice } from "./lib/update-check.js";
 
 // ── ANSI helpers for help formatting ────────────────────────────────
@@ -48,7 +58,16 @@ const hDim = esc("2");
 const ROOT_OPTION_GROUPS = [
   {
     label: "Auth & Network",
-    matchers: ["--api-key", "--access-key", "--network", "--x402", "--wallet-key-file", "--solana-wallet-key-file", "--gas-sponsored", "--gas-policy-id"],
+    matchers: [
+      "--api-key",
+      "--access-key",
+      "--network",
+      "--x402",
+      "--wallet-key-file",
+      "--solana-wallet-key-file",
+      "--gas-sponsored",
+      "--gas-policy-id",
+    ],
   },
   {
     label: "Output & Formatting",
@@ -63,15 +82,31 @@ const ROOT_OPTION_GROUPS = [
 const ROOT_COMMAND_PILLARS = [
   {
     label: "Node",
-    commands: ["balance", "tx", "block", "rpc", "trace", "debug", "gas", "logs"],
+    commands: [
+      "balance",
+      "tx",
+      "block",
+      "rpc",
+      "trace",
+      "debug",
+      "gas",
+      "logs",
+    ],
   },
   {
     label: "Data",
-    commands: ["tokens", "nfts", "transfers", "prices", "portfolio", "simulate"],
+    commands: [
+      "tokens",
+      "nfts",
+      "transfers",
+      "prices",
+      "portfolio",
+      "simulate",
+    ],
   },
   {
     label: "Execution",
-    commands: ["send", "contract", "swap"],
+    commands: ["send", "contract", "swap", "status"],
   },
   {
     label: "Wallets",
@@ -83,7 +118,17 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Admin",
-    commands: ["apps", "auth", "config", "setup", "completions", "agent-prompt", "update-check", "version", "help"],
+    commands: [
+      "apps",
+      "auth",
+      "config",
+      "setup",
+      "completions",
+      "agent-prompt",
+      "update-check",
+      "version",
+      "help",
+    ],
   },
 ] as const;
 
@@ -107,8 +152,8 @@ function rootOptionGroupLabel(flags: string): string {
 
 const program = new Command();
 const argvTokens = process.argv.slice(2);
-const isHelpInvocation = argvTokens.some((token) =>
-  token === "help" || token === "--help" || token === "-h"
+const isHelpInvocation = argvTokens.some(
+  (token) => token === "help" || token === "--help" || token === "-h",
 );
 const findCommandByPath = (root: Command, path: string[]): Command | null => {
   let current: Command = root;
@@ -154,16 +199,32 @@ program
     "Target network (default: eth-mainnet) (env: ALCHEMY_NETWORK)",
   )
   .option("--x402", "Use x402 wallet-based gateway auth")
-  .option("--wallet-key-file <path>", "Path to wallet private key file for x402")
-  .option("--solana-wallet-key-file <path>", "Path to Solana wallet private key file")
-  .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
-  .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
+  .option(
+    "--wallet-key-file <path>",
+    "Path to wallet private key file for x402",
+  )
+  .option(
+    "--solana-wallet-key-file <path>",
+    "Path to Solana wallet private key file",
+  )
+  .option(
+    "--gas-sponsored",
+    "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)",
+  )
+  .option(
+    "--gas-policy-id <id>",
+    "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)",
+  )
   .option("--json", "Force JSON output (auto-enabled when piped)")
   .option("-q, --quiet", "Suppress non-essential output")
   .option("--verbose", "Enable verbose output")
   .option("--no-color", "Disable color output")
   .option("--reveal", "Show secrets in plain text")
-  .option("--timeout <ms>", "Request timeout in milliseconds (default: none)", parseInt)
+  .option(
+    "--timeout <ms>",
+    "Request timeout in milliseconds (default: none)",
+    parseInt,
+  )
   .option("--debug", "Enable debug diagnostics")
   .option("--no-interactive", "Disable REPL and prompt-driven interactions")
   .addHelpCommand(false)
@@ -227,76 +288,86 @@ program
 
       const out = lines
         .map((line): string | null => {
-        const sectionMatch = line.match(/^(Usage|Commands|Options|Arguments):$/);
-        if (sectionMatch) {
-          const title = sectionMatch[1];
-          if (title === "Commands" && cmd === program) {
-            section = "commands";
-            const byName = new Map(
-              cmd.commands.map((sub) => [sub.name(), sub]),
-            );
-            const groupedRows = ROOT_COMMAND_PILLARS.map((pillar) => {
-              const rows = pillar.commands
-                .map((name) => byName.get(name))
-                .filter((sub): sub is Command => Boolean(sub))
-                .map((sub) => ({
-                  left: formatCommandSignature(sub),
-                  right: sub.description(),
-                }));
-              return { label: pillar.label, rows };
-            }).filter((group) => group.rows.length > 0);
+          const sectionMatch = line.match(
+            /^(Usage|Commands|Options|Arguments):$/,
+          );
+          if (sectionMatch) {
+            const title = sectionMatch[1];
+            if (title === "Commands" && cmd === program) {
+              section = "commands";
+              const byName = new Map(
+                cmd.commands.map((sub) => [sub.name(), sub]),
+              );
+              const groupedRows = ROOT_COMMAND_PILLARS.map((pillar) => {
+                const rows = pillar.commands
+                  .map((name) => byName.get(name))
+                  .filter((sub): sub is Command => Boolean(sub))
+                  .map((sub) => ({
+                    left: formatCommandSignature(sub),
+                    right: sub.description(),
+                  }));
+                return { label: pillar.label, rows };
+              }).filter((group) => group.rows.length > 0);
 
-            const maxLeft = Math.max(
-              0,
-              ...groupedRows.flatMap((group) => group.rows.map((row) => row.left.length)),
-            );
-            const groupText = groupedRows.map((group) => {
-              const header = `  ${hBold(group.label)}${hDim(":")}`;
-              const rows = group.rows.map((row) => {
-                const gap = " ".repeat(Math.max(2, maxLeft - row.left.length + 2));
-                return `    ${hBrand(row.left)}${gap}${hDim(row.right)}`;
-              }).join("\n");
-              return `${header}\n${rows}`;
-            }).join("\n\n");
+              const maxLeft = Math.max(
+                0,
+                ...groupedRows.flatMap((group) =>
+                  group.rows.map((row) => row.left.length),
+                ),
+              );
+              const groupText = groupedRows
+                .map((group) => {
+                  const header = `  ${hBold(group.label)}${hDim(":")}`;
+                  const rows = group.rows
+                    .map((row) => {
+                      const gap = " ".repeat(
+                        Math.max(2, maxLeft - row.left.length + 2),
+                      );
+                      return `    ${hBrand(row.left)}${gap}${hDim(row.right)}`;
+                    })
+                    .join("\n");
+                  return `${header}\n${rows}`;
+                })
+                .join("\n\n");
 
-            return `${hBrand("◆")} ${hBold("Commands")}\n  ${hDim("────────────────────────────────────")}\n${groupText}`;
-          }
-          section = title.toLowerCase() as typeof section;
-          return `${hBrand("◆")} ${hBold(title)}\n  ${hDim("────────────────────────────────────")}`;
-        }
-
-        // Clear section after a blank line to avoid over-styling.
-        if (line.trim() === "") {
-          section = null;
-          return line;
-        }
-
-        // Root help replaces "Commands" with grouped command pillars.
-        if (section === "commands" && cmd === program) {
-          return null;
-        }
-
-        // In options/commands tables, style only left and right columns.
-        if (section === "options" || section === "commands") {
-          const entryMatch = line.match(/^(\s+)(.+?)(\s{2,})(.+)$/);
-          if (entryMatch) {
-            const [, indent, left, gap, right] = entryMatch;
-            const styledLine = `${indent}${hBrand(left)}${gap}${hDim(right)}`;
-            if (section === "options" && cmd === program) {
-              const groupLabel = rootOptionGroupLabel(left);
-              if (!emittedOptionGroups.has(groupLabel)) {
-                emittedOptionGroups.add(groupLabel);
-                const needsLeadingGap = emittedOptionGroups.size > 1;
-                const groupHeader = `${indent}${hBold(groupLabel)}${hDim(":")}`;
-                return `${needsLeadingGap ? "\n" : ""}${groupHeader}\n${styledLine}`;
-              }
+              return `${hBrand("◆")} ${hBold("Commands")}\n  ${hDim("────────────────────────────────────")}\n${groupText}`;
             }
-            return styledLine;
+            section = title.toLowerCase() as typeof section;
+            return `${hBrand("◆")} ${hBold(title)}\n  ${hDim("────────────────────────────────────")}`;
           }
-        }
 
-        return line;
-      })
+          // Clear section after a blank line to avoid over-styling.
+          if (line.trim() === "") {
+            section = null;
+            return line;
+          }
+
+          // Root help replaces "Commands" with grouped command pillars.
+          if (section === "commands" && cmd === program) {
+            return null;
+          }
+
+          // In options/commands tables, style only left and right columns.
+          if (section === "options" || section === "commands") {
+            const entryMatch = line.match(/^(\s+)(.+?)(\s{2,})(.+)$/);
+            if (entryMatch) {
+              const [, indent, left, gap, right] = entryMatch;
+              const styledLine = `${indent}${hBrand(left)}${gap}${hDim(right)}`;
+              if (section === "options" && cmd === program) {
+                const groupLabel = rootOptionGroupLabel(left);
+                if (!emittedOptionGroups.has(groupLabel)) {
+                  emittedOptionGroups.add(groupLabel);
+                  const needsLeadingGap = emittedOptionGroups.size > 1;
+                  const groupHeader = `${indent}${hBold(groupLabel)}${hDim(":")}`;
+                  return `${needsLeadingGap ? "\n" : ""}${groupHeader}\n${styledLine}`;
+                }
+              }
+              return styledLine;
+            }
+          }
+
+          return line;
+        })
         .filter((line): line is string => line !== null);
 
       return out.join("\n") + "\n";
@@ -351,8 +422,15 @@ program
     // before running commands that need one (skip for auth/config/setup/help/etc.)
     const cmdName = actionCommand.name();
     const skipAppPrompt = [
-      "auth", "config", "setup", "help", "version",
-      "completions", "agent-prompt", "update-check", "wallet",
+      "auth",
+      "config",
+      "setup",
+      "help",
+      "version",
+      "completions",
+      "agent-prompt",
+      "update-check",
+      "wallet",
     ];
     if (
       !skipAppPrompt.includes(cmdName) &&
@@ -413,7 +491,9 @@ program
         }
       } else {
         latestForInteractiveStartup = getAvailableUpdateOnce();
-        updateShownDuringInteractiveStartup = Boolean(latestForInteractiveStartup);
+        updateShownDuringInteractiveStartup = Boolean(
+          latestForInteractiveStartup,
+        );
       }
       const { startREPL } = await import("./commands/interactive.js");
       // In REPL mode, override exitOverride so errors don't kill the process
@@ -450,6 +530,7 @@ registerSimulate(program);
 registerSend(program);
 registerContract(program);
 registerSwap(program);
+registerStatus(program);
 
 // Wallets
 registerWallet(program);

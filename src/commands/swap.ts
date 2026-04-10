@@ -315,6 +315,7 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
       ["To", toInfo.symbol],
       ["Slippage", slippage === undefined ? "API default" : `${slippage}%`],
       ["Network", network],
+      ["Call ID", id],
     ];
 
     if (paymaster) {

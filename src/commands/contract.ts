@@ -447,6 +447,7 @@ export async function performContractCall(
       ["Contract", contractAddress],
       ["Function", functionName],
       ["Network", network],
+      ["Call ID", id],
     ];
 
     if (paymaster) {

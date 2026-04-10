@@ -259,6 +259,7 @@ describe("registerContract", () => {
       capabilities: { paymaster: { policyId: "policy-123" } },
     });
     expect(printKeyValueBox).toHaveBeenCalledWith(expect.arrayContaining([
+      ["Call ID", "call-123"],
       ["Gas", "Sponsored"],
       ["Tx Hash", "0xtxhash"],
       ["Status", "Confirmed"],
