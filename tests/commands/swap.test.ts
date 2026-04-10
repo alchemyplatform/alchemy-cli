@@ -3,6 +3,7 @@ import { Command } from "commander";
 
 const NATIVE_TOKEN = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const ZERO_DEC_TOKEN = "0x3333333333333333333333333333333333333333";
 const FROM = "0x1111111111111111111111111111111111111111";
 const ROUTER = "0x2222222222222222222222222222222222222222";
 
@@ -462,6 +463,79 @@ describe("swap command", () => {
     }));
   });
 
+  it("formats minimum output correctly for zero-decimal tokens", async () => {
+    const printJSON = vi.fn();
+    const requestQuoteV0 = vi.fn().mockResolvedValue({
+      rawCalls: false,
+      type: "user-operation-v070",
+      quote: {
+        fromAmount: 1000000n,
+        minimumToAmount: 42n,
+        expiry: 123,
+      },
+      chainId: 1,
+      data: {},
+      feePayment: {
+        sponsored: false,
+        tokenAddress: USDC,
+        maxAmount: 0n,
+      },
+    });
+    const call = vi.fn().mockImplementation((_method: string, [tokenAddress]: [string]) => {
+      if (tokenAddress === USDC) {
+        return Promise.resolve({ decimals: 6, symbol: "USDC" });
+      }
+      if (tokenAddress === ZERO_DEC_TOKEN) {
+        return Promise.resolve({ decimals: 0, symbol: "POINTS" });
+      }
+      return Promise.reject(new Error(`Unexpected token ${tokenAddress}`));
+    });
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: {
+          extend: () => ({ requestQuoteV0 }),
+        },
+        network: "eth-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", USDC,
+      "--to", ZERO_DEC_TOKEN,
+      "--amount", "1.0",
+    ], { from: "node" });
+
+    expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
+      minimumOutput: "42",
+      toSymbol: "POINTS",
+    }));
+  });
+
   it("renders minimum receive and API-default slippage in human output", async () => {
     const printKeyValueBox = vi.fn();
     const requestQuoteV0 = vi.fn().mockResolvedValue({
@@ -528,5 +602,57 @@ describe("swap command", () => {
       ["Slippage", "API default"],
       ["Network", "polygon-mainnet"],
     ]));
+  });
+
+  it("wraps unexpected token metadata failures with token context", async () => {
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: { extend: () => ({ requestQuoteV0: vi.fn() }) },
+        network: "eth-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({
+        call: vi.fn().mockRejectedValue(new Error("RPC offline")),
+      }),
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", USDC,
+      "--to", NATIVE_TOKEN,
+      "--amount", "1.0",
+    ], { from: "node" });
+
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      code: "INVALID_ARGS",
+      message: `Failed to resolve token info for ${USDC}. RPC offline`,
+    }));
   });
 });

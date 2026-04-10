@@ -2,13 +2,14 @@ import { Command } from "commander";
 import type { Address } from "viem";
 import {
   swapActions,
+  type RequestQuoteV0Params,
   type RequestQuoteV0Result,
 } from "@alchemy/wallet-apis/experimental";
 import { buildWalletClient } from "../lib/smart-wallet.js";
 import type { PaymasterConfig } from "../lib/smart-wallet.js";
 import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
-import { exitWithError, errInvalidArgs } from "../lib/errors.js";
+import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { parseAmount, fetchTokenDecimals } from "./send/shared.js";
@@ -32,7 +33,19 @@ async function resolveTokenInfo(
   if (isNativeToken(tokenAddress)) {
     return { decimals: NATIVE_DECIMALS, symbol: nativeTokenSymbol(network) };
   }
-  return fetchTokenDecimals(program, tokenAddress);
+
+  try {
+    return await fetchTokenDecimals(program, tokenAddress);
+  } catch (err) {
+    if (err instanceof CLIError && err.code === "INVALID_ARGS") {
+      throw err;
+    }
+
+    const detail = err instanceof Error && err.message
+      ? ` ${err.message}`
+      : "";
+    throw errInvalidArgs(`Failed to resolve token info for ${tokenAddress}.${detail}`);
+  }
 }
 
 function formatTokenAmount(rawAmount: bigint, decimals: number): string {
@@ -49,8 +62,13 @@ interface SwapOpts {
   slippage?: string;
 }
 
+type WalletClient = ReturnType<typeof buildWalletClient>["client"];
 type PaymasterPermitQuote = Extract<RequestQuoteV0Result, { type: "paymaster-permit" }>;
 type RawCallsQuote = Extract<RequestQuoteV0Result, { rawCalls: true }>;
+type ExecutablePreparedQuote = Parameters<WalletClient["signPreparedCalls"]>[0];
+type PreparedCallsRequest = Parameters<WalletClient["prepareCalls"]>[0];
+type SignatureRequest = Parameters<WalletClient["signSignatureRequest"]>[0];
+type ExecutableQuote = ExecutablePreparedQuote | RawCallsQuote;
 
 function createQuoteRequest(
   fromToken: string,
@@ -58,7 +76,7 @@ function createQuoteRequest(
   fromAmount: bigint,
   slippagePercent: number | undefined,
   paymaster?: PaymasterConfig,
-) {
+): RequestQuoteV0Params {
   const request = {
     fromToken: fromToken as Address,
     toToken: toToken as Address,
@@ -67,9 +85,43 @@ function createQuoteRequest(
       ? { slippage: slippagePercentToBasisPoints(slippagePercent) }
       : {}),
     ...(paymaster ? { capabilities: { paymaster } } : {}),
-  };
+  } satisfies RequestQuoteV0Params;
 
-  return request as Parameters<ReturnType<ReturnType<typeof buildWalletClient>["client"]["extend"]>["requestQuoteV0"]>[0];
+  return request;
+}
+
+async function prepareQuoteForExecution(
+  client: WalletClient,
+  quote: RequestQuoteV0Result,
+): Promise<ExecutableQuote> {
+  if (!("type" in quote) || quote.type !== "paymaster-permit" || !("modifiedRequest" in quote) || !("signatureRequest" in quote)) {
+    return quote as ExecutableQuote;
+  }
+
+  const permitQuote = quote as PaymasterPermitQuote & {
+    modifiedRequest: PreparedCallsRequest;
+    signatureRequest: SignatureRequest;
+  };
+  const permitSignature = await withSpinner(
+    "Signing permit…",
+    "Permit signed",
+    () => client.signSignatureRequest(permitQuote.signatureRequest),
+  );
+
+  const preparedQuote = await withSpinner(
+    "Preparing swap…",
+    "Swap prepared",
+    () => client.prepareCalls({
+      ...permitQuote.modifiedRequest,
+      paymasterPermitSignature: permitSignature,
+    }),
+  );
+
+  if ("type" in preparedQuote && preparedQuote.type === "paymaster-permit") {
+    throw errInvalidArgs("Swap quote still requires a paymaster permit after signing. The quote response format may be unsupported.");
+  }
+
+  return preparedQuote as ExecutableQuote;
 }
 
 export function registerSwap(program: Command) {
@@ -80,9 +132,9 @@ export function registerSwap(program: Command) {
   cmd
     .command("quote")
     .description("Get a swap quote without executing")
-    .requiredOption("--from <address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
-    .requiredOption("--to <address>", "Token address to swap to")
-    .requiredOption("--amount <number>", "Amount to swap (human-readable)")
+    .requiredOption("--from <token_address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
+    .requiredOption("--to <token_address>", "Token address to swap to (use 0xEeee...EEeE for the native token)")
+    .requiredOption("--amount <number>", "Amount to swap in decimal token units (for example, 1.5)")
     .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
     .addHelpText(
       "after",
@@ -104,9 +156,9 @@ Examples:
   cmd
     .command("execute")
     .description("Execute a token swap")
-    .requiredOption("--from <address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
-    .requiredOption("--to <address>", "Token address to swap to")
-    .requiredOption("--amount <number>", "Amount to swap (human-readable)")
+    .requiredOption("--from <token_address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
+    .requiredOption("--to <token_address>", "Token address to swap to (use 0xEeee...EEeE for the native token)")
+    .requiredOption("--amount <number>", "Amount to swap in decimal token units (for example, 1.5)")
     .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
     .addHelpText(
       "after",
@@ -205,45 +257,13 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
   }
 
   // Get quote with prepared calls
-  let quote = await withSpinner(
+  const quote = await withSpinner(
     "Fetching quote…",
     "Quote received",
     () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
   );
 
-  // If the quote requires an ERC-7597 permit, sign it and refresh the quote
-  // with the attached permit signature before preparing the final calls.
-  let preparedQuote:
-    | Parameters<typeof client.signPreparedCalls>[0]
-    | RawCallsQuote
-    | undefined;
-
-  if ("type" in quote && quote.type === "paymaster-permit" && "modifiedRequest" in quote && "signatureRequest" in quote) {
-    const permitQuote = quote as PaymasterPermitQuote & {
-      modifiedRequest: Parameters<typeof client.prepareCalls>[0];
-      signatureRequest: Parameters<typeof client.signSignatureRequest>[0];
-    };
-    const permitSignature = await withSpinner(
-      "Signing permit…",
-      "Permit signed",
-      () => client.signSignatureRequest(permitQuote.signatureRequest),
-    );
-
-    preparedQuote = await withSpinner(
-      "Preparing swap…",
-      "Swap prepared",
-      () => client.prepareCalls({
-        ...permitQuote.modifiedRequest,
-        paymasterPermitSignature: permitSignature,
-      }),
-    );
-  } else {
-    preparedQuote = quote;
-  }
-
-  if ("type" in preparedQuote && preparedQuote.type === "paymaster-permit") {
-    throw errInvalidArgs("Swap quote still requires a paymaster permit after signing. The quote response format may be unsupported.");
-  }
+  const preparedQuote = await prepareQuoteForExecution(client, quote);
 
   // Send the quoted swap using the appropriate execution path.
   const { id } = await withSpinner(
@@ -258,7 +278,7 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
         });
       }
 
-      const executablePreparedQuote = preparedQuote as Parameters<typeof client.signPreparedCalls>[0];
+      const executablePreparedQuote = preparedQuote as ExecutablePreparedQuote;
       const signedQuote = await client.signPreparedCalls(executablePreparedQuote);
       return client.sendPreparedCalls(signedQuote);
     },
@@ -313,8 +333,8 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function extractQuoteData(quote: any): { type: string; minimumOutput?: bigint } {
-  const type = quote.type ?? "unknown";
+function extractQuoteData(quote: RequestQuoteV0Result): { type: string; minimumOutput?: bigint } {
+  const type = "type" in quote ? quote.type : "unknown";
 
   if (quote.quote?.minimumToAmount !== undefined) {
     return { type, minimumOutput: BigInt(quote.quote.minimumToAmount) };
