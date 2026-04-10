@@ -141,17 +141,12 @@ function buildAgentPrompt(program: Command): AgentPrompt {
         flag: "--api-key <key>",
         configKey: "api-key",
         commandFamilies: [
-          "balance",
+          "data",
           "tx",
           "block",
           "rpc",
           "trace",
           "debug",
-          "tokens",
-          "nfts",
-          "transfers",
-          "prices",
-          "portfolio",
           "simulate",
           "solana",
         ],
@@ -176,15 +171,12 @@ function buildAgentPrompt(program: Command): AgentPrompt {
         flag: "--x402 --wallet-key-file <path>",
         configKey: "x402",
         commandFamilies: [
-          "balance",
+          "data",
           "tx",
           "block",
           "rpc",
           "trace",
           "debug",
-          "tokens",
-          "nfts",
-          "transfers",
         ],
       },
     ],
@@ -193,7 +185,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
     examples: [
       "alchemy --json --no-interactive setup status",
       "alchemy --json --no-interactive update-check",
-      "alchemy --json --no-interactive balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
+      "alchemy --json --no-interactive data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
       "alchemy --json --no-interactive apps list --access-key $ALCHEMY_ACCESS_KEY",
       "alchemy --json --no-interactive rpc eth_blockNumber --api-key $ALCHEMY_API_KEY",
       "alchemy --json --no-interactive network list",
@@ -258,7 +250,7 @@ export function registerAgentPrompt(program: Command) {
   program
     .command("agent-prompt")
     .description("Emit complete agent/automation usage instructions")
-    .option("--commands <list>", "Filter to specific commands in JSON output (requires --json). Comma-separated (e.g. balance,tokens,gas)")
+    .option("--commands <list>", "Filter to specific commands in JSON output (requires --json). Comma-separated (e.g. data,rpc,gas)")
     .action((opts: { commands?: string }) => {
       const payload = buildAgentPrompt(program);
       if (opts.commands) {

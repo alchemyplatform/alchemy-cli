@@ -72,12 +72,12 @@ export function registerBalance(program: Command) {
       "after",
       `
 Examples:
-  alchemy balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-  alchemy balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 -n polygon-mainnet
-  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy balance
-  alchemy balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --block 15537393
-  alchemy balance vitalik.eth
-  cat addresses.txt | alchemy balance`,
+  alchemy data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  alchemy data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 -n polygon-mainnet
+  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy data balance
+  alchemy data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --block 15537393
+  alchemy data balance vitalik.eth
+  cat addresses.txt | alchemy data balance`,
     )
     .option("--block <block>", "Block number, hex, or tag (default: latest)")
     .action(async (addressArg?: string, opts?: { block?: string }) => {

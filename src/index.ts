@@ -7,12 +7,10 @@ import { brandedHelp } from "./lib/ui.js";
 import { noColor, setNoColor, identity, esc } from "./lib/colors.js";
 import { registerConfig } from "./commands/config.js";
 import { registerRPC } from "./commands/rpc.js";
-import { registerBalance } from "./commands/balance.js";
+import { registerData } from "./commands/data.js";
 import { registerTx } from "./commands/tx.js";
 import { registerReceipt } from "./commands/receipt.js";
 import { registerBlock } from "./commands/block.js";
-import { registerNFTs } from "./commands/nfts.js";
-import { registerTokens } from "./commands/tokens.js";
 import { registerNetwork } from "./commands/network.js";
 import { registerVersion } from "./commands/version.js";
 import { registerApps } from "./commands/apps.js";
@@ -21,9 +19,6 @@ import { registerSetup } from "./commands/setup.js";
 import { registerAuth } from "./commands/auth.js";
 import { registerTrace } from "./commands/trace.js";
 import { registerDebug } from "./commands/debug.js";
-import { registerTransfers } from "./commands/transfers.js";
-import { registerPrices } from "./commands/prices.js";
-import { registerPortfolio } from "./commands/portfolio.js";
 import { registerSimulate } from "./commands/simulate.js";
 import { registerWebhooks } from "./commands/webhooks.js";
 import { registerSolana } from "./commands/solana.js";
@@ -63,11 +58,11 @@ const ROOT_OPTION_GROUPS = [
 const ROOT_COMMAND_PILLARS = [
   {
     label: "Node",
-    commands: ["balance", "tx", "block", "rpc", "trace", "debug", "gas", "logs"],
+    commands: ["tx", "block", "rpc", "trace", "debug", "gas", "logs"],
   },
   {
     label: "Data",
-    commands: ["tokens", "nfts", "transfers", "prices", "portfolio", "simulate"],
+    commands: ["data", "simulate"],
   },
   {
     label: "Execution",
@@ -310,7 +305,7 @@ program
       `${hBrand("◆")} ${hBold("Quick Start")}`,
       `  ${hDim("────────────────────────────────────")}`,
       `  ${hBrand("alchemy")}                              ${hDim("Interactive mode with guided setup")}`,
-      `  ${hBrand("alchemy balance")} ${hDim("<address>")}             ${hDim("Get native token balance")}`,
+      `  ${hBrand("alchemy data balance")} ${hDim("<address>")}        ${hDim("Get native token balance")}`,
       `  ${hBrand("alchemy block latest")}                  ${hDim("Latest block summary")}`,
       `  ${hBrand("alchemy rpc eth_chainId")}               ${hDim("Raw JSON-RPC call")}`,
       `  ${hBrand("alchemy config list")}                   ${hDim("View current configuration")}`,
@@ -429,7 +424,6 @@ program
 
 // Node
 registerRPC(program);
-registerBalance(program);
 registerTx(program);
 registerReceipt(program);
 registerBlock(program);
@@ -439,11 +433,7 @@ registerGas(program);
 registerLogs(program);
 
 // Data
-registerTokens(program);
-registerNFTs(program);
-registerTransfers(program);
-registerPrices(program);
-registerPortfolio(program);
+registerData(program);
 registerSimulate(program);
 
 // Execution

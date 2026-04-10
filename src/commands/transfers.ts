@@ -55,7 +55,7 @@ function formatTransferRows(transfers: Transfer[]): string[][] {
 
 export function registerTransfers(program: Command) {
   program
-    .command("transfers")
+    .command("history")
     .argument("[address]", "Wallet address or ENS name — queries outgoing transfers (use --to-address for incoming)")
     .description("Get transfer history (alchemy_getAssetTransfers)")
     .option("--from-address <address>", "Filter sender address")
@@ -70,16 +70,16 @@ export function registerTransfers(program: Command) {
       `
 Examples:
   # Outgoing transfers from an address
-  alchemy transfers 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  alchemy data history 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
 
   # Incoming transfers to an address
-  alchemy transfers --to-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  alchemy data history --to-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
 
   # Outgoing ERC-20 transfers only
-  alchemy transfers --from-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --category erc20
+  alchemy data history --from-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --category erc20
 
   # Transfers within a block range
-  alchemy transfers 0xd8dA... --from-block 0x100000 --to-block latest`,
+  alchemy data history 0xd8dA... --from-block 0x100000 --to-block latest`,
     )
     .action(async (addressArg: string | undefined, opts) => {
       try {

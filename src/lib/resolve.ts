@@ -10,8 +10,27 @@ import { AdminClient } from "./admin-client.js";
 import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errWalletKeyRequired } from "./errors.js";
 import { debug } from "./output.js";
 
+interface CommandOptions {
+  apiKey?: string;
+  accessKey?: string;
+  network?: string;
+  appId?: string;
+  x402?: boolean;
+  walletKeyFile?: string;
+  solanaWalletKeyFile?: string;
+  gasSponsored?: boolean;
+  gasPolicyId?: string;
+}
+
+function getCommandOptions(program: Command): CommandOptions {
+  const commandWithGlobals = program as Command & {
+    optsWithGlobals?: () => CommandOptions;
+  };
+  return commandWithGlobals.optsWithGlobals?.() ?? program.opts();
+}
+
 export function resolveAPIKey(program: Command, cfg?: Config): string | undefined {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
   if (opts.apiKey) return opts.apiKey;
   if (process.env.ALCHEMY_API_KEY) return process.env.ALCHEMY_API_KEY;
   const config = cfg ?? load();
@@ -22,7 +41,7 @@ export function resolveAPIKey(program: Command, cfg?: Config): string | undefine
 }
 
 export function resolveAccessKey(program: Command, cfg?: Config): string | undefined {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
   if (opts.accessKey) return opts.accessKey;
   if (process.env.ALCHEMY_ACCESS_KEY) return process.env.ALCHEMY_ACCESS_KEY;
   const config = cfg ?? load();
@@ -31,7 +50,7 @@ export function resolveAccessKey(program: Command, cfg?: Config): string | undef
 }
 
 export function resolveNetwork(program: Command, cfg?: Config, defaultNetwork?: string): string {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
   if (opts.network) return opts.network;
   if (process.env.ALCHEMY_NETWORK) return process.env.ALCHEMY_NETWORK;
   const config = cfg ?? load();
@@ -40,7 +59,7 @@ export function resolveNetwork(program: Command, cfg?: Config, defaultNetwork?: 
 }
 
 export function resolveAppId(program: Command, cfg?: Config): string | undefined {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
   if (opts.appId) return opts.appId;
   const config = cfg ?? load();
   if (config.app?.id) return config.app.id;
@@ -72,7 +91,7 @@ export function adminClientFromFlags(program: Command): AdminClient {
 }
 
 export function resolveX402(program: Command, cfg?: Config): boolean {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
   if (opts.x402) return true;
   const config = cfg ?? load();
   return config.x402 === true;
@@ -87,7 +106,7 @@ export function resolveX402Client(program: Command): X402Client | null {
 }
 
 export function resolveWalletKey(program: Command, cfg?: Config): string | undefined {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
 
   // 1. --wallet-key-file flag
   if (opts.walletKeyFile) {
@@ -109,7 +128,7 @@ export function resolveWalletKey(program: Command, cfg?: Config): string | undef
 }
 
 export function resolveSolanaWalletKey(program: Command, cfg?: Config): string | undefined {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
 
   if (opts.solanaWalletKeyFile) {
     return readFileSync(opts.solanaWalletKeyFile, "utf-8").trim();
@@ -128,7 +147,7 @@ export function resolveSolanaWalletKey(program: Command, cfg?: Config): string |
 }
 
 export function resolveGasSponsored(program: Command, cfg?: Config): boolean {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
   if (opts.gasSponsored) return true;
   if (process.env.ALCHEMY_GAS_SPONSORED) {
     return process.env.ALCHEMY_GAS_SPONSORED.trim().toLowerCase() === "true";
@@ -138,7 +157,7 @@ export function resolveGasSponsored(program: Command, cfg?: Config): boolean {
 }
 
 export function resolveGasPolicyId(program: Command, cfg?: Config): string | undefined {
-  const opts = program.opts();
+  const opts = getCommandOptions(program);
   if (opts.gasPolicyId) return opts.gasPolicyId;
   if (process.env.ALCHEMY_GAS_POLICY_ID) return process.env.ALCHEMY_GAS_POLICY_ID;
   const config = cfg ?? load();
@@ -151,7 +170,7 @@ export function clientFromFlags(program: Command, opts?: { defaultNetwork?: stri
   debug(`using network=${network}`);
 
   // Reject --access-key on RPC commands — it's only for admin commands
-  const programOpts = program.opts();
+  const programOpts = getCommandOptions(program);
   if (programOpts.accessKey) {
     throw errInvalidArgs(
       "--access-key is for admin commands (apps, chains, webhooks). Use --api-key for RPC commands.",
