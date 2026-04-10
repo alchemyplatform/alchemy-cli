@@ -9,10 +9,12 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "live:check": "node --env-file-if-exists=.env.local --import=tsx scripts/live-check.ts",
     "postinstall": "node ./scripts/postinstall.cjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "pnpm build && vitest run --config vitest.e2e.config.ts",
+    "test:live": "pnpm build && node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.live.config.ts",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
     "changeset": "changeset",
