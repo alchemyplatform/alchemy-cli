@@ -35,6 +35,7 @@ import { registerContract } from "./commands/contract.js";
 import { registerSwap } from "./commands/swap.js";
 import { registerStatus } from "./commands/status.js";
 import { registerApprove } from "./commands/approve.js";
+import { registerBridge } from "./commands/bridge.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
@@ -86,7 +87,7 @@ const ROOT_COMMAND_PILLARS = [
   },
   {
     label: "Execution",
-    commands: ["send", "contract", "swap", "approve", "status"],
+    commands: ["send", "contract", "swap", "bridge", "approve", "status"],
   },
   {
     label: "Wallets",
@@ -505,6 +506,7 @@ registerSimulate(program);
 registerSend(program);
 registerContract(program);
 registerSwap(program);
+registerBridge(program);
 registerStatus(program);
 registerApprove(program);
 

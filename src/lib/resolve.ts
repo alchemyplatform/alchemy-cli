@@ -164,9 +164,12 @@ export function resolveGasPolicyId(program: Command, cfg?: Config): string | und
   return config.gas_policy_id;
 }
 
-export function clientFromFlags(program: Command, opts?: { defaultNetwork?: string }): AlchemyClient {
+export function clientFromFlags(
+  program: Command,
+  opts?: { defaultNetwork?: string; forceNetwork?: string },
+): AlchemyClient {
   const cfg = load();
-  const network = resolveNetwork(program, cfg, opts?.defaultNetwork);
+  const network = opts?.forceNetwork ?? resolveNetwork(program, cfg, opts?.defaultNetwork);
   debug(`using network=${network}`);
 
   // Reject --access-key on RPC commands — it's only for admin commands

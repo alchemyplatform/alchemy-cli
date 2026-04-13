@@ -50,8 +50,12 @@ export function formatTokenAmount(rawAmount: bigint, decimals: number): string {
 export async function fetchTokenDecimals(
   program: Command,
   tokenAddress: string,
+  opts?: { network?: string },
 ): Promise<{ decimals: number; symbol: string }> {
-  const client = clientFromFlags(program);
+  const client = clientFromFlags(
+    program,
+    opts?.network ? { forceNetwork: opts.network } : undefined,
+  );
   const result = await client.call("alchemy_getTokenMetadata", [tokenAddress]) as {
     decimals: number | null;
     symbol: string | null;
