@@ -67,7 +67,7 @@ Quick usage examples:
 alchemy
 
 # Agent/script-friendly command
-alchemy balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --json --no-interactive
+alchemy data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --json --no-interactive
 
 # Agent checks whether a newer CLI version is available
 alchemy update-check --json --no-interactive
@@ -95,7 +95,6 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 | Command | What it does | Example |
 |---|---|---|
-| `balance [address]` (`bal [address]`) | Gets ETH balance for an address | `alchemy bal 0x...` |
 | `tx [hash]` | Gets transaction + receipt by hash | `alchemy tx 0x...` |
 | `receipt [hash]` | Gets transaction receipt (status, gas, logs) | `alchemy receipt 0x...` |
 | `block <number>` | Gets block details (`latest`, decimal, or hex) | `alchemy block latest` |
@@ -109,21 +108,22 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 | Command | What it does | Example |
 |---|---|---|
-| `tokens [address]` | Lists ERC-20 balances for an address | `alchemy tokens 0x...` |
-| `tokens metadata <contract>` | Gets ERC-20 metadata | `alchemy tokens metadata 0x...` |
-| `tokens allowance --owner --spender --contract` | Gets ERC-20 allowance | `alchemy tokens allowance --owner 0x... --spender 0x... --contract 0x...` |
-| `nfts [address]` | Lists NFTs owned by an address | `alchemy nfts 0x...` |
-| `nfts metadata --contract <addr> --token-id <id>` | Gets NFT metadata by contract/token | `alchemy nfts metadata --contract 0x... --token-id 1` |
-| `nfts contract <address>` | Gets NFT contract metadata | `alchemy nfts contract 0x...` |
-| `transfers [address]` | Gets transfer history (`alchemy_getAssetTransfers`) | `alchemy transfers 0x... --category erc20,erc721` |
-| `prices symbol <symbols>` | Gets current token prices by symbol | `alchemy prices symbol ETH,USDC` |
-| `prices address --addresses <json>` | Gets current token prices by address/network pairs | `alchemy prices address --addresses '[{"network":"eth-mainnet","address":"0x..."}]'` |
-| `prices historical --body <json>` | Gets historical prices | `alchemy prices historical --body '{"symbol":"ETH","startTime":"...","endTime":"..."}'` |
-| `portfolio tokens --body <json>` | Gets token portfolio data | `alchemy portfolio tokens --body '{...}'` |
-| `portfolio token-balances --body <json>` | Gets token balance snapshots | `alchemy portfolio token-balances --body '{...}'` |
-| `portfolio nfts --body <json>` | Gets NFT portfolio data | `alchemy portfolio nfts --body '{...}'` |
-| `portfolio nft-contracts --body <json>` | Gets NFT contract portfolio data | `alchemy portfolio nft-contracts --body '{...}'` |
-| `portfolio transactions --body <json>` | Gets portfolio transaction history | `alchemy portfolio transactions --body '{...}'` |
+| `data balance [address]` | Gets native token balance for an address | `alchemy data balance 0x...` |
+| `data tokens balances [address]` | Lists ERC-20 balances for an address | `alchemy data tokens balances 0x...` |
+| `data tokens metadata <contract>` | Gets ERC-20 metadata | `alchemy data tokens metadata 0x...` |
+| `data tokens allowance --owner --spender --contract` | Gets ERC-20 allowance | `alchemy data tokens allowance --owner 0x... --spender 0x... --contract 0x...` |
+| `data nfts [address]` | Lists NFTs owned by an address | `alchemy data nfts 0x...` |
+| `data nfts metadata --contract <addr> --token-id <id>` | Gets NFT metadata by contract/token | `alchemy data nfts metadata --contract 0x... --token-id 1` |
+| `data nfts contract <address>` | Gets NFT contract metadata | `alchemy data nfts contract 0x...` |
+| `data history [address]` | Gets transfer history (`alchemy_getAssetTransfers`) | `alchemy data history 0x... --category erc20,erc721` |
+| `data price symbol <symbols>` | Gets current token prices by symbol | `alchemy data price symbol ETH,USDC` |
+| `data price address --addresses <json>` | Gets current token prices by address/network pairs | `alchemy data price address --addresses '[{"network":"eth-mainnet","address":"0x..."}]'` |
+| `data price historical --body <json>` | Gets historical prices | `alchemy data price historical --body '{"symbol":"ETH","startTime":"...","endTime":"..."}'` |
+| `data portfolio tokens --body <json>` | Gets token portfolio data | `alchemy data portfolio tokens --body '{...}'` |
+| `data portfolio token-balances --body <json>` | Gets token balance snapshots | `alchemy data portfolio token-balances --body '{...}'` |
+| `data portfolio nfts --body <json>` | Gets NFT portfolio data | `alchemy data portfolio nfts --body '{...}'` |
+| `data portfolio nft-contracts --body <json>` | Gets NFT contract portfolio data | `alchemy data portfolio nft-contracts --body '{...}'` |
+| `data portfolio transactions --body <json>` | Gets portfolio transaction history | `alchemy data portfolio transactions --body '{...}'` |
 | `simulate asset-changes --tx <json>` | Simulates asset changes | `alchemy simulate asset-changes --tx '{"from":"0x...","to":"0x..."}'` |
 | `simulate execution --tx <json>` | Simulates execution traces | `alchemy simulate execution --tx '{"from":"0x...","to":"0x..."}'` |
 | `simulate asset-changes-bundle --txs <json>` | Simulates bundle asset changes | `alchemy simulate asset-changes-bundle --txs '[{...}]'` |

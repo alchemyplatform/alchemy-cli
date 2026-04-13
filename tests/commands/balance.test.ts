@@ -44,11 +44,11 @@ describe("balance command", () => {
       nativeTokenSymbol: () => "ETH",
     }));
 
-    const { registerBalance } = await import("../../src/commands/balance.js");
+    const { registerData } = await import("../../src/commands/data.js");
     const program = new Command();
-    registerBalance(program);
+    registerData(program);
 
-    await program.parseAsync(["node", "test", "balance"], { from: "node" });
+    await program.parseAsync(["node", "test", "data", "balance"], { from: "node" });
 
     expect(readStdinLines).toHaveBeenCalledWith("address");
     expect(resolveAddress).toHaveBeenCalledWith(ADDRESS, expect.anything());
@@ -103,11 +103,11 @@ describe("balance command", () => {
       nativeTokenSymbol: () => "ETH",
     }));
 
-    const { registerBalance } = await import("../../src/commands/balance.js");
+    const { registerData } = await import("../../src/commands/data.js");
     const program = new Command();
-    registerBalance(program);
+    registerData(program);
 
-    await program.parseAsync(["node", "test", "balance"], { from: "node" });
+    await program.parseAsync(["node", "test", "data", "balance"], { from: "node" });
 
     expect(readStdinLines).toHaveBeenCalledWith("address");
     expect(printJSON).toHaveBeenCalledTimes(2);
@@ -148,11 +148,11 @@ describe("balance command", () => {
       nativeTokenSymbol: () => "ETH",
     }));
 
-    const { registerBalance } = await import("../../src/commands/balance.js");
+    const { registerData } = await import("../../src/commands/data.js");
     const program = new Command();
-    registerBalance(program);
+    registerData(program);
 
-    await program.parseAsync(["node", "test", "balance"], { from: "node" });
+    await program.parseAsync(["node", "test", "data", "balance"], { from: "node" });
 
     expect(exitWithError).toHaveBeenCalledWith(err);
   });

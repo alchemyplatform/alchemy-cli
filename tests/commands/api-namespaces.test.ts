@@ -51,10 +51,10 @@ describe("new API namespace commands", () => {
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError: vi.fn() }));
 
-    const { registerPrices } = await import("../../src/commands/prices.js");
+    const { registerData } = await import("../../src/commands/data.js");
     const program = new Command();
-    registerPrices(program);
-    await program.parseAsync(["node", "test", "prices", "symbol", "ETH,USDC"], { from: "node" });
+    registerData(program);
+    await program.parseAsync(["node", "test", "data", "price", "symbol", "ETH,USDC"], { from: "node" });
     expect(callApiPrices).toHaveBeenCalled();
   });
 

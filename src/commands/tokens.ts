@@ -148,9 +148,9 @@ export function registerTokens(program: Command) {
       "after",
       `
 Examples:
-  alchemy tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-  alchemy tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --metadata
-  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy tokens balances`,
+  alchemy data tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  alchemy data tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --metadata
+  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy data tokens balances`,
     )
     .action(async (addressArg: string | undefined, opts: { pageKey?: string; metadata?: boolean }) => {
       try {
@@ -284,7 +284,7 @@ Examples:
       "after",
       `
 Examples:
-  alchemy tokens metadata 0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eB48`,
+  alchemy data tokens metadata 0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eB48`,
     )
     .action(async (contract: string) => {
       try {

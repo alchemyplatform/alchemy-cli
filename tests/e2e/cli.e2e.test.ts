@@ -39,6 +39,7 @@ describe("CLI mock E2E", () => {
         "test-api-key",
         "--network",
         "eth-mainnet",
+        "data",
         "balance",
         ADDRESS,
       ],
@@ -50,7 +51,8 @@ describe("CLI mock E2E", () => {
     expect(parseJSON(result.stdout)).toEqual({
       address: ADDRESS,
       wei: "16",
-      eth: "0.000000000000000016",
+      balance: "0.000000000000000016",
+      symbol: "ETH",
       network: "eth-mainnet",
     });
     expect(server.requests).toHaveLength(1);
@@ -71,7 +73,7 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--api-key", "test-api-key", "balance", ADDRESS],
+      ["--json", "--api-key", "test-api-key", "data", "balance", ADDRESS],
       { ALCHEMY_RPC_BASE_URL: server.baseURL },
     );
 
@@ -390,10 +392,13 @@ describe("CLI mock E2E", () => {
 
     const commands = payload.commands as Array<{ name: string }>;
     expect(commands.length).toBeGreaterThan(10);
-    expect(commands.some((c) => c.name === "balance")).toBe(true);
+    expect(commands.some((c) => c.name === "data")).toBe(true);
     expect(commands.some((c) => c.name === "update-check")).toBe(true);
     expect(commands.some((c) => c.name === "agent-prompt")).toBe(false);
     expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
+    expect(payload.examples).toContain(
+      "alchemy --json --no-interactive data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
+    );
   });
 
   it("returns update status JSON from the cached version check", async () => {

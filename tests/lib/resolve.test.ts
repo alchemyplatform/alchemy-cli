@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Command } from "commander";
 import { ErrorCode } from "../../src/lib/errors.js";
 
-function makeProgram(opts: Record<string, unknown> = {}): Command {
+function makeProgram(
+  opts: Record<string, unknown> = {},
+  globalOpts?: Record<string, unknown>,
+): Command {
   return {
     opts: () => opts,
+    ...(globalOpts ? { optsWithGlobals: () => globalOpts } : {}),
   } as unknown as Command;
 }
 
@@ -49,6 +53,17 @@ describe("resolve.ts precedence", () => {
     expect(resolveAccessKey(makeProgram({}))).toBe("env-access");
     delete process.env.ALCHEMY_ACCESS_KEY;
     expect(resolveAccessKey(makeProgram({}))).toBe("cfg-access");
+  });
+
+  it("resolveAPIKey reads root flags from nested commands", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    const { resolveAPIKey } = await import("../../src/lib/resolve.js");
+
+    expect(
+      resolveAPIKey(makeProgram({}, { apiKey: "root-flag-key" })),
+    ).toBe("root-flag-key");
   });
 
   it("resolveWalletKey order: --wallet-key-file > env > config wallet_key_file", async () => {
@@ -137,6 +152,28 @@ describe("resolve.ts precedence", () => {
 
     expect(clientCtor).toHaveBeenCalledWith("cfg-api-key", "eth-mainnet");
     expect(x402Ctor).not.toHaveBeenCalled();
+  });
+
+  it("clientFromFlags uses root global opts for nested commands", async () => {
+    const clientCtor = vi.fn();
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    vi.doMock("../../src/lib/x402-client.js", () => ({
+      X402Client: class {},
+    }));
+    vi.doMock("../../src/lib/client.js", () => ({
+      Client: class {
+        constructor(...args: unknown[]) {
+          clientCtor(...args);
+        }
+      },
+    }));
+
+    const { clientFromFlags } = await import("../../src/lib/resolve.js");
+    clientFromFlags(makeProgram({}, { apiKey: "root-api-key", network: "base-mainnet" }));
+
+    expect(clientCtor).toHaveBeenCalledWith("root-api-key", "base-mainnet");
   });
 
   it("resolveGasSponsored order: flag > env > config", async () => {

@@ -17,9 +17,10 @@ describe("transfers command", () => {
       clientFromFlags: () => ({ call }),
     }));
 
-    const { registerTransfers } = await import("../../src/commands/transfers.js");
-    await runRegisteredCommand(registerTransfers, [
-      "transfers",
+    const { registerData } = await import("../../src/commands/data.js");
+    await runRegisteredCommand(registerData, [
+      "data",
+      "history",
       ADDRESS,
       "--category",
       "erc20,erc721",
@@ -46,8 +47,8 @@ describe("transfers command", () => {
       clientFromFlags: () => ({ call }),
     }));
 
-    const { registerTransfers } = await import("../../src/commands/transfers.js");
-    await runRegisteredCommand(registerTransfers, ["transfers", "not-an-address"]);
+    const { registerData } = await import("../../src/commands/data.js");
+    await runRegisteredCommand(registerData, ["data", "history", "not-an-address"]);
 
     expect(call).not.toHaveBeenCalled();
     expect(exitWithError).toHaveBeenCalledTimes(1);
