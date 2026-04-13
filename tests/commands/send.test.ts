@@ -264,6 +264,7 @@ describe("performEvmSend", () => {
       capabilities: { paymaster: { policyId: "policy-123" } },
     });
     expect(printKeyValueBox).toHaveBeenCalledWith(expect.arrayContaining([
+      ["Call ID", "call-456"],
       ["Gas", "Sponsored"],
       ["Tx Hash", "0xtxhash2"],
     ]));

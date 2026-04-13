@@ -7,6 +7,7 @@ export function splitCommaList(input: string): string[] {
 }
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+const SOLANA_BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]+$/;
 const SOLANA_ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 
@@ -74,6 +75,18 @@ export function validateSolanaAddress(addr: string): void {
   if (!SOLANA_ADDRESS_RE.test(addr)) {
     throw errInvalidArgs(
       `Invalid Solana address "${addr}". Expected base58-encoded address (32-44 characters).`,
+    );
+  }
+}
+
+export function validateSolanaSignature(signature: string): void {
+  if (
+    !SOLANA_BASE58_RE.test(signature) ||
+    signature.length < 64 ||
+    signature.length > 128
+  ) {
+    throw errInvalidArgs(
+      `Invalid Solana signature "${signature}". Expected a base58-encoded transaction signature.`,
     );
   }
 }

@@ -86,6 +86,7 @@ export async function performEvmSend(
       ["To", to],
       ["Amount", green(`${amountArg} ${symbol}`)],
       ["Network", network],
+      ["Call ID", id],
     ];
 
     if (paymaster) {

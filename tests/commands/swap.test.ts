@@ -194,6 +194,96 @@ describe("swap command", () => {
     }));
   });
 
+  it("swap execute includes the call ID in human output", async () => {
+    const printKeyValueBox = vi.fn();
+    const quote = {
+      rawCalls: false,
+      type: "user-operation-v070",
+      quote: {
+        fromAmount: 1000000000000000000n,
+        minimumToAmount: 30000000n,
+        expiry: 123,
+      },
+      chainId: 1,
+      data: {},
+      signatureRequest: {
+        type: "personal_sign",
+        data: "swap quote",
+        rawPayload: "0x1234",
+      },
+      feePayment: {
+        sponsored: false,
+        tokenAddress: USDC,
+        maxAmount: 0n,
+      },
+    };
+    const signedQuote = {
+      type: "user-operation-v070",
+      chainId: 1,
+      data: {},
+      signature: { type: "secp256k1", data: "0xsigned" },
+    };
+    const requestQuoteV0 = vi.fn().mockResolvedValue(quote);
+    const signPreparedCalls = vi.fn().mockResolvedValue(signedQuote);
+    const sendPreparedCalls = vi.fn().mockResolvedValue({ id: "call-123" });
+    const waitForCallsStatus = vi.fn().mockResolvedValue({
+      status: "success",
+      receipts: [{ transactionHash: "0xtxhash" }],
+    });
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: {
+          extend: () => ({ requestQuoteV0 }),
+          signPreparedCalls,
+          signSignatureRequest: vi.fn(),
+          sendPreparedCalls,
+          sendCalls: vi.fn(),
+          waitForCallsStatus,
+        },
+        network: "eth-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({
+        call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
+      }),
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValueBox,
+      green: (s: string) => s,
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "execute",
+      "--from", NATIVE_TOKEN,
+      "--to", USDC,
+      "--amount", "1.0",
+    ], { from: "node" });
+
+    expect(printKeyValueBox).toHaveBeenCalledWith(expect.arrayContaining([
+      ["Call ID", "call-123"],
+      ["Tx Hash", "0xtxhash"],
+      ["Status", "Confirmed"],
+    ]));
+  });
+
   it("swap execute signs paymaster permits and refreshes the quote before submission", async () => {
     const printJSON = vi.fn();
     const permitSignature = { type: "secp256k1", data: "0xpermitsig" };
