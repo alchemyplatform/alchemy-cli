@@ -14,12 +14,13 @@ describe("portfolio command", () => {
     vi.doMock("../../src/lib/rest.js", () => ({ callApiData }));
     vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key", resolveX402Client: () => null }));
 
-    const { registerPortfolio } = await import("../../src/commands/portfolio.js");
-    await runRegisteredCommand(registerPortfolio, [
+    const { registerData } = await import("../../src/commands/data.js");
+    await runRegisteredCommand(registerData, [
+      "data",
       "portfolio",
       "tokens",
       "--body",
-      '{"addresses":[{"network":"eth-mainnet","address":"0xabc"}]}',
+      '{"addresses":[{"address":"0xabc","networks":["eth-mainnet"]}]}',
     ]);
 
     expect(callApiData).toHaveBeenCalledWith(
@@ -40,8 +41,9 @@ describe("portfolio command", () => {
     vi.doMock("../../src/lib/rest.js", () => ({ callApiData }));
     vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key", resolveX402Client: () => null }));
 
-    const { registerPortfolio } = await import("../../src/commands/portfolio.js");
-    await runRegisteredCommand(registerPortfolio, [
+    const { registerData } = await import("../../src/commands/data.js");
+    await runRegisteredCommand(registerData, [
+      "data",
       "portfolio",
       "tokens",
       "--body",

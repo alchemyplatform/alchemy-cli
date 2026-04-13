@@ -84,7 +84,7 @@ This creates a file like `.changeset/cool-dogs-fly.md`:
 "@alchemy/cli": minor
 ---
 
-Add `alchemy portfolio transactions` command for portfolio transaction history.
+Add `alchemy data portfolio transactions` command for portfolio transaction history.
 ```
 
 Write a 1-2 sentence summary of the change from a user's perspective. Commit this file with your PR.

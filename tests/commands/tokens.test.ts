@@ -55,11 +55,11 @@ describe("tokens command", () => {
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
-    const { registerTokens } = await import("../../src/commands/tokens.js");
+    const { registerData } = await import("../../src/commands/data.js");
     const program = new Command();
-    registerTokens(program);
+    registerData(program);
 
-    await program.parseAsync(["node", "test", "tokens", "balances", ADDRESS], {
+    await program.parseAsync(["node", "test", "data", "tokens", "balances", ADDRESS], {
       from: "node",
     });
 
@@ -122,12 +122,12 @@ describe("tokens command", () => {
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
-    const { registerTokens } = await import("../../src/commands/tokens.js");
+    const { registerData } = await import("../../src/commands/data.js");
     const program = new Command();
-    registerTokens(program);
+    registerData(program);
 
     await program.parseAsync(
-      ["node", "test", "tokens", "balances", ADDRESS, "--page-key", "pk_next"],
+      ["node", "test", "data", "tokens", "balances", ADDRESS, "--page-key", "pk_next"],
       { from: "node" },
     );
 

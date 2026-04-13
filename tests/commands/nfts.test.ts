@@ -50,14 +50,15 @@ describe("nfts command", () => {
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
-    const { registerNFTs } = await import("../../src/commands/nfts.js");
+    const { registerData } = await import("../../src/commands/data.js");
     const program = new Command();
-    registerNFTs(program);
+    registerData(program);
 
     await program.parseAsync(
       [
         "node",
         "test",
+        "data",
         "nfts",
         ADDRESS,
         "--limit",
@@ -123,11 +124,11 @@ describe("nfts command", () => {
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
 
-    const { registerNFTs } = await import("../../src/commands/nfts.js");
+    const { registerData } = await import("../../src/commands/data.js");
     const program = new Command();
-    registerNFTs(program);
+    registerData(program);
 
-    await program.parseAsync(["node", "test", "nfts", ADDRESS], { from: "node" });
+    await program.parseAsync(["node", "test", "data", "nfts", ADDRESS], { from: "node" });
 
     expect(callEnhanced).toHaveBeenCalled();
     expect(emptyState).toHaveBeenCalledWith("No NFTs found.");

@@ -12,7 +12,7 @@ import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
-import { parseAmount, fetchTokenDecimals } from "./send/shared.js";
+import { parseAmount, fetchTokenDecimals, formatTokenAmount } from "./send/shared.js";
 
 const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 const NATIVE_DECIMALS = 18;
@@ -46,13 +46,6 @@ async function resolveTokenInfo(
       : "";
     throw errInvalidArgs(`Failed to resolve token info for ${tokenAddress}.${detail}`);
   }
-}
-
-function formatTokenAmount(rawAmount: bigint, decimals: number): string {
-  const str = rawAmount.toString().padStart(decimals + 1, "0");
-  const whole = str.slice(0, str.length - decimals) || "0";
-  const frac = str.slice(str.length - decimals).replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : whole;
 }
 
 interface SwapOpts {
