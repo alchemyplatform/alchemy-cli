@@ -1,6 +1,6 @@
 {
   "name": "@alchemy/cli",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Alchemy CLI — interact with blockchain data",
   "type": "module",
   "bin": {
