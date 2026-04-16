@@ -30,7 +30,7 @@ export function registerWebhooks(program: Command) {
 
   cmd
     .command("list")
-    .description("Lists all existing Alchemy webhooks configured for this team. Use to view or audit registered webhooks. Does NOT create webhooks — use `alchemy webhooks create` for that.")
+    .description("Lists all existing registered Alchemy webhooks (read-only). USE WHEN: user wants to view, see, audit, or check current webhooks. DOES NOT create or modify webhooks — use `alchemy webhooks create` to register a new one.")
     .action(async () => {
       try {
         const token = resolveWebhookApiKey(cmd.opts());
@@ -46,7 +46,7 @@ export function registerWebhooks(program: Command) {
 
   cmd
     .command("create")
-    .description("Creates a new Alchemy webhook subscription for a given event type (address activity, mined transactions, dropped transactions, etc.). Use this to register a new webhook endpoint. To view existing webhooks, use `alchemy webhooks list`.")
+    .description("Creates and registers a NEW Alchemy webhook endpoint (write operation). USE WHEN: user wants to set up, add, register, or create a webhook for address activity, mined/dropped transactions, etc. DOES NOT list existing webhooks — use `alchemy webhooks list` for that.")
     .requiredOption("--body <json>", "Create webhook JSON payload")
     .option("--dry-run", "Preview without executing")
     .action(async (opts: { body: string; dryRun?: boolean }) => {

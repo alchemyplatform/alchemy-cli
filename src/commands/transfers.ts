@@ -57,7 +57,7 @@ export function registerTransfers(program: Command) {
   program
     .command("transfers")
     .argument("[address]", "Wallet address or ENS name — queries outgoing transfers (use --to-address for incoming)")
-    .description("Lists all asset transfer transactions for a wallet address — ERC-20, ERC-721, ERC-1155, and native (ETH) transfers. Use for transaction history or transfer activity. Does NOT return current balances — use `alchemy balance` or `alchemy tokens balances` for that.")
+    .description("Retrieves transfer history — all inbound and outbound asset movements (ERC-20, ERC-721, ERC-1155, and native ETH) for a wallet address. USE WHEN: user asks for transaction history, past transfers, or asset movements. Does NOT return current balances — use `alchemy balance` or `alchemy tokens balances` for that.")
     .option("--from-address <address>", "Filter sender address")
     .option("--to-address <address>", "Filter recipient address")
     .option("--from-block <block>", "Start block (default: 0x0)")

@@ -24,7 +24,7 @@ export function registerPortfolio(program: Command) {
 
   cmd
     .command("tokens")
-    .description("Returns all ERC-20 token holdings and their USD values across one or more networks for a wallet address. Use for a portfolio view of fungible token assets. For a single-network NFT list, use `alchemy nfts`; for native token balance, use `alchemy balance`.")
+    .description("Returns a full cross-network portfolio of all ERC-20 token holdings and USD values for a wallet address. USE WHEN: user asks for portfolio overview, all tokens held, or assets across multiple networks. For NFTs only, use `alchemy nfts`. For native ETH balance only, use `alchemy balance`.")
     .requiredOption("--body <json>", "JSON body for /assets/tokens/by-address")
     .action(async (opts: { body: string }) => {
       try {
