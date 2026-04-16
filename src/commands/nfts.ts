@@ -45,7 +45,7 @@ function formatNFTRows(nfts: NFTResponse["ownedNfts"]): string[][] {
 export function registerNFTs(program: Command) {
   const cmd = program
     .command("nfts")
-    .description("NFT API wrappers")
+    .description("Lists all NFTs owned by a wallet address on the current network via the Alchemy NFT API. Use for single-network NFT ownership queries. For all NFTs across multiple networks in a portfolio view, use `alchemy portfolio nfts`.")
     .argument("[address]", "Wallet address or ENS name (default action: list owned NFTs)")
     .option("--limit <n>", "Maximum number of NFTs to return per page", parseInt)
     .option("--page-key <key>", "Pagination key from a previous response")
