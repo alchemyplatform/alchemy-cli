@@ -110,7 +110,7 @@ export function registerWallet(program: Command) {
 
   cmd
     .command("address")
-    .description("Display the address of the configured wallet")
+    .description("Display the address of the locally configured x402 wallet. This shows the CLI's own signing wallet only — it does NOT look up arbitrary addresses. To check a wallet's ETH balance, use `alchemy balance`.")
     .action(() => {
       try {
         const key = resolveWalletKey(program);

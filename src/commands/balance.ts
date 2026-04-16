@@ -67,7 +67,7 @@ export function registerBalance(program: Command) {
     .command("balance")
     .argument("[address]", "Wallet address (0x...) or ENS name, or pipe via stdin")
     .alias("bal")
-    .description("Get the native token balance of an address")
+    .description("Returns the native token balance (ETH, MATIC, etc.) for any wallet address or ENS name. Use when the user wants to know how much native currency a wallet holds. Does NOT return ERC-20 tokens — use `alchemy tokens balances` for that.")
     .addHelpText(
       "after",
       `

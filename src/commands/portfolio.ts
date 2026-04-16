@@ -24,7 +24,7 @@ export function registerPortfolio(program: Command) {
 
   cmd
     .command("tokens")
-    .description("Get token portfolio by address/network pairs")
+    .description("Returns all ERC-20 token holdings and their USD values across one or more networks for a wallet address. Use for a portfolio view of fungible token assets. For a single-network NFT list, use `alchemy nfts`; for native token balance, use `alchemy balance`.")
     .requiredOption("--body <json>", "JSON body for /assets/tokens/by-address")
     .action(async (opts: { body: string }) => {
       try {
@@ -62,7 +62,7 @@ export function registerPortfolio(program: Command) {
 
   cmd
     .command("nfts")
-    .description("Get NFT portfolio by address/network pairs")
+    .description("Returns all NFTs owned by a wallet address across one or more networks. Use to list all NFTs a wallet holds in a portfolio view. For metadata on a specific NFT by contract + token ID, use `alchemy nfts metadata`.")
     .requiredOption("--body <json>", "JSON body for /assets/nfts/by-address")
     .action(async (opts: { body: string }) => {
       try {

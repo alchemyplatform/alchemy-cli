@@ -25,7 +25,7 @@ export function registerSimulate(program: Command) {
 
   cmd
     .command("asset-changes")
-    .description("Call alchemy_simulateAssetChanges")
+    .description("Simulates a transaction and returns a human-readable breakdown of asset changes (token transfers, ETH movements, NFT transfers) before it is broadcast. Use to preview what a transaction will do. For raw JSON-RPC calls, use `alchemy rpc` instead.")
     .requiredOption("--tx <json>", "Transaction object JSON")
     .option("--block-tag <tag>", "Block tag (default latest)", "latest")
     .action(async (opts: { tx: string; blockTag: string }) => {

@@ -9,7 +9,7 @@ export function registerRPC(program: Command) {
     .command("rpc")
     .argument("<method>", "JSON-RPC method name (e.g. eth_blockNumber)")
     .argument("[params...]", "Method parameters as JSON values")
-    .description("Make a raw JSON-RPC call")
+    .description("Sends a raw JSON-RPC request to an Alchemy node (e.g. eth_call, eth_getCode, eth_blockNumber). Use for low-level RPC calls only. For higher-level operations like balances, transfers, simulation, or token data, use the dedicated subcommands instead.")
     .addHelpText(
       "after",
       `
