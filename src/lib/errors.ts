@@ -1,0 +1,252 @@
+import { printError } from "./error-format.js";
+
+export const ErrorCode = {
+  AUTH_REQUIRED: "AUTH_REQUIRED",
+  INVALID_API_KEY: "INVALID_API_KEY",
+  NETWORK_NOT_ENABLED: "NETWORK_NOT_ENABLED",
+  INVALID_ACCESS_KEY: "INVALID_ACCESS_KEY",
+  ACCESS_KEY_REQUIRED: "ACCESS_KEY_REQUIRED",
+  APP_REQUIRED: "APP_REQUIRED",
+  ADMIN_API_ERROR: "ADMIN_API_ERROR",
+  NETWORK_ERROR: "NETWORK_ERROR",
+  RPC_ERROR: "RPC_ERROR",
+  INVALID_ARGS: "INVALID_ARGS",
+  NOT_FOUND: "NOT_FOUND",
+  RATE_LIMITED: "RATE_LIMITED",
+  PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
+  SETUP_REQUIRED: "SETUP_REQUIRED",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
+} as const;
+
+export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+const RETRYABLE_CODES: ReadonlySet<ErrorCodeType> = new Set([
+  ErrorCode.RATE_LIMITED,
+  ErrorCode.NETWORK_ERROR,
+]);
+
+export const EXIT_CODES: Record<ErrorCodeType, number> = {
+  AUTH_REQUIRED: 3,
+  INVALID_API_KEY: 3,
+  NETWORK_NOT_ENABLED: 3,
+  INVALID_ACCESS_KEY: 3,
+  ACCESS_KEY_REQUIRED: 3,
+  APP_REQUIRED: 3,
+  INVALID_ARGS: 2,
+  NOT_FOUND: 4,
+  RATE_LIMITED: 5,
+  NETWORK_ERROR: 6,
+  RPC_ERROR: 7,
+  ADMIN_API_ERROR: 8,
+  PAYMENT_REQUIRED: 9,
+  SETUP_REQUIRED: 3,
+  INTERNAL_ERROR: 1,
+};
+
+export class CLIError extends Error {
+  code: ErrorCodeType;
+  hint?: string;
+  details?: string;
+  data?: unknown;
+
+  constructor(
+    code: ErrorCodeType,
+    message: string,
+    hint?: string,
+    details?: string,
+    data?: unknown,
+  ) {
+    super(message);
+    this.name = "CLIError";
+    this.code = code;
+    this.hint = hint;
+    this.details = details;
+    this.data = data;
+  }
+
+  toJSON() {
+    return {
+      error: {
+        code: this.code,
+        message: this.message,
+        ...(this.hint && { hint: this.hint }),
+        ...(this.details && { details: this.details }),
+        ...(this.data !== undefined && { data: this.data }),
+        retryable: RETRYABLE_CODES.has(this.code),
+      },
+    };
+  }
+
+  format(): string {
+    let out = `${this.code}: ${this.message}`;
+    if (this.hint) out += `\nHint: ${this.hint}`;
+    return out;
+  }
+}
+
+export function errAuthRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "Not authenticated. Run 'alchemy auth' to log in, or set ALCHEMY_API_KEY.",
+    "alchemy auth",
+  );
+}
+
+export function errAccessKeyRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.ACCESS_KEY_REQUIRED,
+    "Access key required. Set ALCHEMY_ACCESS_KEY or run 'alchemy config set access-key <key>'.",
+    "Get an access key: https://www.alchemy.com/docs/reference/admin-api/overview",
+  );
+}
+
+export function errInvalidAPIKey(details?: string): CLIError {
+  return new CLIError(
+    ErrorCode.INVALID_API_KEY,
+    "Invalid API key. Check your key and try again.",
+    "alchemy config set api-key <your-key>",
+    details,
+  );
+}
+
+export function errNetworkNotEnabled(
+  network: string,
+  details?: string,
+): CLIError {
+  const networkLabel = network.toLowerCase().replace(/_/g, "-");
+  return new CLIError(
+    ErrorCode.NETWORK_NOT_ENABLED,
+    `API key is valid, but ${networkLabel} is not enabled for this app.`,
+    undefined,
+    details,
+  );
+}
+
+export function errNetwork(detail: string): CLIError {
+  return new CLIError(
+    ErrorCode.NETWORK_ERROR,
+    `Network error: ${detail}`,
+    "Check your internet connection and try again.",
+  );
+}
+
+const RPC_ERROR_HINTS: Record<number, string> = {
+  [-32700]: "Parse error. The request JSON is malformed.",
+  [-32600]: "Invalid request. Check the JSON-RPC request format.",
+  [-32601]: "Method not supported. Check the method name and ensure your plan supports it.",
+  [-32602]: "Invalid parameters. Check argument types and format.",
+  [-32603]: "Internal JSON-RPC error.",
+};
+
+export function errRPC(code: number, message: string): CLIError {
+  const hint = RPC_ERROR_HINTS[code];
+  return new CLIError(ErrorCode.RPC_ERROR, `RPC error ${code}: ${message}`, hint);
+}
+
+export function errInvalidArgs(detail: string): CLIError {
+  return new CLIError(ErrorCode.INVALID_ARGS, detail);
+}
+
+export function errNotFound(resource: string): CLIError {
+  return new CLIError(ErrorCode.NOT_FOUND, `Not found: ${resource}`);
+}
+
+export function errRateLimited(): CLIError {
+  return new CLIError(
+    ErrorCode.RATE_LIMITED,
+    "Rate limited. Please wait and try again.",
+    "Consider upgrading your Alchemy plan for higher rate limits.",
+  );
+}
+
+export function errInvalidAccessKey(): CLIError {
+  return new CLIError(
+    ErrorCode.INVALID_ACCESS_KEY,
+    "Invalid access key. Check your key and try again.",
+    "Get an access key: https://www.alchemy.com/docs/reference/admin-api/overview",
+  );
+}
+
+export function errAccessDenied(detail?: string): CLIError {
+  const message = detail
+    ? `Access denied: ${detail}`
+    : "Access denied. Your access key may not have permission for this operation.";
+  return new CLIError(
+    ErrorCode.INVALID_ACCESS_KEY,
+    message,
+    "Check your account tier and feature access at https://dashboard.alchemy.com/",
+  );
+}
+
+export function errAppRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.APP_REQUIRED,
+    "No app selected. Set an app to resolve the API key automatically.",
+    "alchemy config set app <app-id>",
+  );
+}
+
+export function errWalletKeyRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "Wallet key required for x402. Set ALCHEMY_WALLET_KEY, run 'alchemy wallet generate', or use --wallet-key-file.",
+    "alchemy wallet generate",
+  );
+}
+
+export function errSolanaWalletKeyRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "Solana wallet key required. Set ALCHEMY_SOLANA_WALLET_KEY, run 'alchemy wallet generate', or use --solana-wallet-key-file.",
+    "alchemy wallet generate",
+  );
+}
+
+export function errSolanaTransactionFailed(details?: string): CLIError {
+  return new CLIError(
+    ErrorCode.RPC_ERROR,
+    "Solana transaction failed.",
+    undefined,
+    details,
+  );
+}
+
+export function errAdminAPI(status: number, message: string): CLIError {
+  return new CLIError(
+    ErrorCode.ADMIN_API_ERROR,
+    `Admin API error (HTTP ${status}): ${message}`,
+  );
+}
+
+export function errSetupRequired(data?: unknown): CLIError {
+  return new CLIError(
+    ErrorCode.SETUP_REQUIRED,
+    "Setup required before running in non-interactive mode.",
+    "Run 'alchemy' in a TTY for guided onboarding, or run 'alchemy setup status --json' for machine-readable remediation steps.",
+    undefined,
+    data,
+  );
+}
+
+let replMode = false;
+
+export function setReplMode(enabled: boolean): void {
+  replMode = enabled;
+}
+
+export function exitWithError(err: unknown): never {
+  const cliErr =
+    err instanceof CLIError
+      ? err
+      : new CLIError(
+          ErrorCode.INTERNAL_ERROR,
+          err instanceof Error ? err.message : String(err),
+        );
+  printError(cliErr);
+
+  if (replMode) {
+    throw cliErr;
+  }
+
+  process.exit(EXIT_CODES[cliErr.code]);
+}

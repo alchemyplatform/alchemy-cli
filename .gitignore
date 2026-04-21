@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tooling
+mise.toml
+.mise.toml
+
+# Test
+coverage/
+
+# Env
+.env
+.env.local
+
+# Plans
+plans/
+docs/
+
+# Agent artifacts
+.agents/
+skills-lock.json

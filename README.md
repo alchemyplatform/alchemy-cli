@@ -1,2 +1,304 @@
-# alchemy-cli
+# Alchemy CLI
+
 Alchemy CLI is a command-line tool for querying blockchain data and managing Alchemy apps/configuration.
+It supports both human-friendly terminal output and JSON output for automation.
+You can use API keys, access keys, or x402 wallet auth depending on the command.
+
+## Installation
+
+Install globally from npm:
+
+```bash
+npm i -g @alchemy/cli
+```
+
+Or run without installing globally:
+
+```bash
+npx @alchemy/cli <command>
+```
+
+## Shell Completions
+
+Enable Tab completion for all commands and subcommands:
+
+```bash
+# zsh (add to ~/.zshrc)
+echo 'eval "$(alchemy completions zsh)"' >> ~/.zshrc
+source ~/.zshrc
+
+# bash (add to ~/.bashrc)
+echo 'eval "$(alchemy completions bash)"' >> ~/.bashrc
+source ~/.bashrc
+
+# fish
+alchemy completions fish > ~/.config/fish/completions/alchemy.fish
+```
+
+## Getting Started
+
+### Authentication Quick Start
+
+Authentication is required before making requests. The recommended path is browser login:
+
+```bash
+alchemy auth
+```
+
+This opens a browser to link your Alchemy account, then prompts you to select an app. The selected app's API key is saved to your config automatically. Pass `-y` to skip the confirmation prompt.
+
+If you run `alchemy` with no command and no auth configured, the CLI will guide you through browser login automatically.
+
+If you have an auth token but haven't selected an app yet, the CLI will prompt you to pick one before running any command that requires an API key. Teams with many apps can type to search by name.
+
+If you use Notify webhooks, add webhook auth on top via `alchemy config set webhook-api-key <key>`, `--webhook-api-key`, or `ALCHEMY_WEBHOOK_API_KEY`.
+
+### Usage By Workflow
+
+After auth is configured, use the CLI differently depending on who is driving it:
+
+- **Humans (interactive terminal):** start with `alchemy` and use the terminal UI/setup flow; this is the recommended path for human usage
+- **Agents/scripts (automation):** use `--json --no-interactive` to guarantee JSON output and disable prompts (JSON is auto-enabled when piped, but `--json` is a safe default)
+
+Quick usage examples:
+
+```bash
+# Human recommended entrypoint
+alchemy
+
+# Agent/script-friendly command
+alchemy data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --json --no-interactive
+
+# Agent checks whether a newer CLI version is available
+alchemy update-check --json --no-interactive
+```
+
+#### Agent bootstrap
+
+Have your agent run `agent-prompt` as its first step to get a complete, machine-readable contract describing every command, auth method, error code, and execution rule:
+
+```bash
+# Agent runs this once to learn everything the CLI can do
+alchemy --json agent-prompt
+```
+
+This returns a single JSON document with execution policy, preflight instructions, auth matrix, the full command tree with all arguments and options, error codes with recovery actions, and example invocations. No external docs required.
+
+Agents can also call `alchemy --json --no-interactive update-check` to retrieve the current CLI version, latest known version, and install command for upgrades.
+
+## Command Reference
+
+Run commands as `alchemy <command>`.
+Use `alchemy help` or `alchemy help <command>` for generated command help.
+
+### Node
+
+| Command | What it does | Example |
+|---|---|---|
+| `tx [hash]` | Gets transaction + receipt by hash | `alchemy tx 0x...` |
+| `receipt [hash]` | Gets transaction receipt (status, gas, logs) | `alchemy receipt 0x...` |
+| `block <number>` | Gets block details (`latest`, decimal, or hex) | `alchemy block latest` |
+| `gas` | Gets current gas prices (base fee + priority fee) | `alchemy gas -n polygon-mainnet` |
+| `logs` | Queries event logs (`eth_getLogs`) | `alchemy logs --address 0x... --from-block 18000000 --to-block 18000010` |
+| `rpc <method> [params...]` | Makes raw JSON-RPC call | `alchemy rpc eth_blockNumber` |
+| `trace <method> [params...]` | Calls Trace API methods | `alchemy trace call '{"to":"0x..."}' '["trace"]' latest` |
+| `debug <method> [params...]` | Calls Debug API methods | `alchemy debug traceTransaction "0x..."` |
+
+### Data
+
+| Command | What it does | Example |
+|---|---|---|
+| `data balance [address]` | Gets native token balance for an address | `alchemy data balance 0x...` |
+| `data tokens balances [address]` | Lists ERC-20 balances for an address | `alchemy data tokens balances 0x...` |
+| `data tokens metadata <contract>` | Gets ERC-20 metadata | `alchemy data tokens metadata 0x...` |
+| `data tokens allowance --owner --spender --contract` | Gets ERC-20 allowance | `alchemy data tokens allowance --owner 0x... --spender 0x... --contract 0x...` |
+| `data nfts [address]` | Lists NFTs owned by an address | `alchemy data nfts 0x...` |
+| `data nfts metadata --contract <addr> --token-id <id>` | Gets NFT metadata by contract/token | `alchemy data nfts metadata --contract 0x... --token-id 1` |
+| `data nfts contract <address>` | Gets NFT contract metadata | `alchemy data nfts contract 0x...` |
+| `data history [address]` | Gets transfer history (`alchemy_getAssetTransfers`) | `alchemy data history 0x... --category erc20,erc721` |
+| `data price symbol <symbols>` | Gets current token prices by symbol | `alchemy data price symbol ETH,USDC` |
+| `data price address --addresses <json>` | Gets current token prices by address/network pairs | `alchemy data price address --addresses '[{"network":"eth-mainnet","address":"0x..."}]'` |
+| `data price historical --body <json>` | Gets historical prices | `alchemy data price historical --body '{"symbol":"ETH","startTime":"...","endTime":"..."}'` |
+| `data portfolio tokens --body <json>` | Gets token portfolio data | `alchemy data portfolio tokens --body '{...}'` |
+| `data portfolio token-balances --body <json>` | Gets token balance snapshots | `alchemy data portfolio token-balances --body '{...}'` |
+| `data portfolio nfts --body <json>` | Gets NFT portfolio data | `alchemy data portfolio nfts --body '{...}'` |
+| `data portfolio nft-contracts --body <json>` | Gets NFT contract portfolio data | `alchemy data portfolio nft-contracts --body '{...}'` |
+| `data portfolio transactions --body <json>` | Gets portfolio transaction history | `alchemy data portfolio transactions --body '{...}'` |
+| `simulate asset-changes --tx <json>` | Simulates asset changes | `alchemy simulate asset-changes --tx '{"from":"0x...","to":"0x..."}'` |
+| `simulate execution --tx <json>` | Simulates execution traces | `alchemy simulate execution --tx '{"from":"0x...","to":"0x..."}'` |
+| `simulate asset-changes-bundle --txs <json>` | Simulates bundle asset changes | `alchemy simulate asset-changes-bundle --txs '[{...}]'` |
+| `simulate execution-bundle --txs <json>` | Simulates bundle execution traces | `alchemy simulate execution-bundle --txs '[{...}]'` |
+
+### Wallets
+
+| Command | What it does | Example |
+|---|---|---|
+| `wallet generate` | Generates wallet for x402 and saves to config | `alchemy wallet generate` |
+| `wallet import <path>` | Imports wallet key file for x402 | `alchemy wallet import ./private-key.txt` |
+| `wallet address` | Prints configured wallet address | `alchemy wallet address` |
+| `webhooks list` | Lists Notify webhooks | `alchemy webhooks list --webhook-api-key <key>` |
+| `webhooks create --body <json>` | Creates Notify webhook | `alchemy webhooks create --body '{...}' --webhook-api-key <key>` |
+| `webhooks update --body <json>` | Updates Notify webhook | `alchemy webhooks update --body '{...}' --webhook-api-key <key>` |
+| `webhooks delete <id>` | Deletes Notify webhook | `alchemy webhooks delete <id> --webhook-api-key <key>` |
+
+### Chains
+
+| Command | What it does | Example |
+|---|---|---|
+| `network list` | Lists RPC network IDs for use with `--network` (e.g. `eth-mainnet`) | `alchemy network list --configured` |
+| `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"'` |
+| `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}'` |
+
+### CLI Admin
+
+| Command | What it does | Example |
+|---|---|---|
+| `(no command)` | Starts interactive REPL mode (TTY only) | `alchemy` |
+| `auth` (`auth login`) | Log in via browser (PKCE) | `alchemy auth` |
+| `auth status` | Show current authentication status | `alchemy auth status` |
+| `auth logout` | Clear saved authentication token | `alchemy auth logout` |
+| `apps list` | Lists apps (supports pagination/filtering) | `alchemy apps list --all` |
+| `apps chains` | Lists Admin API chain identifiers (e.g. `ETH_MAINNET`) | `alchemy apps chains` |
+| `apps get <id>` | Gets app details | `alchemy apps get <app-id>` |
+| `apps create` | Creates app | `alchemy apps create --name "My App" --networks eth-mainnet` |
+| `apps update <id>` | Updates app name/description | `alchemy apps update <app-id> --name "New Name"` |
+| `apps delete <id>` | Deletes app | `alchemy apps delete <app-id>` |
+| `apps networks <id>` | Updates app network allowlist | `alchemy apps networks <app-id> --networks eth-mainnet,polygon-mainnet` |
+| `apps address-allowlist <id>` | Updates app address allowlist | `alchemy apps address-allowlist <app-id> --addresses 0xabc,0xdef` |
+| `apps origin-allowlist <id>` | Updates app origin allowlist | `alchemy apps origin-allowlist <app-id> --origins https://example.com` |
+| `apps ip-allowlist <id>` | Updates app IP allowlist | `alchemy apps ip-allowlist <app-id> --ips 1.2.3.4,5.6.7.8` |
+| `setup status` | Shows setup status + next commands | `alchemy setup status` |
+| `update-check` | Checks whether a newer CLI version is available | `alchemy update-check --json --no-interactive` |
+| `config set ...` | Sets config values | `alchemy config set api-key <key>` |
+| `config get <key>` | Gets one config value | `alchemy config get network` |
+| `config list` | Lists all config values | `alchemy config list` |
+| `config reset [key]` | Resets one or all config values | `alchemy config reset --yes` |
+| `completions <shell>` | Generates shell completion scripts (bash/zsh/fish) | `eval "$(alchemy completions zsh)"` |
+| `agent-prompt` | Emits complete agent/automation usage instructions | `alchemy --json agent-prompt` |
+| `version` | Prints CLI version | `alchemy version` |
+
+## Flags
+
+### Global flags
+
+These apply to all commands.
+
+#### Auth & network
+
+| Flag | Env var | Description |
+|---|---|---|
+| `--api-key <key>` | `ALCHEMY_API_KEY` | API key for blockchain query commands |
+| `--access-key <key>` | `ALCHEMY_ACCESS_KEY` | Access key for Admin API operations |
+| `-n, --network <network>` | `ALCHEMY_NETWORK` | Target network (default: `eth-mainnet`) |
+| `--x402` | — | Enable x402 wallet-based gateway auth |
+| `--wallet-key-file <path>` | — | Wallet private key file for x402 auth |
+
+#### Output & formatting
+
+| Flag | Env var | Description |
+|---|---|---|
+| `--json` | — | Force JSON output (auto-enabled when piped) |
+| `-q, --quiet` | — | Suppress non-essential output |
+| `--verbose` | — | Enable verbose output |
+| `--no-color` | `NO_COLOR` | Disable color output |
+| `--reveal` | — | Show secrets in plain text (TTY only) |
+
+#### Runtime & behavior
+
+| Flag | Env var | Description |
+|---|---|---|
+| `--timeout <ms>` | — | Request timeout in milliseconds |
+| `--debug` | — | Enable internal debug diagnostics |
+| `--no-interactive` | — | Disable REPL and prompt-driven interactions |
+
+Additional env vars:
+
+| Env var | Description |
+|---|---|
+| `ALCHEMY_CONFIG` | Custom path to config file |
+| `ALCHEMY_WALLET_KEY` | Wallet private key for x402 auth |
+| `ALCHEMY_WEBHOOK_API_KEY` | Webhook API key for Notify commands |
+
+### Command-specific flags
+
+| Command | Flags |
+|---|---|
+| `auth login` | `--force`, `-y, --yes` |
+| `nfts` | `--limit <n>`, `--page-key <key>` |
+| `nfts metadata` | `--contract <address>` (required), `--token-id <id>` (required) |
+| `tokens` | `--page-key <key>` |
+| `tokens allowance` | `--owner <address>` (required), `--spender <address>` (required), `--contract <address>` (required) |
+| `transfers` | `--from-address <address>`, `--to-address <address>`, `--from-block <block>`, `--to-block <block>`, `--category <list>`, `--max-count <n>`, `--page-key <key>` |
+| `prices address` | `--addresses <json>` (required) |
+| `prices historical` | `--body <json>` (required) |
+| `portfolio *` | `--body <json>` (required per subcommand) |
+| `simulate *` | `--tx <json>` or `--txs <json>` (required) |
+| `webhooks *` | `--webhook-api-key <key>` (or `ALCHEMY_WEBHOOK_API_KEY`, `ALCHEMY_NOTIFY_AUTH_TOKEN`, config `webhook-api-key`, or app webhook key) |
+| `apps list` | `--cursor <cursor>`, `--limit <n>`, `--all`, `--search <query>`, `--id <appId>` |
+| `apps create` | `--name <name>` (required), `--networks <networks>` (required), `--description <desc>`, `--products <products>`, `--dry-run` |
+| `apps update` | `--name <name>`, `--description <desc>`, `--dry-run` |
+| `apps delete` | `--dry-run` |
+| `apps networks` | `--networks <networks>` (required), `--dry-run` |
+| `apps address-allowlist` | `--addresses <addrs>` (required), `--dry-run` |
+| `apps origin-allowlist` | `--origins <origins>` (required), `--dry-run` |
+| `apps ip-allowlist` | `--ips <ips>` (required), `--dry-run` |
+| `network list` | `--configured`, `--app-id <id>` |
+| `config reset` | `-y, --yes` |
+
+## Authentication Reference
+
+```bash
+# Interactive login — opens browser to link your Alchemy account
+alchemy auth
+
+# Skip the confirmation prompt
+alchemy auth -y
+
+# Force re-authentication
+alchemy auth login --force
+
+# Check auth status
+alchemy auth status
+
+# Log out
+alchemy auth logout
+```
+
+After login, the CLI prompts you to select an app. The app's API key is saved to config and used for all subsequent commands. If you skip app selection during login, the CLI will prompt you to pick one before running any command that needs an API key.
+
+Notify/webhook commands use a webhook API key with resolution order:
+`--webhook-api-key` -> `ALCHEMY_WEBHOOK_API_KEY` -> `ALCHEMY_NOTIFY_AUTH_TOKEN` -> config `webhook-api-key` -> configured app webhook key.
+
+## REPL Mode
+
+Run `alchemy` with no command in an interactive terminal:
+
+```bash
+alchemy
+alchemy ◆ balance 0x...
+alchemy ◆ block latest
+alchemy ◆ exit
+```
+
+Use `--no-interactive` to disable REPL/prompts in automation.
+
+## Output Modes
+
+- **TTY (terminal):** formatted human output (tables, colors, spinners)
+- **Non-TTY (piped/redirected):** JSON output automatically — no flag needed
+- `--json`: forces JSON output even in a terminal
+- `--verbose` or `alchemy config set verbose true`: logs request/response details (method, URL, status, timing) to stderr
+
+## Error Format
+
+Errors are structured JSON in JSON mode:
+
+```json
+{
+  "error": {
+    "code": "AUTH_REQUIRED",
+    "message": "Not authenticated. Set ALCHEMY_API_KEY or run 'alchemy config set api-key <key>'.",
+    "hint": "alchemy config set api-key <your-key>"
+  }
+}
+```
