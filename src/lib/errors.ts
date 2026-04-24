@@ -222,7 +222,7 @@ export function errSetupRequired(data?: unknown): CLIError {
   return new CLIError(
     ErrorCode.SETUP_REQUIRED,
     "Setup required before running in non-interactive mode.",
-    "Run 'alchemy' in a TTY for guided onboarding, or run 'alchemy setup status --json' for machine-readable remediation steps.",
+    "Run 'alchemy' in a TTY for guided onboarding, or run 'alchemy config status --json' for machine-readable remediation steps.",
     undefined,
     data,
   );

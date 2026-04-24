@@ -94,21 +94,6 @@ describe("config command", () => {
     expect(exitWithError.mock.calls[0][0]).toMatchObject({ code: "INVALID_ARGS" });
   });
 
-  it("sets access-key without app-selection flow in non-interactive mode", async () => {
-    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
-    const save = vi.fn();
-    const load = vi.fn().mockReturnValue({});
-    mockConfigModule({ load, save });
-    const { adminCtor } = mockConfigDependencies({ interactive: false });
-
-    const { registerConfig } = await import("../../src/commands/config.js");
-    await runRegisteredCommand(registerConfig, ["config", "set", "access-key", "ak_test"]);
-
-    expect(save).toHaveBeenCalledWith({ access_key: "ak_test" });
-    expect(adminCtor).not.toHaveBeenCalled();
-    expect(exitWithError).not.toHaveBeenCalled();
-  });
-
   it("lists config map in JSON mode", async () => {
     const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
     const map = { "api-key": "masked", network: "eth-mainnet" };

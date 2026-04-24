@@ -302,6 +302,8 @@ Examples:
     .option("--abi-file <path>", "Path to ABI JSON file")
     .option("--abi <json>", "Inline ABI JSON")
     .option("--value <ether>", "ETH value to send (in ether, for payable functions)")
+    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
+    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
       "after",
       `
@@ -310,9 +312,10 @@ Examples:
   alchemy contract call 0xToken "transfer(address,uint256)" --args '["0xTo", "1000000"]'
   alchemy contract call 0xContract deposit --abi-file ./contract.json --value 0.1`,
     )
-    .action(async (addressArg: string, functionArg: string, opts: ContractOpts) => {
+    .action(async (addressArg: string, functionArg: string, _opts: unknown, cmd: Command) => {
       try {
-        await performContractCall(program, addressArg, functionArg, opts);
+        const opts = cmd.opts<ContractOpts>();
+        await performContractCall(cmd, addressArg, functionArg, opts);
       } catch (err) {
         exitWithError(err);
       }

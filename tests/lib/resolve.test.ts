@@ -42,14 +42,13 @@ describe("resolve.ts precedence", () => {
     expect(resolveAPIKey2(makeProgram({}))).toBe("app-fallback-key");
   });
 
-  it("resolveAccessKey order: flag > env > config", async () => {
+  it("resolveAccessKey order: env > config", async () => {
     vi.doMock("../../src/lib/config.js", () => ({
       load: () => ({ access_key: "cfg-access" }),
     }));
     const { resolveAccessKey } = await import("../../src/lib/resolve.js");
 
     process.env.ALCHEMY_ACCESS_KEY = "env-access";
-    expect(resolveAccessKey(makeProgram({ accessKey: "flag-access" }))).toBe("flag-access");
     expect(resolveAccessKey(makeProgram({}))).toBe("env-access");
     delete process.env.ALCHEMY_ACCESS_KEY;
     expect(resolveAccessKey(makeProgram({}))).toBe("cfg-access");

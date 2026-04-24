@@ -153,6 +153,8 @@ Examples:
     .requiredOption("--to <token_address>", "Token address to swap to (use 0xEeee...EEeE for the native token)")
     .requiredOption("--amount <number>", "Amount to swap in decimal token units (for example, 1.5)")
     .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
+    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
+    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
       "after",
       `
@@ -161,9 +163,10 @@ Examples:
   alchemy swap execute --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0
   alchemy swap execute --from 0xEeee...EEeE --to 0xUSDC --amount 0.1 --gas-sponsored --gas-policy-id <id>`,
     )
-    .action(async (opts: SwapOpts) => {
+    .action(async (_opts: unknown, cmd: Command) => {
       try {
-        await performSwapExecute(program, opts);
+        const opts = cmd.opts<SwapOpts>();
+        await performSwapExecute(cmd, opts);
       } catch (err) {
         exitWithError(err);
       }

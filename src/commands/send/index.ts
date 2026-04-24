@@ -12,6 +12,8 @@ export function registerSend(program: Command) {
     .argument("<to>", "Recipient address (0x... or Solana base58)")
     .argument("<amount>", "Amount to send (human-readable, e.g. 1.5)")
     .option("--token <address>", "ERC-20 token contract address (omit for native token)")
+    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
+    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
       "after",
       `
@@ -22,13 +24,14 @@ Examples:
   alchemy send 0xAbC...123 1 --gas-sponsored --gas-policy-id <id>
   alchemy send <solana-addr> 0.5 -n solana-devnet       Send 0.5 SOL`,
     )
-    .action(async (toArg: string, amountArg: string, opts: { token?: string }) => {
+    .action(async (toArg: string, amountArg: string, _opts: unknown, cmd: Command) => {
       try {
-        const network = resolveNetwork(program);
+        const opts = cmd.opts<{ token?: string }>();
+        const network = resolveNetwork(cmd);
         if (isSolanaNetwork(network)) {
-          await performSolanaSend(program, toArg, amountArg, opts.token);
+          await performSolanaSend(cmd, toArg, amountArg, opts.token);
         } else {
-          await performEvmSend(program, toArg, amountArg, opts.token);
+          await performEvmSend(cmd, toArg, amountArg, opts.token);
         }
       } catch (err) {
         exitWithError(err);

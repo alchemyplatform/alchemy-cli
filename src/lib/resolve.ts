@@ -12,7 +12,6 @@ import { debug } from "./output.js";
 
 interface CommandOptions {
   apiKey?: string;
-  accessKey?: string;
   network?: string;
   appId?: string;
   x402?: boolean;
@@ -40,9 +39,7 @@ export function resolveAPIKey(program: Command, cfg?: Config): string | undefine
   return undefined;
 }
 
-export function resolveAccessKey(program: Command, cfg?: Config): string | undefined {
-  const opts = getCommandOptions(program);
-  if (opts.accessKey) return opts.accessKey;
+export function resolveAccessKey(_program: Command, cfg?: Config): string | undefined {
   if (process.env.ALCHEMY_ACCESS_KEY) return process.env.ALCHEMY_ACCESS_KEY;
   const config = cfg ?? load();
   if (config.access_key) return config.access_key;
@@ -171,14 +168,6 @@ export function clientFromFlags(
   const cfg = load();
   const network = opts?.forceNetwork ?? resolveNetwork(program, cfg, opts?.defaultNetwork);
   debug(`using network=${network}`);
-
-  // Reject --access-key on RPC commands — it's only for admin commands
-  const programOpts = getCommandOptions(program);
-  if (programOpts.accessKey) {
-    throw errInvalidArgs(
-      "--access-key is for admin commands (apps, chains, webhooks). Use --api-key for RPC commands.",
-    );
-  }
 
   if (resolveX402(program, cfg)) {
     const walletKey = resolveWalletKey(program, cfg);

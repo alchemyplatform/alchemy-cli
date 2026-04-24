@@ -66,7 +66,7 @@ const ERROR_RECOVERY: Record<ErrorCodeType, string> = {
   PAYMENT_REQUIRED:
     "Fund your x402 wallet or switch to API key auth",
   SETUP_REQUIRED:
-    "Run preflight: alchemy --json setup status, then follow nextCommands",
+    "Run preflight: alchemy --json config status, then follow nextCommands",
   INTERNAL_ERROR:
     "Unexpected error; retry or report a bug",
 };
@@ -130,7 +130,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       "Run alchemy --json --no-interactive update-check when you need to detect available CLI upgrades",
     ],
     preflight: {
-      command: "alchemy --json setup status",
+      command: "alchemy --json config status",
       description:
         "Check auth readiness before first command. If complete is false, follow nextCommands in the response to configure auth.",
     },
@@ -200,7 +200,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
     commands,
     errors,
     examples: [
-      "alchemy --json --no-interactive setup status",
+      "alchemy --json --no-interactive config status",
       "alchemy --json --no-interactive update-check",
       "alchemy --json --no-interactive data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
       "alchemy --json --no-interactive apps list --access-key $ALCHEMY_ACCESS_KEY",

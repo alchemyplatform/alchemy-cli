@@ -204,6 +204,8 @@ export function registerApprove(program: Command) {
     .option("--revoke", "Revoke approval (set allowance to 0)")
     .option("--reset-first", "Clear an existing non-zero allowance before setting a new non-zero allowance")
     .option("-y, --yes", "Skip confirmation prompt for unlimited approval")
+    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
+    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
       "after",
       `
@@ -214,9 +216,9 @@ Examples:
   alchemy approve 0xRouter --token-address 0xUSDC --unlimited --yes
   alchemy approve 0xRouter --token-address 0xUSDC --revoke`,
     )
-    .action(async (spenderArg: string, opts: ApproveOpts) => {
+    .action(async (spenderArg: string, _opts: unknown, cmd: Command) => {
       try {
-        await performApprove(program, spenderArg, opts);
+        await performApprove(cmd, spenderArg, cmd.opts<ApproveOpts>());
       } catch (err) {
         exitWithError(err);
       }

@@ -1,8 +1,10 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
+import { getSetupStatus } from "../lib/onboarding.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
-import { errNotFound, errAccessKeyRequired, errInvalidArgs, exitWithError } from "../lib/errors.js";
+import { adminClientFromFlags } from "../lib/resolve.js";
+import { errNotFound, errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
 import { green, dim, yellow, withSpinner, printKeyValueBox, maskIf } from "../lib/ui.js";
 import {
@@ -210,24 +212,6 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
-    .command("access-key <key>")
-    .description("Set the Alchemy access key for Admin API operations")
-    .action(async (key: string) => {
-      try {
-        const cfg = config.load();
-        config.save({ ...cfg, access_key: key });
-        printHuman(`${green("✓")} Set access-key\n`, { key: "access-key", status: "set" });
-
-        // Trigger onboarding in interactive mode
-        if (isInteractiveAllowed(program)) {
-          await selectOrCreateApp(new AdminClient(key));
-        }
-      } catch (err) {
-        exitWithError(err);
-      }
-    });
-
-  setCmd
     .command("webhook-api-key <key>")
     .description("Set the Alchemy webhook API key for Notify operations")
     .action((key: string) => {
@@ -245,20 +229,14 @@ export function registerConfig(program: Command) {
     .description("Select the default app (interactive) or set by ID")
     .action(async (appId?: string) => {
       try {
-        const cfg = config.load();
-        const accessKey =
-          program.opts().accessKey ||
-          process.env.ALCHEMY_ACCESS_KEY ||
-          cfg.access_key;
-
-        if (!accessKey) throw errAccessKeyRequired();
+        const admin = adminClientFromFlags(program);
 
         if (appId) {
           // Non-interactive: look up the app by ID and save it
-          const admin = new AdminClient(accessKey);
           const app = await withSpinner("Fetching app…", "App fetched", () =>
             admin.getApp(appId),
           );
+          const cfg = config.load();
           const updated: config.Config = {
             ...cfg,
             api_key: app.apiKey,
@@ -279,7 +257,7 @@ export function registerConfig(program: Command) {
           );
         }
 
-        await selectOrCreateApp(new AdminClient(accessKey));
+        await selectOrCreateApp(admin);
       } catch (err) {
         exitWithError(err);
       }
@@ -391,7 +369,7 @@ export function registerConfig(program: Command) {
 
   cmd
     .command("get <key>")
-    .description("Get a config value (api-key, access-key, app, network, verbose, wallet-key-file, x402)")
+    .description("Get a config value (api-key, app, network, verbose, wallet-key-file, x402)")
     .action((key: string) => {
       const cfg = config.load();
       let value = config.get(cfg, key);
@@ -416,7 +394,7 @@ export function registerConfig(program: Command) {
       if (value === undefined) {
         exitWithError(errNotFound(`config key '${key}'`));
       }
-      const isSecret = key === "api-key" || key === "api_key" || key === "access-key" || key === "access_key";
+      const isSecret = key === "api-key" || key === "api_key";
       const display = isSecret ? maskIf(value!) : value!;
       const humanDisplay = isDefault ? `${display} ${dim("(default)")}` : display;
       printHuman(humanDisplay + "\n", { key, value: display, ...(isDefault && { default: true }) });
@@ -456,7 +434,6 @@ export function registerConfig(program: Command) {
             ? `${hasApiKeyMismatch ? `${yellow("◆")} ` : ""}${maskIf(cfg.api_key)}`
             : dim("(not set)"),
         ],
-        ["access-key", cfg.access_key ? maskIf(cfg.access_key) : dim("(not set)")],
         ["webhook-api-key", cfg.webhook_api_key ? maskIf(cfg.webhook_api_key) : dim("(not set)")],
         [
           "app",
@@ -549,6 +526,38 @@ export function registerConfig(program: Command) {
         });
       } catch (err) {
         exitWithError(err);
+      }
+    });
+
+  // ── config status ───────────────────────────────────────────────────
+
+  cmd
+    .command("status")
+    .description("Show setup status and remediation commands")
+    .action(() => {
+      const status = getSetupStatus(config.load());
+      if (isJSONMode()) {
+        printJSON(status);
+        return;
+      }
+
+      printKeyValueBox([
+        ["Complete", status.complete ? "yes" : "no"],
+        ["Satisfied by", status.satisfiedBy ?? dim("(none)")],
+      ]);
+      if (status.missing.length > 0) {
+        console.log("");
+        console.log(`  ${dim("Missing:")}`);
+        for (const item of status.missing) {
+          console.log(`  ${dim(`- ${item}`)}`);
+        }
+      }
+      if (status.nextCommands.length > 0) {
+        console.log("");
+        console.log(`  ${dim("Next commands:")}`);
+        for (const command of status.nextCommands) {
+          console.log(`  ${dim(`- ${command}`)}`);
+        }
       }
     });
 }

@@ -87,8 +87,8 @@ export async function runLiveEvmCLI(
       config.apiKey,
       "--network",
       config.evmNetwork,
-      ...sponsoredArgs,
       ...args,
+      ...sponsoredArgs,
     ],
     {
       ALCHEMY_CONFIG: createIsolatedConfigPath(),
@@ -115,8 +115,8 @@ export async function runLiveSolanaCLI(
       config.apiKey,
       "--network",
       config.solanaNetwork,
-      ...sponsoredArgs,
       ...args,
+      ...sponsoredArgs,
     ],
     {
       ALCHEMY_CONFIG: createIsolatedConfigPath(),

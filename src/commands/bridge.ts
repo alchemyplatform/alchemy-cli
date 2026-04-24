@@ -179,6 +179,8 @@ Examples:
     .requiredOption("--amount <number>", "Amount to bridge in decimal token units (for example, 1.5)")
     .requiredOption("--to-network <network>", "Destination network (e.g. base-mainnet)")
     .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
+    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
+    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
       "after",
       `
@@ -189,9 +191,10 @@ Examples:
   alchemy bridge execute --from ${NATIVE_TOKEN_ADDRESS} --to ${NATIVE_TOKEN_ADDRESS} --amount 0.1 --to-network base-mainnet -n eth-mainnet
   alchemy bridge execute --from <eth_usdc_address> --to <arb_usdc_address> --amount 100 --to-network arb-mainnet --gas-sponsored --gas-policy-id <id> -n eth-mainnet`,
     )
-    .action(async (opts: BridgeOpts) => {
+    .action(async (_opts: unknown, cmd: Command) => {
       try {
-        await performBridgeExecute(program, opts);
+        const opts = cmd.opts<BridgeOpts>();
+        await performBridgeExecute(cmd, opts);
       } catch (err) {
         exitWithError(err);
       }

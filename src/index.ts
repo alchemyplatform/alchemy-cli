@@ -20,7 +20,6 @@ import { registerNetwork } from "./commands/network.js";
 import { registerVersion } from "./commands/version.js";
 import { registerApps } from "./commands/apps.js";
 import { registerWallet } from "./commands/wallet.js";
-import { registerSetup } from "./commands/setup.js";
 import { registerAuth } from "./commands/auth.js";
 import { registerTrace } from "./commands/trace.js";
 import { registerDebug } from "./commands/debug.js";
@@ -57,13 +56,10 @@ const ROOT_OPTION_GROUPS = [
     label: "Auth & Network",
     matchers: [
       "--api-key",
-      "--access-key",
       "--network",
       "--x402",
       "--wallet-key-file",
       "--solana-wallet-key-file",
-      "--gas-sponsored",
-      "--gas-policy-id",
     ],
   },
   {
@@ -86,24 +82,20 @@ const ROOT_COMMAND_PILLARS = [
     commands: ["data", "simulate"],
   },
   {
-    label: "Execution",
+    label: "Onchain Execution",
     commands: ["send", "contract", "swap", "bridge", "approve", "status"],
   },
   {
-    label: "Wallets",
-    commands: ["wallet", "webhooks"],
+    label: "Solana",
+    commands: ["solana"],
   },
   {
-    label: "Chains",
-    commands: ["network", "solana"],
+    label: "Configuration",
+    commands: ["apps", "webhooks", "wallet", "network", "auth", "config"],
   },
   {
-    label: "Admin",
+    label: "Utilities",
     commands: [
-      "apps",
-      "auth",
-      "config",
-      "setup",
       "completions",
       "agent-prompt",
       "update-check",
@@ -174,7 +166,6 @@ program
   )
   .version(__CLI_VERSION__, "-v, --version", "display CLI version")
   .option("--api-key <key>", "Alchemy API key (env: ALCHEMY_API_KEY)")
-  .option("--access-key <key>", "Alchemy access key (env: ALCHEMY_ACCESS_KEY)")
   .option(
     "-n, --network <network>",
     "Target network (default: eth-mainnet) (env: ALCHEMY_NETWORK)",
@@ -187,14 +178,6 @@ program
   .option(
     "--solana-wallet-key-file <path>",
     "Path to Solana wallet private key file",
-  )
-  .option(
-    "--gas-sponsored",
-    "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)",
-  )
-  .option(
-    "--gas-policy-id <id>",
-    "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)",
   )
   .option("--json", "Force JSON output (auto-enabled when piped)")
   .option("-q, --quiet", "Suppress non-essential output")
@@ -354,7 +337,7 @@ program
       return out.join("\n") + "\n";
     },
   })
-  .addHelpText("beforeAll", () => (isHelpInvocation ? brandedHelp() : ""))
+  .addHelpText("beforeAll", (ctx) => (isHelpInvocation && ctx.command === program ? brandedHelp() : ""))
   .addHelpText("after", () => {
     if (isJSONMode()) return "";
     return [
@@ -400,12 +383,11 @@ program
     });
 
     // If we have an auth token but no API key, prompt for app selection
-    // before running commands that need one (skip for auth/config/setup/help/etc.)
+    // before running commands that need one (skip for auth/config/help/etc.)
     const cmdName = actionCommand.name();
     const skipAppPrompt = [
       "auth",
       "config",
-      "setup",
       "help",
       "version",
       "completions",
@@ -502,7 +484,7 @@ registerLogs(program);
 registerData(program);
 registerSimulate(program);
 
-// Execution
+// Onchain Execution
 registerSend(program);
 registerContract(program);
 registerSwap(program);
@@ -512,16 +494,16 @@ registerApprove(program);
 
 // Wallets
 registerWallet(program);
-registerWebhooks(program);
 
-// Chains
-registerNetwork(program);
-// Ops / Admin
+// Platform Configuration
 registerApps(program);
-registerAuth(program);
-registerSetup(program);
-registerConfig(program);
+registerWebhooks(program);
+registerNetwork(program);
 registerSolana(program);
+
+// CLI Settings
+registerAuth(program);
+registerConfig(program);
 registerAgentPrompt(program);
 registerCompletions(program);
 registerUpdateCheck(program);

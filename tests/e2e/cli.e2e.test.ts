@@ -120,8 +120,8 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--access-key", "test-access-key", "apps", "list"],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL },
+      ["--json", "apps", "list"],
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
     expect(result.exitCode).toBe(0);
@@ -184,8 +184,8 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--access-key", "test-access-key", "apps", "list", "--all"],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL },
+      ["--json", "apps", "list", "--all"],
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
     expect(result.exitCode).toBe(0);
@@ -253,8 +253,8 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--access-key", "test-access-key", "apps", "list", "--search", "target"],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL },
+      ["--json", "apps", "list", "--search", "target"],
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
     expect(result.exitCode).toBe(0);
@@ -280,8 +280,8 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--access-key", "test-access-key", "apps", "list"],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL },
+      ["--json", "apps", "list"],
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
     expect(result.exitCode).toBe(3);
@@ -339,15 +339,13 @@ describe("CLI mock E2E", () => {
     const result = await runCLI(
       [
         "--json",
-        "--access-key",
-        "test-access-key",
         "network",
         "list",
         "--configured",
         "--app-id",
         "app-123",
       ],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL },
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
     expect(result.exitCode).toBe(0);
@@ -363,8 +361,8 @@ describe("CLI mock E2E", () => {
     );
   });
 
-  it("returns setup status JSON contract in an unconfigured home", async () => {
-    const result = await runCLI(["--json", "setup", "status"]);
+  it("returns config status JSON contract in an unconfigured home", async () => {
+    const result = await runCLI(["--json", "config", "status"]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
