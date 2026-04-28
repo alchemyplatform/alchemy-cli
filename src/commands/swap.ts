@@ -10,6 +10,7 @@ import type { PaymasterConfig } from "../lib/smart-wallet.js";
 import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
+import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { parseAmount, fetchTokenDecimals, formatTokenAmount } from "./send/shared.js";
@@ -53,6 +54,7 @@ interface SwapOpts {
   to: string;
   amount: string;
   slippage?: string;
+  signer?: string;
 }
 
 type WalletClient = ReturnType<typeof buildWalletClient>["client"];
@@ -122,13 +124,15 @@ export function registerSwap(program: Command) {
 
   // ── swap quote ────────────────────────────────────────────────────
 
-  cmd
+  const quoteCmd = cmd
     .command("quote")
     .description("Get a swap quote without executing")
     .requiredOption("--from <token_address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
     .requiredOption("--to <token_address>", "Token address to swap to (use 0xEeee...EEeE for the native token)")
     .requiredOption("--amount <number>", "Amount to swap in decimal token units (for example, 1.5)")
-    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
+    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)");
+  addSignerOption(quoteCmd);
+  quoteCmd
     .addHelpText(
       "after",
       `
@@ -146,13 +150,15 @@ Examples:
 
   // ── swap execute ──────────────────────────────────────────────────
 
-  cmd
+  const executeCmd = cmd
     .command("execute")
     .description("Execute a token swap")
     .requiredOption("--from <token_address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
     .requiredOption("--to <token_address>", "Token address to swap to (use 0xEeee...EEeE for the native token)")
     .requiredOption("--amount <number>", "Amount to swap in decimal token units (for example, 1.5)")
-    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
+    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)");
+  addSignerOption(executeCmd);
+  executeCmd
     .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
     .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
@@ -179,7 +185,8 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
   validateAddress(opts.from);
   validateAddress(opts.to);
 
-  const { client, network, paymaster } = buildWalletClient(program);
+  const signer = parseSignerOpt(opts.signer);
+  const { client, network, paymaster } = buildWalletClient(program, { signer });
   const swapClient = client.extend(swapActions);
 
   // Resolve from-token decimals and parse amount
@@ -241,7 +248,8 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
   validateAddress(opts.from);
   validateAddress(opts.to);
 
-  const { client, network, address: from, paymaster } = buildWalletClient(program);
+  const signer = parseSignerOpt(opts.signer);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
   const swapClient = client.extend(swapActions);
 
   const fromInfo = await resolveTokenInfo(network, program, opts.from);

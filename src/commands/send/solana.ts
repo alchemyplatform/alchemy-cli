@@ -26,9 +26,15 @@ export async function performSolanaSend(
   toArg: string,
   amountArg: string,
   tokenAddress?: string,
+  opts: { signer?: "session" | "local" } = {},
 ) {
   if (tokenAddress) {
     throw errInvalidArgs("SPL token transfers are not yet supported. Omit --token for native SOL transfers.");
+  }
+  if (opts.signer === "session") {
+    throw errInvalidArgs(
+      "The session wallet does not yet support Solana. Use `--signer local` or configure a local Solana wallet with `alchemy wallet connect --mode local --chain solana`.",
+    );
   }
 
   const solanaKey = resolveSolanaWalletKey(program);

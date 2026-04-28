@@ -201,6 +201,53 @@ describe("resolve.ts precedence", () => {
     expect(resolveGasPolicyId(makeProgram({}))).toBe("cfg-policy");
   });
 
+  it("resolveActiveSigner order: flag > env > config > legacy env", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ active_signer: "local" }),
+    }));
+    const { resolveActiveSigner } = await import("../../src/lib/resolve.js");
+
+    process.env.ALCHEMY_ACTIVE_SIGNER = "session";
+    expect(resolveActiveSigner(makeProgram({ signer: "local" }))).toBe("local");
+    expect(resolveActiveSigner(makeProgram({}))).toBe("session");
+    delete process.env.ALCHEMY_ACTIVE_SIGNER;
+    expect(resolveActiveSigner(makeProgram({}))).toBe("local");
+  });
+
+  it("resolveActiveSigner returns undefined when nothing is set", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    const { resolveActiveSigner } = await import("../../src/lib/resolve.js");
+
+    delete process.env.ALCHEMY_ACTIVE_SIGNER;
+    delete process.env.ALCHEMY_DELEGATED_WALLET;
+    expect(resolveActiveSigner(makeProgram({}))).toBeUndefined();
+  });
+
+  it("resolveActiveSigner maps legacy ALCHEMY_DELEGATED_WALLET=true to 'session'", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    const { resolveActiveSigner } = await import("../../src/lib/resolve.js");
+
+    delete process.env.ALCHEMY_ACTIVE_SIGNER;
+    process.env.ALCHEMY_DELEGATED_WALLET = "true";
+    expect(resolveActiveSigner(makeProgram({}))).toBe("session");
+    delete process.env.ALCHEMY_DELEGATED_WALLET;
+  });
+
+  it("resolveDelegatedMode (deprecated alias) returns true only for explicit session preference", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ active_signer: "session" }),
+    }));
+    const { resolveDelegatedMode } = await import("../../src/lib/resolve.js");
+
+    delete process.env.ALCHEMY_ACTIVE_SIGNER;
+    delete process.env.ALCHEMY_DELEGATED_WALLET;
+    expect(resolveDelegatedMode(makeProgram({}))).toBe(true);
+  });
+
   it("clientFromFlags throws AUTH_REQUIRED when x402 is enabled without wallet key", async () => {
     vi.doMock("node:fs", () => ({
       readFileSync: () => "",

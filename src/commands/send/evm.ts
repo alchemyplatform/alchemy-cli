@@ -15,12 +15,13 @@ export async function performEvmSend(
   toArg: string,
   amountArg: string,
   tokenAddress?: string,
+  opts: { signer?: "session" | "local" } = {},
 ) {
   if (tokenAddress) {
     validateAddress(tokenAddress);
   }
 
-  const { client, network, address: from, paymaster } = buildWalletClient(program);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer: opts.signer });
 
   const rpcClient = clientFromFlags(program);
   const to = await resolveAddress(toArg, rpcClient) as EvmAddress;

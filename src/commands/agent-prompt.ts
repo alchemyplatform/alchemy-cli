@@ -24,8 +24,10 @@ interface AgentPrompt {
     method: string;
     envVar: string;
     flag: string;
-    configKey: string;
+    configKey?: string;
+    setup?: string;
     commandFamilies: string[];
+    notes?: string;
   }>;
   commands: CommandSchema[];
   errors: Record<string, ErrorEntry>;
@@ -99,7 +101,11 @@ function buildCommandSchema(cmd: Command): CommandSchema {
     }));
   }
 
-  const subs = cmd.commands;
+  // Skip hidden subcommands (legacy back-compat aliases) so the agent-facing
+  // schema only describes the canonical surface.
+  const subs = cmd.commands.filter(
+    (s) => !(s as Command & { hidden?: boolean }).hidden,
+  );
   if (subs.length > 0) {
     schema.subcommands = subs.map(buildCommandSchema);
   }
@@ -185,16 +191,32 @@ function buildAgentPrompt(program: Command): AgentPrompt {
         ],
       },
       {
-        method: "Wallet + API key",
-        envVar: "ALCHEMY_WALLET_KEY",
-        flag: "--wallet-key-file <path>",
-        configKey: "wallet-key-file",
+        method: "Wallet session signer (recommended)",
+        envVar: "ALCHEMY_ACTIVE_SIGNER",
+        flag: "--signer session",
+        setup: "alchemy wallet connect && alchemy wallet use session",
         commandFamilies: [
           "send",
           "contract call",
           "swap",
           "approve",
+          "bridge",
         ],
+        notes: "Signer selection only. Requires an approved wallet session plus an auth token; ALCHEMY_ACTIVE_SIGNER does not authenticate by itself.",
+      },
+      {
+        method: "Local wallet + API key",
+        envVar: "ALCHEMY_WALLET_KEY",
+        flag: "--wallet-key-file <path> | --signer local",
+        setup: "alchemy wallet connect --mode local --chain evm",
+        commandFamilies: [
+          "send",
+          "contract call",
+          "swap",
+          "approve",
+          "bridge",
+        ],
+        notes: "`--signer local` only selects the local signer. You still need a local EVM key via env, flag, or saved config.",
       },
     ],
     commands,
@@ -238,8 +260,16 @@ function formatAsSystemPrompt(payload: AgentPrompt): string {
     lines.push(`  ${auth.method}:`);
     lines.push(`    env:      ${auth.envVar}`);
     lines.push(`    flag:     ${auth.flag}`);
-    lines.push(`    config:   alchemy config set ${auth.configKey} <value>`);
+    if (auth.configKey) {
+      lines.push(`    config:   alchemy config set ${auth.configKey} <value>`);
+    }
+    if (auth.setup) {
+      lines.push(`    setup:    ${auth.setup}`);
+    }
     lines.push(`    commands: ${auth.commandFamilies.join(", ")}`);
+    if (auth.notes) {
+      lines.push(`    notes:    ${auth.notes}`);
+    }
   }
   lines.push("");
 

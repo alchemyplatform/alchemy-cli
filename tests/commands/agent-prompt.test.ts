@@ -170,5 +170,36 @@ describe("agent-prompt command", () => {
     expect(methods).toContain("Access key");
     expect(methods).toContain("Webhook API key");
     expect(methods).toContain("x402 wallet");
+    expect(methods).toContain("Wallet session signer (recommended)");
+    expect(methods).toContain("Local wallet + API key");
+  });
+
+  it("describes wallet signer setup without suggesting config set active-signer", async () => {
+    const printHuman = vi.fn();
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman,
+    }));
+
+    const { registerAgentPrompt } = await import(
+      "../../src/commands/agent-prompt.js"
+    );
+    const program = new Command();
+    registerAgentPrompt(program);
+
+    await program.parseAsync(["node", "test", "agent-prompt"], {
+      from: "node",
+    });
+
+    const formatted = printHuman.mock.calls[0][0] as string;
+    const payload = printHuman.mock.calls[0][1];
+    const walletSessionEntry = payload.auth.find(
+      (a: { method: string }) => a.method === "Wallet session signer (recommended)",
+    );
+
+    expect(formatted).not.toContain("alchemy config set active-signer <value>");
+    expect(walletSessionEntry.setup).toBe("alchemy wallet connect && alchemy wallet use session");
+    expect(walletSessionEntry.notes).toContain("does not authenticate by itself");
   });
 });

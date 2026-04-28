@@ -194,6 +194,22 @@ export function errWalletKeyRequired(): CLIError {
   );
 }
 
+export function errSessionExpired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "Your wallet session has expired or been revoked.",
+    "alchemy wallet connect --force",
+  );
+}
+
+export function errNoActiveSession(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "No active wallet session. Session signing was requested but no session is connected.",
+    "alchemy wallet connect",
+  );
+}
+
 export function errSolanaWalletKeyRequired(): CLIError {
   return new CLIError(
     ErrorCode.AUTH_REQUIRED,

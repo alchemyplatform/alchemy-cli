@@ -80,6 +80,15 @@ describe("config set/get", () => {
     expect(config.get(updated, "gas-policy-id")).toBe("policy-123");
     expect(config.get(updated, "gas_policy_id")).toBe("policy-123");
   });
+
+  it("sets and gets delegated-wallet", () => {
+    const cfg: config.Config = {};
+    const { ok, config: updated } = config.set(cfg, "delegated-wallet", "true");
+    expect(ok).toBe(true);
+    expect(updated.delegated_wallet).toBe(true);
+    expect(config.get(updated, "delegated-wallet")).toBe("true");
+    expect(config.get(updated, "delegated_wallet")).toBe("true");
+  });
 });
 
 describe("config toMap", () => {
@@ -101,6 +110,18 @@ describe("config toMap", () => {
       network: "eth-mainnet",
       verbose: "true",
     });
+  });
+
+  it("does not expose legacy delegated-wallet in toMap output", () => {
+    const m = config.toMap({
+      delegated_wallet: true,
+    });
+    expect(m["delegated-wallet"]).toBeUndefined();
+  });
+
+  it("includes active-signer when configured", () => {
+    const m = config.toMap({ active_signer: "session" });
+    expect(m["active-signer"]).toBe("session");
   });
 
   it("returns empty map for empty config", () => {
@@ -225,5 +246,54 @@ describe("config save/load", () => {
       name: "My App",
       apiKey: "app-key-123",
     });
+  });
+
+  it("load() migrates legacy delegated_wallet:true to active_signer=session", () => {
+    // Hand-write the legacy shape to disk and confirm load() normalizes it.
+    const p = join(tmpDir, ".config", "alchemy", "config.json");
+    mkdirSync(join(tmpDir, ".config", "alchemy"), { recursive: true });
+    const { writeFileSync } = require("node:fs") as typeof import("node:fs");
+    writeFileSync(p, JSON.stringify({ api_key: "k", delegated_wallet: true }), { mode: 0o600 });
+
+    const loaded = config.load();
+    expect(loaded.active_signer).toBe("session");
+    expect(loaded.delegated_wallet).toBeUndefined();
+  });
+
+  it("load() prefers active_signer when both are present on disk", () => {
+    const p = join(tmpDir, ".config", "alchemy", "config.json");
+    mkdirSync(join(tmpDir, ".config", "alchemy"), { recursive: true });
+    const { writeFileSync } = require("node:fs") as typeof import("node:fs");
+    writeFileSync(
+      p,
+      JSON.stringify({ api_key: "k", delegated_wallet: true, active_signer: "local" }),
+      { mode: 0o600 },
+    );
+
+    const loaded = config.load();
+    expect(loaded.active_signer).toBe("local");
+  });
+
+  it("save() unconditionally strips delegated_wallet from persisted JSON", () => {
+    config.save({ api_key: "k", delegated_wallet: true } as config.Config);
+    const p = join(tmpDir, ".config", "alchemy", "config.json");
+    const onDisk = JSON.parse(readFileSync(p, "utf-8")) as Record<string, unknown>;
+    expect(onDisk.delegated_wallet).toBeUndefined();
+  });
+
+  it("migration round-trip: legacy on disk → save persists active_signer and removes legacy", () => {
+    const p = join(tmpDir, ".config", "alchemy", "config.json");
+    mkdirSync(join(tmpDir, ".config", "alchemy"), { recursive: true });
+    const { writeFileSync } = require("node:fs") as typeof import("node:fs");
+    writeFileSync(p, JSON.stringify({ api_key: "k", delegated_wallet: true }), { mode: 0o600 });
+
+    // Simulate any user action that triggers load+save (e.g. `config set network`).
+    const loaded = config.load();
+    config.save({ ...loaded, network: "eth-sepolia" });
+
+    const onDisk = JSON.parse(readFileSync(p, "utf-8")) as Record<string, unknown>;
+    expect(onDisk.active_signer).toBe("session");
+    expect(onDisk.delegated_wallet).toBeUndefined();
+    expect(onDisk.network).toBe("eth-sepolia");
   });
 });

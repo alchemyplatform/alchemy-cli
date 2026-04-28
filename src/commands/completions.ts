@@ -11,6 +11,10 @@ function getDescription(cmd: Command): string {
 function collectCommands(cmd: Command, prefix: string[] = []): Array<{ path: string[]; description: string }> {
   const results: Array<{ path: string[]; description: string }> = [];
   for (const sub of cmd.commands) {
+    // Skip hidden commands so back-compat aliases (wallet create, generate,
+    // import) don't leak into tab-completion.
+    const subWithHidden = sub as Command & { hidden?: boolean };
+    if (subWithHidden.hidden) continue;
     const path = [...prefix, sub.name()];
     results.push({ path, description: getDescription(sub) });
     results.push(...collectCommands(sub, path));

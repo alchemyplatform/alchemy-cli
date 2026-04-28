@@ -29,6 +29,8 @@ export interface Config {
   solana_wallet_address?: string;
   gas_sponsored?: boolean;
   gas_policy_id?: string;
+  delegated_wallet?: boolean;
+  active_signer?: "session" | "local";
 }
 
 export const KEY_MAP: Record<string, keyof Config> = {
@@ -57,6 +59,10 @@ export const KEY_MAP: Record<string, keyof Config> = {
   gas_sponsored: "gas_sponsored",
   "gas-policy-id": "gas_policy_id",
   gas_policy_id: "gas_policy_id",
+  "delegated-wallet": "delegated_wallet",
+  delegated_wallet: "delegated_wallet",
+  "active-signer": "active_signer",
+  active_signer: "active_signer",
 };
 
 const SAFE_ID_RE = /^[A-Za-z0-9:_-]{1,128}$/;
@@ -103,6 +109,8 @@ const configSchema = z
     solana_wallet_address: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     gas_sponsored: z.boolean().optional().catch(undefined),
     gas_policy_id: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    delegated_wallet: z.boolean().optional().catch(undefined),
+    active_signer: z.enum(["session", "local"]).optional().catch(undefined),
   })
   .strip();
 
@@ -112,6 +120,17 @@ function sanitizeConfig(input: unknown): Config {
     return {};
   }
   return parsed.data;
+}
+
+// Normalize legacy `delegated_wallet: true` → `active_signer: "session"` on read.
+// Pure in-memory transform: no disk writes happen here. The persisted migration
+// completes on the next config.save() via the scrub-on-save logic below.
+function applyLegacyMigration(cfg: Config): Config {
+  if (cfg.active_signer === undefined && cfg.delegated_wallet === true) {
+    const { delegated_wallet: _, ...rest } = cfg;
+    return { ...rest, active_signer: "session" };
+  }
+  return cfg;
 }
 
 function getHome(): string {
@@ -133,7 +152,7 @@ export function load(): Config {
   if (!existsSync(p)) return {};
   try {
     const data = readFileSync(p, "utf-8");
-    return sanitizeConfig(JSON.parse(data));
+    return applyLegacyMigration(sanitizeConfig(JSON.parse(data)));
   } catch {
     console.error(`warning: could not parse config file at ${p} — using defaults`);
     return {};
@@ -143,6 +162,10 @@ export function load(): Config {
 export function save(cfg: Config): void {
   const p = configPath();
   const sanitized = sanitizeConfig(cfg);
+  // Unconditionally strip legacy `delegated_wallet` on write. Belt-and-suspenders
+  // alongside load-time normalization — guards call sites that hand-construct a
+  // Config and still somehow include the legacy field.
+  delete sanitized.delegated_wallet;
   mkdirSync(dirname(p), { recursive: true, mode: 0o755 });
   writeFileSync(p, JSON.stringify(sanitized, null, 2) + "\n", {
     mode: 0o600,
@@ -170,12 +193,19 @@ export function set(
 ): { ok: boolean; config: Config } {
   const mapped = KEY_MAP[key];
   if (!mapped) return { ok: false, config: cfg };
-  if (mapped === "verbose" || mapped === "x402" || mapped === "gas_sponsored") {
+  if (mapped === "verbose" || mapped === "x402" || mapped === "gas_sponsored" || mapped === "delegated_wallet") {
     const normalized = value.trim().toLowerCase();
     if (normalized !== "true" && normalized !== "false") {
       return { ok: false, config: cfg };
     }
     return { ok: true, config: { ...cfg, [mapped]: normalized === "true" } };
+  }
+  if (mapped === "active_signer") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized !== "session" && normalized !== "local") {
+      return { ok: false, config: cfg };
+    }
+    return { ok: true, config: { ...cfg, active_signer: normalized } };
   }
   return { ok: true, config: { ...cfg, [mapped]: value } };
 }
@@ -211,5 +241,6 @@ export function toMap(cfg: Config): Record<string, string> {
   if (cfg.solana_wallet_address) m["solana-wallet-address"] = cfg.solana_wallet_address;
   if (cfg.gas_sponsored !== undefined) m["gas-sponsored"] = String(cfg.gas_sponsored);
   if (cfg.gas_policy_id) m["gas-policy-id"] = cfg.gas_policy_id;
+  if (cfg.active_signer !== undefined) m["active-signer"] = cfg.active_signer;
   return m;
 }

@@ -94,9 +94,12 @@ const COMMAND_NAMES = [
   "completions",
   "version",
   "wallet",
-  "wallet generate",
-  "wallet import",
+  "wallet connect",
+  "wallet status",
   "wallet address",
+  "wallet qr",
+  "wallet use",
+  "wallet disconnect",
 ];
 
 const NETWORK_NAMES = getRPCNetworkIds();

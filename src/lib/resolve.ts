@@ -9,6 +9,7 @@ import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
 import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errWalletKeyRequired } from "./errors.js";
 import { debug } from "./output.js";
+import { loadSession, isSessionValid, type WalletSession } from "./wallet-session.js";
 
 interface CommandOptions {
   apiKey?: string;
@@ -19,6 +20,8 @@ interface CommandOptions {
   solanaWalletKeyFile?: string;
   gasSponsored?: boolean;
   gasPolicyId?: string;
+  delegatedWallet?: boolean;
+  signer?: string;
 }
 
 function getCommandOptions(program: Command): CommandOptions {
@@ -97,6 +100,9 @@ export function resolveX402(program: Command, cfg?: Config): boolean {
 export function resolveX402Client(program: Command): X402Client | null {
   const cfg = load();
   if (!resolveX402(program, cfg)) return null;
+  // NOTE: x402/SIWE authentication uses the local EVM key directly and is not
+  // routed through the `active_signer` preference model. SIWX/x402 decoupling
+  // from `alchemy wallet` is tracked in a sibling workstream — see AX-232.
   const walletKey = resolveWalletKey(program, cfg);
   if (!walletKey) return null;
   return new X402Client(walletKey, resolveNetwork(program, cfg));
@@ -161,6 +167,64 @@ export function resolveGasPolicyId(program: Command, cfg?: Config): string | und
   return config.gas_policy_id;
 }
 
+function parseBoolean(value: string): boolean | undefined {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  return undefined;
+}
+
+/**
+ * Resolve the user's active-signer preference for EVM signing.
+ *
+ * Precedence (highest first):
+ *   1. --signer flag (per-command override; string "session" | "local")
+ *   2. ALCHEMY_ACTIVE_SIGNER env var
+ *   3. config.active_signer
+ *   4. Legacy env var ALCHEMY_DELEGATED_WALLET=true → "session"
+ *
+ * The legacy config field `delegated_wallet: true` is already normalized to
+ * `active_signer: "session"` at config.load() time, so we do not read it here.
+ *
+ * Returns undefined when no preference is set — callers fall back to the
+ * default policy ("session if a valid session exists, else local").
+ */
+export function resolveActiveSigner(
+  program: Command,
+  cfg?: Config,
+): "session" | "local" | undefined {
+  const opts = getCommandOptions(program);
+  if (opts.signer === "session" || opts.signer === "local") {
+    return opts.signer;
+  }
+
+  const env = process.env.ALCHEMY_ACTIVE_SIGNER;
+  if (env === "session" || env === "local") {
+    return env;
+  }
+
+  const config = cfg ?? load();
+  if (config.active_signer === "session" || config.active_signer === "local") {
+    return config.active_signer;
+  }
+
+  if (process.env.ALCHEMY_DELEGATED_WALLET !== undefined) {
+    const parsed = parseBoolean(process.env.ALCHEMY_DELEGATED_WALLET);
+    if (parsed === true) return "session";
+  }
+
+  return undefined;
+}
+
+/**
+ * @deprecated Use resolveActiveSigner instead. Retained as a thin wrapper for
+ * any call site that still asks "is delegated mode on?" — returns true only
+ * when the user explicitly prefers session signing.
+ */
+export function resolveDelegatedMode(program: Command, cfg?: Config): boolean {
+  return resolveActiveSigner(program, cfg) === "session";
+}
+
 export function clientFromFlags(
   program: Command,
   opts?: { defaultNetwork?: string; forceNetwork?: string },
@@ -209,3 +273,13 @@ export async function resolveConfiguredNetworkSlugs(
     .filter((slug): slug is string => Boolean(slug));
   return Array.from(new Set(slugs)).sort((a, b) => a.localeCompare(b));
 }
+
+export function resolveWalletSession(): WalletSession | null {
+  const session = loadSession();
+  if (!session) return null;
+  if (!isSessionValid(session)) return null;
+  return session;
+}
+
+/** @deprecated Renamed to resolveWalletSession. Kept as an alias for one release. */
+export const resolveDelegatedSession = resolveWalletSession;

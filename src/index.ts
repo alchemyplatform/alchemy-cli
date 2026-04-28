@@ -235,7 +235,9 @@ program
           }));
         }
 
-        const subs = cmd.commands;
+        const subs = cmd.commands.filter(
+          (s) => !(s as import("commander").Command & { hidden?: boolean }).hidden,
+        );
         if (subs.length > 0) {
           schema.subcommands = subs.map((s) => ({
             name: s.name(),

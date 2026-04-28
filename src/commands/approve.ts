@@ -19,6 +19,7 @@ import {
   errInvalidArgs,
 } from "../lib/errors.js";
 import { promptConfirm } from "../lib/terminal-ui.js";
+import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValueBox, green, dim } from "../lib/ui.js";
 import { parseAmount, fetchTokenDecimals, formatTokenAmount } from "./send/shared.js";
 
@@ -31,6 +32,7 @@ interface ApproveOpts {
   revoke?: boolean;
   resetFirst?: boolean;
   yes?: boolean;
+  signer?: string;
 }
 
 type TokenMeta = {
@@ -194,7 +196,7 @@ function requiresAllowanceReset(
 }
 
 export function registerApprove(program: Command) {
-  program
+  const approveCmd = program
     .command("approve")
     .description("Approve an ERC-20 token allowance for a spender")
     .argument("<spender_address>", "Address to approve spending")
@@ -203,7 +205,9 @@ export function registerApprove(program: Command) {
     .option("--unlimited", "Approve the maximum allowance")
     .option("--revoke", "Revoke approval (set allowance to 0)")
     .option("--reset-first", "Clear an existing non-zero allowance before setting a new non-zero allowance")
-    .option("-y, --yes", "Skip confirmation prompt for unlimited approval")
+    .option("-y, --yes", "Skip confirmation prompt for unlimited approval");
+  addSignerOption(approveCmd);
+  approveCmd
     .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
     .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
@@ -239,7 +243,8 @@ async function performApprove(
 
   validateApprovalMode(opts);
 
-  const { client, network, address: from, paymaster } = buildWalletClient(program);
+  const signer = parseSignerOpt(opts.signer);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
   const rpcClient = clientFromFlags(program);
   const tokenMeta = await fetchTokenDecimals(program, opts.tokenAddress);
   const approval = buildApprovalRequest(opts, tokenMeta);

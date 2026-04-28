@@ -131,11 +131,22 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 ### Wallets
 
+`alchemy wallet` exposes a unified onchain-actions surface. The **session wallet** (Alchemy/Privy-managed, P-256 delegated signer) is the recommended flow; a **local wallet** (private key stored on disk) is supported as an alternative and is currently the only path for Solana.
+
 | Command | What it does | Example |
 |---|---|---|
-| `wallet generate` | Generates wallet for x402 and saves to config | `alchemy wallet generate` |
-| `wallet import <path>` | Imports wallet key file for x402 | `alchemy wallet import ./private-key.txt` |
-| `wallet address` | Prints configured wallet address | `alchemy wallet address` |
+| `wallet connect` | Interactive: choose a session wallet (recommended) or a local wallet. For scripts, pass `--mode <session\|local>`. | `alchemy wallet connect` |
+| `wallet connect --mode local --chain evm` | Create a new local EVM key (non-interactive). `--chain` accepts `evm`, `solana`, or `both`. | `alchemy wallet connect --mode local --chain both` |
+| `wallet connect --mode local --import <path>` | Import an existing EVM private key from a file. | `alchemy wallet connect --mode local --import ./key.txt` |
+| `wallet status [--verify]` | Reports session, local EVM, local Solana, and the active signer. `--verify` reconciles the session with the backend. | `alchemy wallet status --verify` |
+| `wallet address` | Prints addresses for every configured signer. | `alchemy wallet address` |
+| `wallet use <session\|local>` | Selects which signer `send`, `swap`, `approve`, `bridge`, and `contract call` use for EVM transactions. | `alchemy wallet use local` |
+| `wallet disconnect` | Revokes the current session (local + backend). Clears `active_signer` if it pointed at the session. | `alchemy wallet disconnect` |
+| `wallet qr [--type <evm\|solana>]` | Renders a configured address as a QR code. | `alchemy wallet qr --type evm` |
+
+Per-command override: pass `--signer <session\|local>` to `send`, `approve`, `swap`, `bridge`, or `contract call` to override the active signer for a single invocation.
+
+> The legacy commands `wallet create`, `wallet generate`, and `wallet import <path>` still work as aliases for the equivalent `wallet connect --mode local` flow so existing scripts keep running; they are hidden from `--help` and will be removed in a future release.
 | `webhooks list` | Lists Notify webhooks | `alchemy webhooks list --webhook-api-key <key>` |
 | `webhooks create --body <json>` | Creates Notify webhook | `alchemy webhooks create --body '{...}' --webhook-api-key <key>` |
 | `webhooks update --body <json>` | Updates Notify webhook | `alchemy webhooks update --body '{...}' --webhook-api-key <key>` |

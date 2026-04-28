@@ -10,6 +10,7 @@ import type { PaymasterConfig } from "../lib/smart-wallet.js";
 import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
+import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { networkToChain } from "../lib/chains.js";
@@ -52,6 +53,7 @@ interface BridgeOpts {
   amount: string;
   toNetwork: string;
   slippage?: string;
+  signer?: string;
 }
 
 type WalletClient = ReturnType<typeof buildWalletClient>["client"];
@@ -143,14 +145,16 @@ export function registerBridge(program: Command) {
 
   // ── bridge quote ──────────────────────────────────────────────────
 
-  cmd
+  const quoteCmd = cmd
     .command("quote")
     .description("Get a bridge quote without executing")
     .requiredOption("--from <token_address>", `Source token address (use ${NATIVE_TOKEN_ADDRESS} for the native token)`)
     .requiredOption("--to <token_address>", `Destination token address (use ${NATIVE_TOKEN_ADDRESS} for the native token)`)
     .requiredOption("--amount <number>", "Amount to bridge in decimal token units (for example, 1.5)")
     .requiredOption("--to-network <network>", "Destination network (e.g. base-mainnet)")
-    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
+    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)");
+  addSignerOption(quoteCmd);
+  quoteCmd
     .addHelpText(
       "after",
       `
@@ -171,14 +175,16 @@ Examples:
 
   // ── bridge execute ────────────────────────────────────────────────
 
-  cmd
+  const executeCmd = cmd
     .command("execute")
     .description("Execute a cross-chain bridge")
     .requiredOption("--from <token_address>", `Source token address (use ${NATIVE_TOKEN_ADDRESS} for the native token)`)
     .requiredOption("--to <token_address>", `Destination token address (use ${NATIVE_TOKEN_ADDRESS} for the native token)`)
     .requiredOption("--amount <number>", "Amount to bridge in decimal token units (for example, 1.5)")
     .requiredOption("--to-network <network>", "Destination network (e.g. base-mainnet)")
-    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)")
+    .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)");
+  addSignerOption(executeCmd);
+  executeCmd
     .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
     .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
@@ -209,7 +215,8 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
 
   const toChainId = networkToChain(opts.toNetwork).id;
 
-  const { client, network, paymaster } = buildWalletClient(program);
+  const signer = parseSignerOpt(opts.signer);
+  const { client, network, paymaster } = buildWalletClient(program, { signer });
   validateBridgeNetworks(network, opts.toNetwork);
   const swapClient = client.extend(swapActions);
 
@@ -272,7 +279,8 @@ async function performBridgeExecute(program: Command, opts: BridgeOpts) {
 
   const toChainId = networkToChain(opts.toNetwork).id;
 
-  const { client, network, address: from, paymaster } = buildWalletClient(program);
+  const signer = parseSignerOpt(opts.signer);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
   validateBridgeNetworks(network, opts.toNetwork);
   const swapClient = client.extend(swapActions);
 

@@ -12,6 +12,7 @@ import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { resolveAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, ErrorCode, exitWithError, errInvalidArgs } from "../lib/errors.js";
+import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValueBox, green, dim } from "../lib/ui.js";
 
 /**
@@ -257,6 +258,7 @@ interface ContractOpts {
   abi?: string;
   value?: string;
   block?: string;
+  signer?: string;
 }
 
 export function registerContract(program: Command) {
@@ -293,7 +295,7 @@ Examples:
 
   // ── contract call ───────────────────────────────────────────────────
 
-  cmd
+  const callCmd = cmd
     .command("call")
     .description("Execute a state-changing contract function")
     .argument("<address>", "Contract address (0x...) or ENS name")
@@ -301,7 +303,9 @@ Examples:
     .option("--args <json>", "Function arguments as JSON array")
     .option("--abi-file <path>", "Path to ABI JSON file")
     .option("--abi <json>", "Inline ABI JSON")
-    .option("--value <ether>", "ETH value to send (in ether, for payable functions)")
+    .option("--value <ether>", "ETH value to send (in ether, for payable functions)");
+  addSignerOption(callCmd);
+  callCmd
     .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
     .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
     .addHelpText(
@@ -396,7 +400,8 @@ export async function performContractCall(
   const { abi, functionName } = resolveAbi(functionArg, opts);
   const args = parseArgs(opts.args);
 
-  const { client, network, address: from, paymaster } = buildWalletClient(program);
+  const signer = parseSignerOpt(opts.signer);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
 
   const rpcClient = clientFromFlags(program);
   const contractAddress = await resolveAddress(addressArg, rpcClient) as Address;

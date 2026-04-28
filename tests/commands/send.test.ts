@@ -111,7 +111,7 @@ describe("registerSend", () => {
       from: "node",
     });
 
-    expect(performEvmSend).toHaveBeenCalledWith(expect.any(Command), "0xabc", "1.5", undefined);
+    expect(performEvmSend).toHaveBeenCalledWith(expect.any(Command), "0xabc", "1.5", undefined, { signer: undefined });
     expect(performSolanaSend).not.toHaveBeenCalled();
   });
 
@@ -140,8 +140,74 @@ describe("registerSend", () => {
       from: "node",
     });
 
-    expect(performSolanaSend).toHaveBeenCalledWith(expect.any(Command), "So1anaAddr", "0.5", undefined);
+    expect(performSolanaSend).toHaveBeenCalledWith(expect.any(Command), "So1anaAddr", "0.5", undefined, { signer: undefined });
     expect(performEvmSend).not.toHaveBeenCalled();
+  });
+
+  it("threads --signer local through to performEvmSend (Commander parse path)", async () => {
+    const performEvmSend = vi.fn();
+    const performSolanaSend = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      isSolanaNetwork: () => false,
+    }));
+    vi.doMock("../../src/commands/send/evm.js", () => ({ performEvmSend }));
+    vi.doMock("../../src/commands/send/solana.js", () => ({ performSolanaSend }));
+
+    const { registerSend } = await import("../../src/commands/send/index.js");
+    const program = new Command();
+    registerSend(program);
+
+    await program.parseAsync(
+      ["node", "test", "send", "0xabc", "1.5", "--signer", "local"],
+      { from: "node" },
+    );
+
+    expect(performEvmSend).toHaveBeenCalledWith(
+      expect.any(Command),
+      "0xabc",
+      "1.5",
+      undefined,
+      { signer: "local" },
+    );
+  });
+
+  it("rejects invalid --signer values", async () => {
+    const performEvmSend = vi.fn();
+    const performSolanaSend = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      isSolanaNetwork: () => false,
+    }));
+    vi.doMock("../../src/commands/send/evm.js", () => ({ performEvmSend }));
+    vi.doMock("../../src/commands/send/solana.js", () => ({ performSolanaSend }));
+
+    const { registerSend } = await import("../../src/commands/send/index.js");
+    const program = new Command();
+    program.exitOverride();
+    registerSend(program);
+
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((_code?: number) => {
+      throw new Error("exit called");
+    }) as never);
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      program.parseAsync(
+        ["node", "test", "send", "0xabc", "1.5", "--signer", "garbage"],
+        { from: "node" },
+      ),
+    ).rejects.toBeTruthy();
+    expect(performEvmSend).not.toHaveBeenCalled();
+
+    exitSpy.mockRestore();
+    errSpy.mockRestore();
   });
 });
 
@@ -429,6 +495,51 @@ describe("performSolanaSend", () => {
     await expect(performSolanaSend({} as Command, "SoRecipientAddr", "0.5")).rejects.toMatchObject({
       code: ErrorCode.AUTH_REQUIRED,
       message: expect.stringContaining("Solana wallet key required"),
+    });
+  });
+
+  it("rejects --signer session because session wallet does not support Solana", async () => {
+    vi.doUnmock("../../src/commands/send/solana.js");
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveNetwork: () => "solana-devnet",
+      resolveGasSponsored: () => false,
+      resolveGasPolicyId: () => undefined,
+      clientFromFlags: () => ({ network: "solana-devnet" }),
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateSolanaAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "SOL",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/solana-tx.js", () => ({
+      parseSolanaKeyBytes: vi.fn(),
+      buildSolTransferInstruction: vi.fn(),
+      buildAndSendSolanaTransaction: vi.fn(),
+      waitForSolanaConfirmation: vi.fn(),
+      SOL_DECIMALS: 9,
+    }));
+    vi.doMock("@solana/kit", () => ({
+      address: (v: string) => v,
+    }));
+
+    const { performSolanaSend } = await import("../../src/commands/send/solana.js");
+    await expect(
+      performSolanaSend({} as Command, "SoRecipientAddr", "0.5", undefined, { signer: "session" }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.INVALID_ARGS,
+      message: expect.stringContaining("session wallet does not yet support Solana"),
     });
   });
 
