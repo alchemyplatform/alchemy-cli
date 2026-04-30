@@ -629,6 +629,109 @@ describe("bridge command", () => {
     expect(exitWithError).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects non-EVM destination networks before validating the destination address", async () => {
+    const exitWithError = vi.fn();
+    const validateAddress = vi.fn();
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: { extend: () => ({}) },
+        network: "eth-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: vi.fn(() => ({ call: vi.fn() })),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerBridge } = await import("../../src/commands/bridge.js");
+    const program = new Command();
+    registerBridge(program);
+
+    await program.parseAsync([
+      "node", "test", "bridge", "quote",
+      "--from", NATIVE_TOKEN,
+      "--to", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "--amount", "0.1",
+      "--to-network", "solana-mainnet",
+    ], { from: "node" });
+
+    expect(validateAddress).toHaveBeenCalledWith(NATIVE_TOKEN);
+    expect(validateAddress).not.toHaveBeenCalledWith("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      code: "INVALID_ARGS",
+      message: "Bridge supports EVM mainnets only. Solana bridge support is coming soon. Received solana-mainnet.",
+    }));
+  });
+
+  it("rejects testnet bridge requests before requesting a quote", async () => {
+    const exitWithError = vi.fn();
+    const requestQuoteV0 = vi.fn();
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: { extend: () => ({ requestQuoteV0 }) },
+        network: "eth-sepolia",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: vi.fn(() => ({ call: vi.fn() })),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerBridge } = await import("../../src/commands/bridge.js");
+    const program = new Command();
+    registerBridge(program);
+
+    await program.parseAsync([
+      "node", "test", "bridge", "quote",
+      "--from", NATIVE_TOKEN,
+      "--to", NATIVE_TOKEN,
+      "--amount", "0.1",
+      "--to-network", "base-sepolia",
+    ], { from: "node" });
+
+    expect(requestQuoteV0).not.toHaveBeenCalled();
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      code: "INVALID_ARGS",
+      message: "Bridge supports EVM mainnets only. Received eth-sepolia -> base-sepolia.",
+    }));
+  });
+
   it("rejects same source and destination networks", async () => {
     const exitWithError = vi.fn();
 

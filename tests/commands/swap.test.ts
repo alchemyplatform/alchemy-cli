@@ -480,6 +480,109 @@ describe("swap command", () => {
     expect(exitWithError).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects testnet swap requests before requesting a quote", async () => {
+    const exitWithError = vi.fn();
+    const requestQuoteV0 = vi.fn();
+    const tokenMetadataCall = vi.fn();
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: { extend: () => ({ requestQuoteV0 }) },
+        network: "eth-sepolia",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call: tokenMetadataCall }),
+      resolveNetwork: () => "eth-sepolia",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", USDC,
+      "--to", NATIVE_TOKEN,
+      "--amount", "1.0",
+    ], { from: "node" });
+
+    expect(tokenMetadataCall).not.toHaveBeenCalled();
+    expect(requestQuoteV0).not.toHaveBeenCalled();
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      code: "INVALID_ARGS",
+      message: "Token swaps are only supported on mainnet networks. Received eth-sepolia. Use a network ending in '-mainnet' for swap commands.",
+    }));
+  });
+
+  it("rejects Solana swap requests before validating token addresses", async () => {
+    const exitWithError = vi.fn();
+    const buildWalletClient = vi.fn();
+    const validateAddress = vi.fn();
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient,
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call: vi.fn() }),
+      resolveNetwork: () => "solana-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", "So11111111111111111111111111111111111111112",
+      "--to", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "--amount", "1.0",
+    ], { from: "node" });
+
+    expect(validateAddress).not.toHaveBeenCalled();
+    expect(buildWalletClient).not.toHaveBeenCalled();
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      code: "INVALID_ARGS",
+      message: "Token swaps support EVM mainnets only. Solana swap support is coming soon. Received solana-mainnet.",
+    }));
+  });
+
   it("passes explicit slippage when provided", async () => {
     const printJSON = vi.fn();
     const requestQuoteV0 = vi.fn().mockResolvedValue({

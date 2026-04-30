@@ -13,6 +13,8 @@ import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
+import { networkToChain } from "../lib/chains.js";
+import { resolveNetwork } from "../lib/resolve.js";
 import {
   parseAmount,
   fetchTokenDecimals,
@@ -87,6 +89,26 @@ function createQuoteRequest(
   } satisfies RequestQuoteV0Params;
 
   return request;
+}
+
+function validateSwapNetwork(network: string): void {
+  if (!network.endsWith("-mainnet")) {
+    throw errInvalidArgs(
+      `Token swaps are only supported on mainnet networks. Received ${network}. Use a network ending in '-mainnet' for swap commands.`,
+    );
+  }
+
+  try {
+    networkToChain(network);
+  } catch (err) {
+    if (err instanceof CLIError && err.code === "INVALID_ARGS") {
+      const solanaNote = network.includes("solana")
+        ? " Solana swap support is coming soon."
+        : "";
+      throw errInvalidArgs(`Token swaps support EVM mainnets only.${solanaNote} Received ${network}.`);
+    }
+    throw err;
+  }
 }
 
 async function prepareQuoteForExecution(
@@ -186,6 +208,7 @@ Examples:
 // ── Quote implementation ────────────────────────────────────────────
 
 async function performSwapQuote(program: Command, opts: SwapOpts) {
+  validateSwapNetwork(resolveNetwork(program));
   validateAddress(opts.from);
   validateAddress(opts.to);
 
@@ -249,6 +272,7 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
 // ── Execute implementation ──────────────────────────────────────────
 
 async function performSwapExecute(program: Command, opts: SwapOpts) {
+  validateSwapNetwork(resolveNetwork(program));
   validateAddress(opts.from);
   validateAddress(opts.to);
 

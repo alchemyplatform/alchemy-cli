@@ -90,11 +90,38 @@ function createBridgeQuoteRequest(
   return request;
 }
 
+function unsupportedBridgeNetwork(received: string): CLIError {
+  const solanaNote = received.includes("solana")
+    ? " Solana bridge support is coming soon."
+    : "";
+  return errInvalidArgs(`Bridge supports EVM mainnets only.${solanaNote} Received ${received}.`);
+}
+
+function isBridgeMainnet(network: string): boolean {
+  return network.endsWith("-mainnet");
+}
+
 function validateBridgeNetworks(fromNetwork: string, toNetwork: string): void {
+  const route = `${fromNetwork} -> ${toNetwork}`;
+  if (!isBridgeMainnet(fromNetwork) || !isBridgeMainnet(toNetwork)) {
+    throw unsupportedBridgeNetwork(route);
+  }
+
   if (fromNetwork === toNetwork) {
     throw errInvalidArgs(
       `Source and destination networks must differ for bridge. Use 'alchemy evm swap' for same-chain token exchanges on ${fromNetwork}.`,
     );
+  }
+}
+
+function bridgeDestinationChainId(toNetwork: string): number {
+  try {
+    return networkToChain(toNetwork).id;
+  } catch (err) {
+    if (err instanceof CLIError && err.code === "INVALID_ARGS") {
+      throw unsupportedBridgeNetwork(toNetwork);
+    }
+    throw err;
   }
 }
 
@@ -215,9 +242,9 @@ Examples:
 
 async function performBridgeQuote(program: Command, opts: BridgeOpts) {
   validateAddress(opts.from);
-  validateAddress(opts.to);
 
-  const toChainId = networkToChain(opts.toNetwork).id;
+  const toChainId = bridgeDestinationChainId(opts.toNetwork);
+  validateAddress(opts.to);
 
   const signer = parseSignerOpt(opts.signer);
   const { client, network, paymaster } = buildWalletClient(program, { signer });
@@ -279,9 +306,9 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
 
 async function performBridgeExecute(program: Command, opts: BridgeOpts) {
   validateAddress(opts.from);
-  validateAddress(opts.to);
 
-  const toChainId = networkToChain(opts.toNetwork).id;
+  const toChainId = bridgeDestinationChainId(opts.toNetwork);
+  validateAddress(opts.to);
 
   const signer = parseSignerOpt(opts.signer);
   const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });

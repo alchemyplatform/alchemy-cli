@@ -527,7 +527,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps configured-networks ─────────────────────────────────────
+  // ── app configured-networks ─────────────────────────────────────
 
   cmd
     .command("configured-networks")
@@ -570,7 +570,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps select ────────────────────────────────────────────────────
+  // ── app select ────────────────────────────────────────────────────
 
   cmd
     .command("select [id]")
