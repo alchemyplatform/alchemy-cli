@@ -253,7 +253,7 @@ export function registerConfig(program: Command) {
         // Interactive mode
         if (!isInteractiveAllowed(program)) {
           exitWithError(
-            new Error("Interactive app selection requires an interactive terminal. Use 'config set app <app-id>' or 'alchemy apps list' to find app IDs."),
+            new Error("Interactive app selection requires an interactive terminal. Use 'config set app <app-id>' or 'alchemy app list' to find app IDs."),
           );
         }
 

@@ -67,7 +67,7 @@ Quick usage examples:
 alchemy
 
 # Agent/script-friendly command
-alchemy data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --json --no-interactive
+alchemy evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --json --no-interactive
 
 # Agent checks whether a newer CLI version is available
 alchemy update-check --json --no-interactive
@@ -91,62 +91,43 @@ Agents can also call `alchemy --json --no-interactive update-check` to retrieve 
 Run commands as `alchemy <command>`.
 Use `alchemy help` or `alchemy help <command>` for generated command help.
 
-### Node
+### EVM
 
 | Command | What it does | Example |
 |---|---|---|
-| `tx [hash]` | Gets transaction + receipt by hash | `alchemy tx 0x...` |
-| `receipt [hash]` | Gets transaction receipt (status, gas, logs) | `alchemy receipt 0x...` |
-| `block <number>` | Gets block details (`latest`, decimal, or hex) | `alchemy block latest` |
-| `gas` | Gets current gas prices (base fee + priority fee) | `alchemy gas -n polygon-mainnet` |
-| `logs` | Queries event logs (`eth_getLogs`) | `alchemy logs --address 0x... --from-block 18000000 --to-block 18000010` |
-| `rpc <method> [params...]` | Makes raw JSON-RPC call | `alchemy rpc eth_blockNumber` |
-| `trace <method> [params...]` | Calls Trace API methods | `alchemy trace call '{"to":"0x..."}' '["trace"]' latest` |
-| `debug <method> [params...]` | Calls Debug API methods | `alchemy debug traceTransaction "0x..."` |
-
-### Data
-
-| Command | What it does | Example |
-|---|---|---|
-| `data balance [address]` | Gets native token balance for an address | `alchemy data balance 0x...` |
-| `data tokens balances [address]` | Lists ERC-20 balances for an address | `alchemy data tokens balances 0x...` |
-| `data tokens metadata <contract>` | Gets ERC-20 metadata | `alchemy data tokens metadata 0x...` |
-| `data tokens allowance --owner --spender --contract` | Gets ERC-20 allowance | `alchemy data tokens allowance --owner 0x... --spender 0x... --contract 0x...` |
-| `data nfts [address]` | Lists NFTs owned by an address | `alchemy data nfts 0x...` |
-| `data nfts metadata --contract <addr> --token-id <id>` | Gets NFT metadata by contract/token | `alchemy data nfts metadata --contract 0x... --token-id 1` |
-| `data nfts contract <address>` | Gets NFT contract metadata | `alchemy data nfts contract 0x...` |
-| `data history [address]` | Gets transfer history (`alchemy_getAssetTransfers`) | `alchemy data history 0x... --category erc20,erc721` |
-| `data price symbol <symbols>` | Gets current token prices by symbol | `alchemy data price symbol ETH,USDC` |
-| `data price address --addresses <json>` | Gets current token prices by address/network pairs | `alchemy data price address --addresses '[{"network":"eth-mainnet","address":"0x..."}]'` |
-| `data price historical --body <json>` | Gets historical prices | `alchemy data price historical --body '{"symbol":"ETH","startTime":"...","endTime":"..."}'` |
-| `data portfolio tokens --body <json>` | Gets token portfolio data | `alchemy data portfolio tokens --body '{...}'` |
-| `data portfolio token-balances --body <json>` | Gets token balance snapshots | `alchemy data portfolio token-balances --body '{...}'` |
-| `data portfolio nfts --body <json>` | Gets NFT portfolio data | `alchemy data portfolio nfts --body '{...}'` |
-| `data portfolio nft-contracts --body <json>` | Gets NFT contract portfolio data | `alchemy data portfolio nft-contracts --body '{...}'` |
-| `data portfolio transactions --body <json>` | Gets portfolio transaction history | `alchemy data portfolio transactions --body '{...}'` |
-| `simulate asset-changes --tx <json>` | Simulates asset changes | `alchemy simulate asset-changes --tx '{"from":"0x...","to":"0x..."}'` |
-| `simulate execution --tx <json>` | Simulates execution traces | `alchemy simulate execution --tx '{"from":"0x...","to":"0x..."}'` |
-| `simulate asset-changes-bundle --txs <json>` | Simulates bundle asset changes | `alchemy simulate asset-changes-bundle --txs '[{...}]'` |
-| `simulate execution-bundle --txs <json>` | Simulates bundle execution traces | `alchemy simulate execution-bundle --txs '[{...}]'` |
+| `evm rpc <method> [params...]` | Makes raw Ethereum JSON-RPC calls | `alchemy evm rpc eth_blockNumber` |
+| `evm data balance [address]` | Gets native token balance for an address | `alchemy evm data balance 0x...` |
+| `evm data tokens balances [address]` | Lists ERC-20 balances for an address | `alchemy evm data tokens balances 0x...` |
+| `evm data nfts [address]` | Lists NFTs owned by an address | `alchemy evm data nfts 0x...` |
+| `evm data history [address]` | Gets transfer history (`alchemy_getAssetTransfers`) | `alchemy evm data history 0x... --category erc20,erc721` |
+| `evm data price symbol <symbols>` | Gets current token prices by symbol | `alchemy evm data price symbol ETH,USDC` |
+| `evm data portfolio tokens --body <json>` | Gets token portfolio data | `alchemy evm data portfolio tokens --body '{...}'` |
+| `evm send <to> <amount>` | Sends native tokens or ERC-20 tokens | `alchemy evm send vitalik.eth 0.1 -n base-mainnet` |
+| `evm contract read/call` | Reads or writes smart contracts | `alchemy evm contract read 0x... "balanceOf(address)(uint256)" --args '["0x..."]'` |
+| `evm swap quote/execute` | Swaps tokens on the same chain | `alchemy evm swap quote --from 0xEeee... --to 0xA0b8... --amount 1` |
+| `evm approve <spender_address>` | Approves an ERC-20 token allowance | `alchemy evm approve 0x... --token-address 0x... --amount 10` |
+| `evm status [id]` | Checks transaction or operation status | `alchemy evm status 0x...` |
+| `evm network list` | Lists RPC network IDs for use with `--network` | `alchemy evm network list --search base` |
+| `evm tx/receipt/block/gas/logs` | Fetches common node resources | `alchemy evm block latest` |
+| `evm trace/debug` | Calls Trace and Debug API methods | `alchemy evm trace call '{"to":"0x..."}' '["trace"]' latest` |
+| `evm simulate *` | Calls simulation APIs | `alchemy evm simulate execution --tx '{"to":"0x..."}'` |
 
 ### Wallets
 
-`alchemy wallet` exposes a unified onchain-actions surface. The **session wallet** (Alchemy/Privy-managed, P-256 delegated signer) is the recommended flow; a **local wallet** (private key stored on disk) is supported as an alternative and is currently the only path for Solana.
+`alchemy wallets` exposes a unified onchain-actions surface. The **session wallet** (Alchemy/Privy-managed, P-256 delegated signer) is the recommended flow; a **local wallet** (private key stored on disk) is supported as an alternative and is currently the only path for Solana.
 
 | Command | What it does | Example |
 |---|---|---|
-| `wallet connect` | Interactive: choose a session wallet (recommended) or a local wallet. For scripts, pass `--mode <session\|local>`. | `alchemy wallet connect` |
-| `wallet connect --mode local --chain evm` | Create a new local EVM key (non-interactive). `--chain` accepts `evm`, `solana`, or `both`. | `alchemy wallet connect --mode local --chain both` |
-| `wallet connect --mode local --import <path>` | Import an existing EVM private key from a file. | `alchemy wallet connect --mode local --import ./key.txt` |
-| `wallet status [--verify]` | Reports session, local EVM, local Solana, and the active signer. `--verify` reconciles the session with the backend. | `alchemy wallet status --verify` |
-| `wallet address` | Prints addresses for every configured signer. | `alchemy wallet address` |
-| `wallet use <session\|local>` | Selects which signer `send`, `swap`, `approve`, `bridge`, and `contract call` use for EVM transactions. | `alchemy wallet use local` |
-| `wallet disconnect` | Revokes the current session (local + backend). Clears `active_signer` if it pointed at the session. | `alchemy wallet disconnect` |
-| `wallet qr [--type <evm\|solana>]` | Renders a configured address as a QR code. | `alchemy wallet qr --type evm` |
+| `wallets connect` | Interactive: choose a session wallet (recommended) or a local wallet. For scripts, pass `--mode <session\|local>`. | `alchemy wallets connect` |
+| `wallets connect --mode local --chain evm` | Create a new local EVM key (non-interactive). `--chain` accepts `evm`, `solana`, or `both`. | `alchemy wallets connect --mode local --chain both` |
+| `wallets connect --mode local --import <path>` | Import an existing EVM private key from a file. | `alchemy wallets connect --mode local --import ./key.txt` |
+| `wallets status [--verify]` | Reports session, local EVM, local Solana, and the active signer. `--verify` reconciles the session with the backend. | `alchemy wallets status --verify` |
+| `wallets address` | Prints addresses for every configured signer. | `alchemy wallets address` |
+| `wallets use <session\|local>` | Selects which signer `evm send`, `evm swap`, `evm approve`, `xchain bridge`, and `evm contract call` use for EVM transactions. | `alchemy wallets use local` |
+| `wallets disconnect` | Revokes the current session (local + backend). Clears `active_signer` if it pointed at the session. | `alchemy wallets disconnect` |
+| `wallets qr [--type <evm\|solana>]` | Renders a configured address as a QR code. | `alchemy wallets qr --type evm` |
 
-Per-command override: pass `--signer <session\|local>` to `send`, `approve`, `swap`, `bridge`, or `contract call` to override the active signer for a single invocation.
-
-> The legacy commands `wallet create`, `wallet generate`, and `wallet import <path>` still work as aliases for the equivalent `wallet connect --mode local` flow so existing scripts keep running; they are hidden from `--help` and will be removed in a future release.
+Per-command override: pass `--signer <session\|local>` to `evm send`, `evm approve`, `evm swap`, `xchain bridge`, or `evm contract call` to override the active signer for a single invocation.
 | `webhooks list` | Lists Notify webhooks | `alchemy webhooks list --webhook-api-key <key>` |
 | `webhooks create --body <json>` | Creates Notify webhook | `alchemy webhooks create --body '{...}' --webhook-api-key <key>` |
 | `webhooks update --body <json>` | Updates Notify webhook | `alchemy webhooks update --body '{...}' --webhook-api-key <key>` |
@@ -156,9 +137,10 @@ Per-command override: pass `--signer <session\|local>` to `send`, `approve`, `sw
 
 | Command | What it does | Example |
 |---|---|---|
-| `network list` | Lists RPC network IDs for use with `--network` (e.g. `eth-mainnet`) | `alchemy network list --configured` |
 | `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"'` |
 | `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}'` |
+| `solana network list` | Lists networks from the Solana namespace | `alchemy solana network list --search solana` |
+| `xchain bridge quote/execute` | Bridges tokens across chains | `alchemy xchain bridge quote --from 0xEeee... --to 0xEeee... --amount 0.1 --to-network base-mainnet -n eth-mainnet` |
 
 ### CLI Admin
 
@@ -178,7 +160,9 @@ Per-command override: pass `--signer <session\|local>` to `send`, `approve`, `sw
 | `apps address-allowlist <id>` | Updates app address allowlist | `alchemy apps address-allowlist <app-id> --addresses 0xabc,0xdef` |
 | `apps origin-allowlist <id>` | Updates app origin allowlist | `alchemy apps origin-allowlist <app-id> --origins https://example.com` |
 | `apps ip-allowlist <id>` | Updates app IP allowlist | `alchemy apps ip-allowlist <app-id> --ips 1.2.3.4,5.6.7.8` |
-| `setup status` | Shows setup status + next commands | `alchemy setup status` |
+| `doctor` | Runs readiness checks and suggestions | `alchemy doctor` |
+| `install mcp` | Installs Alchemy's remote MCP server config | `alchemy install mcp --client claude --dry-run` |
+| `install skills` | Installs bundled Alchemy skills | `alchemy install skills --client cursor --dry-run` |
 | `update-check` | Checks whether a newer CLI version is available | `alchemy update-check --json --no-interactive` |
 | `config set ...` | Sets config values | `alchemy config set api-key <key>` |
 | `config get <key>` | Gets one config value | `alchemy config get network` |
@@ -235,15 +219,15 @@ Additional env vars:
 | Command | Flags |
 |---|---|
 | `auth login` | `--force`, `-y, --yes` |
-| `nfts` | `--limit <n>`, `--page-key <key>` |
-| `nfts metadata` | `--contract <address>` (required), `--token-id <id>` (required) |
-| `tokens` | `--page-key <key>` |
-| `tokens allowance` | `--owner <address>` (required), `--spender <address>` (required), `--contract <address>` (required) |
-| `transfers` | `--from-address <address>`, `--to-address <address>`, `--from-block <block>`, `--to-block <block>`, `--category <list>`, `--max-count <n>`, `--page-key <key>` |
-| `prices address` | `--addresses <json>` (required) |
-| `prices historical` | `--body <json>` (required) |
-| `portfolio *` | `--body <json>` (required per subcommand) |
-| `simulate *` | `--tx <json>` or `--txs <json>` (required) |
+| `evm data nfts` | `--limit <n>`, `--page-key <key>` |
+| `evm data nfts metadata` | `--contract <address>` (required), `--token-id <id>` (required) |
+| `evm data tokens balances` | `--page-key <key>` |
+| `evm data tokens allowance` | `--owner <address>` (required), `--spender <address>` (required), `--contract <address>` (required) |
+| `evm data history` | `--from-address <address>`, `--to-address <address>`, `--from-block <block>`, `--to-block <block>`, `--category <list>`, `--max-count <n>`, `--page-key <key>` |
+| `evm data price address` | `--addresses <json>` (required) |
+| `evm data price historical` | `--body <json>` (required) |
+| `evm data portfolio *` | `--body <json>` (required per subcommand) |
+| `evm simulate *` | `--tx <json>` or `--txs <json>` (required) |
 | `webhooks *` | `--webhook-api-key <key>` (or `ALCHEMY_WEBHOOK_API_KEY`, `ALCHEMY_NOTIFY_AUTH_TOKEN`, config `webhook-api-key`, or app webhook key) |
 | `apps list` | `--cursor <cursor>`, `--limit <n>`, `--all`, `--search <query>`, `--id <appId>` |
 | `apps create` | `--name <name>` (required), `--networks <networks>` (required), `--description <desc>`, `--products <products>`, `--dry-run` |
@@ -253,7 +237,7 @@ Additional env vars:
 | `apps address-allowlist` | `--addresses <addrs>` (required), `--dry-run` |
 | `apps origin-allowlist` | `--origins <origins>` (required), `--dry-run` |
 | `apps ip-allowlist` | `--ips <ips>` (required), `--dry-run` |
-| `network list` | `--configured`, `--app-id <id>` |
+| `evm network list` | `--mainnet-only`, `--testnet-only`, `--search <term>` |
 | `config reset` | `-y, --yes` |
 
 ## Authentication Reference
@@ -286,8 +270,8 @@ Run `alchemy` with no command in an interactive terminal:
 
 ```bash
 alchemy
-alchemy ◆ balance 0x...
-alchemy ◆ block latest
+alchemy ◆ evm data balance 0x...
+alchemy ◆ evm block latest
 alchemy ◆ exit
 ```
 

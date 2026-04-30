@@ -14,7 +14,11 @@ import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { networkToChain } from "../lib/chains.js";
-import { parseAmount, fetchTokenDecimals, formatTokenAmount } from "./send/shared.js";
+import {
+  parseAmount,
+  fetchTokenDecimals,
+  formatTokenAmount,
+} from "../lib/token-amounts.js";
 
 const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 const NATIVE_DECIMALS = 18;
@@ -89,7 +93,7 @@ function createBridgeQuoteRequest(
 function validateBridgeNetworks(fromNetwork: string, toNetwork: string): void {
   if (fromNetwork === toNetwork) {
     throw errInvalidArgs(
-      `Source and destination networks must differ for bridge. Use 'alchemy swap' for same-chain token exchanges on ${fromNetwork}.`,
+      `Source and destination networks must differ for bridge. Use 'alchemy evm swap' for same-chain token exchanges on ${fromNetwork}.`,
     );
   }
 }
@@ -159,11 +163,11 @@ export function registerBridge(program: Command) {
       "after",
       `
 Source network comes from the global -n/--network flag. Use --to-network for the destination chain.
-For same-chain token exchanges, use 'alchemy swap'.
+For same-chain token exchanges, use 'alchemy evm swap'.
 
 Examples:
-  alchemy bridge quote --from ${NATIVE_TOKEN_ADDRESS} --to ${NATIVE_TOKEN_ADDRESS} --amount 0.1 --to-network base-mainnet -n eth-mainnet
-  alchemy bridge quote --from <eth_usdc_address> --to <arb_usdc_address> --amount 100 --to-network arb-mainnet -n eth-mainnet`,
+  alchemy xchain bridge quote --from ${NATIVE_TOKEN_ADDRESS} --to ${NATIVE_TOKEN_ADDRESS} --amount 0.1 --to-network base-mainnet -n eth-mainnet
+  alchemy xchain bridge quote --from <eth_usdc_address> --to <arb_usdc_address> --amount 100 --to-network arb-mainnet -n eth-mainnet`,
     )
     .action(async (opts: BridgeOpts) => {
       try {
@@ -191,11 +195,11 @@ Examples:
       "after",
       `
 Source network comes from the global -n/--network flag. Use --to-network for the destination chain.
-For same-chain token exchanges, use 'alchemy swap'.
+For same-chain token exchanges, use 'alchemy evm swap'.
 
 Examples:
-  alchemy bridge execute --from ${NATIVE_TOKEN_ADDRESS} --to ${NATIVE_TOKEN_ADDRESS} --amount 0.1 --to-network base-mainnet -n eth-mainnet
-  alchemy bridge execute --from <eth_usdc_address> --to <arb_usdc_address> --amount 100 --to-network arb-mainnet --gas-sponsored --gas-policy-id <id> -n eth-mainnet`,
+  alchemy xchain bridge execute --from ${NATIVE_TOKEN_ADDRESS} --to ${NATIVE_TOKEN_ADDRESS} --amount 0.1 --to-network base-mainnet -n eth-mainnet
+  alchemy xchain bridge execute --from <eth_usdc_address> --to <arb_usdc_address> --amount 100 --to-network arb-mainnet --gas-sponsored --gas-policy-id <id> -n eth-mainnet`,
     )
     .action(async (_opts: unknown, cmd: Command) => {
       try {

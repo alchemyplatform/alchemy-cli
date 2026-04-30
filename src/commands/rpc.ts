@@ -14,9 +14,9 @@ export function registerRPC(program: Command) {
       "after",
       `
 Examples:
-  alchemy rpc eth_blockNumber
-  alchemy rpc eth_getBalance "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045" "latest"
-  alchemy rpc eth_getBlockByNumber "0x1" true`,
+  alchemy evm rpc eth_blockNumber
+  alchemy evm rpc eth_getBalance "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045" "latest"
+  alchemy evm rpc eth_getBlockByNumber "0x1" true`,
     )
     .action(async (method: string, params: string[]) => {
       try {

@@ -21,7 +21,11 @@ import {
 import { promptConfirm } from "../lib/terminal-ui.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValueBox, green, dim } from "../lib/ui.js";
-import { parseAmount, fetchTokenDecimals, formatTokenAmount } from "./send/shared.js";
+import {
+  parseAmount,
+  fetchTokenDecimals,
+  formatTokenAmount,
+} from "../lib/token-amounts.js";
 
 const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 
@@ -214,11 +218,11 @@ export function registerApprove(program: Command) {
       "after",
       `
 Examples:
-  alchemy approve 0xRouter --token-address 0xUSDC --amount 100
-  alchemy approve 0xRouter --token-address 0xUSDC --amount 100 --reset-first
-  alchemy approve 0xRouter --token-address 0xUSDC --unlimited
-  alchemy approve 0xRouter --token-address 0xUSDC --unlimited --yes
-  alchemy approve 0xRouter --token-address 0xUSDC --revoke`,
+  alchemy evm approve 0xRouter --token-address 0xUSDC --amount 100
+  alchemy evm approve 0xRouter --token-address 0xUSDC --amount 100 --reset-first
+  alchemy evm approve 0xRouter --token-address 0xUSDC --unlimited
+  alchemy evm approve 0xRouter --token-address 0xUSDC --unlimited --yes
+  alchemy evm approve 0xRouter --token-address 0xUSDC --revoke`,
     )
     .action(async (spenderArg: string, _opts: unknown, cmd: Command) => {
       try {

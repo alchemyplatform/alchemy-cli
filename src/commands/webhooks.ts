@@ -23,7 +23,7 @@ function resolveWebhookApiKey(
 }
 
 export function registerWebhooks(program: Command) {
-  const cmd = program.command("webhooks").description("Notify API wrappers");
+  const cmd = program.command("webhook").description("Notify API wrappers");
   cmd
     .option("--webhook-api-key <key>", "Webhook API key")
     .option("--notify-token <token>", "Deprecated alias for webhook API key");

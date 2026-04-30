@@ -674,7 +674,7 @@ describe("bridge command", () => {
 
     expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
       code: "INVALID_ARGS",
-      message: "Source and destination networks must differ for bridge. Use 'alchemy swap' for same-chain token exchanges on eth-mainnet.",
+      message: "Source and destination networks must differ for bridge. Use 'alchemy evm swap' for same-chain token exchanges on eth-mainnet.",
     }));
   });
 });

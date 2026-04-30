@@ -53,10 +53,10 @@ export function registerNFTs(program: Command) {
       "after",
       `
 Examples:
-  alchemy data nfts 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-  alchemy data nfts metadata --contract 0x... --token-id 1
-  alchemy data nfts contract 0x...
-  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy data nfts`,
+  alchemy evm data nfts 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  alchemy evm data nfts metadata --contract 0x... --token-id 1
+  alchemy evm data nfts contract 0x...
+  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy evm data nfts`,
     )
     .action(async (addressArg: string | undefined, opts: { limit?: number; pageKey?: string }) => {
       try {

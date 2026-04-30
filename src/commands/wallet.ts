@@ -802,10 +802,10 @@ async function buildSessionSnapshot(
   };
 }
 
-export function registerWallet(program: Command) {
-  const cmd = program.command("wallet").description("Manage wallet");
+export function registerWallets(program: Command) {
+  const cmd = program.command("wallet").description("Manage wallets");
 
-  // Canonical: `alchemy wallet connect` is the single entry point.
+  // `alchemy wallet connect` is the single entry point.
   cmd
     .command("connect")
     .description("Connect a wallet for onchain actions (session or local)")
@@ -1012,7 +1012,7 @@ export function registerWallet(program: Command) {
     .action(async (target: string) => {
       try {
         if (target !== "session" && target !== "local") {
-          throw errInvalidArgs("`wallet use` target must be 'session' or 'local'.");
+            throw errInvalidArgs("`wallet use` target must be 'session' or 'local'.");
         }
         if (target === "session" && !hasValidSessionWithEvm()) {
           throw errInvalidArgs(
@@ -1103,60 +1103,6 @@ export function registerWallet(program: Command) {
       }
     });
 
-  // Hidden back-compat aliases for the pre-unified surface. These route to the
-  // same helpers as `connect --mode local`, and they preserve today's
-  // "randomize path + repoint config" behavior (no --force gate, no prompt) so
-  // existing scripts continue to work unchanged.
-  const createAlias = async () => {
-    try {
-      const { evm, solana } = await createAndPersistWallets();
-      if (isJSONMode()) {
-        printJSON({ evm, solana });
-      } else {
-        printKeyValueBox([
-          ["EVM Address", green(evm.address)],
-          ["EVM Key file", evm.keyFile],
-          ["Solana Address", green(solana.address)],
-          ["Solana Key file", solana.keyFile],
-        ]);
-        console.log(`  ${green("✓")} Wallets created and saved to config`);
-      }
-    } catch (err) {
-      exitWithError(err);
-    }
-  };
-
-  const createCmd = cmd
-    .command("create")
-    .description("Create new EVM and Solana wallets")
-    .action(createAlias);
-  (createCmd as Command & { hidden?: boolean }).hidden = true;
-
-  const generateCmd = cmd
-    .command("generate")
-    .description("Generate new wallets (alias for create)")
-    .action(createAlias);
-  (generateCmd as Command & { hidden?: boolean }).hidden = true;
-
-  const importCmd = cmd
-    .command("import")
-    .argument("<path>", "Path to private key file")
-    .description("Import an EVM wallet from a private key file")
-    .action((path: string) => {
-      try {
-        const wallet = importAndPersistWallet(path);
-        if (isJSONMode()) {
-          printJSON(wallet);
-        } else {
-          printKeyValueBox([
-            ["Address", green(wallet.address)],
-            ["Key file", wallet.keyFile],
-          ]);
-          console.log(`  ${green("✓")} Wallet imported and saved to config`);
-        }
-      } catch (err) {
-        exitWithError(err);
-      }
-    });
-  (importCmd as Command & { hidden?: boolean }).hidden = true;
 }
+
+export const registerWallet = registerWallets;

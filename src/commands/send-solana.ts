@@ -2,24 +2,54 @@ import { Command } from "commander";
 import { address as solAddress } from "@solana/kit";
 import {
   clientFromFlags,
-  resolveNetwork,
+  resolveSolanaNetwork,
   resolveGasSponsored,
   resolveGasPolicyId,
   resolveSolanaWalletKey,
-} from "../../lib/resolve.js";
-import { validateSolanaAddress } from "../../lib/validators.js";
-import { nativeTokenSymbol } from "../../lib/networks.js";
-import { isJSONMode, printJSON } from "../../lib/output.js";
-import { errInvalidArgs, errSolanaWalletKeyRequired } from "../../lib/errors.js";
-import { withSpinner, printKeyValueBox, green } from "../../lib/ui.js";
+} from "../lib/resolve.js";
+import { validateSolanaAddress } from "../lib/validators.js";
+import { nativeTokenSymbol } from "../lib/networks.js";
+import { isJSONMode, printJSON } from "../lib/output.js";
+import {
+  errInvalidArgs,
+  errSolanaWalletKeyRequired,
+  exitWithError,
+} from "../lib/errors.js";
+import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
+import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import {
   parseSolanaKeyBytes,
   buildSolTransferInstruction,
   buildAndSendSolanaTransaction,
   waitForSolanaConfirmation,
   SOL_DECIMALS,
-} from "../../lib/solana-tx.js";
-import { parseAmount } from "./shared.js";
+} from "../lib/solana-tx.js";
+import { parseAmount } from "../lib/token-amounts.js";
+
+export function registerSolanaSend(program: Command) {
+  const sendCmd = program
+    .command("send <to> <amount>")
+    .description("Send SOL to an address")
+    .option("--token <address>", "SPL token contract address (not yet supported)");
+  addSignerOption(sendCmd);
+  sendCmd.action(
+    async (
+      toArg: string,
+      amountArg: string,
+      _opts: unknown,
+      actionCommand: Command,
+    ) => {
+      try {
+        const opts = actionCommand.opts<{ token?: string; signer?: string }>();
+        await performSolanaSend(actionCommand, toArg, amountArg, opts.token, {
+          signer: parseSignerOpt(opts.signer),
+        });
+      } catch (err) {
+        exitWithError(err);
+      }
+    },
+  );
+}
 
 export async function performSolanaSend(
   program: Command,
@@ -46,7 +76,7 @@ export async function performSolanaSend(
   validateSolanaAddress(toArg);
   const to = solAddress(toArg);
 
-  const network = resolveNetwork(program);
+  const network = resolveSolanaNetwork(program);
   const symbol = nativeTokenSymbol(network);
   const lamports = parseAmount(amountArg, SOL_DECIMALS);
 
@@ -66,7 +96,7 @@ export async function performSolanaSend(
     );
   }
 
-  const client = clientFromFlags(program, { defaultNetwork: "solana-mainnet" });
+  const client = clientFromFlags(program, { forceNetwork: network });
 
   const result = await withSpinner(
     "Sending transaction…",

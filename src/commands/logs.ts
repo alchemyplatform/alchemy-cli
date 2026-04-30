@@ -79,10 +79,10 @@ export function registerLogs(program: Command) {
       "after",
       `
 Examples:
-  alchemy logs --from-block 18000000 --to-block 18000010
-  alchemy logs --address 0xdAC17F958D2ee523a2206206994597C13D831ec7 --from-block 18000000 --to-block 18000010
-  alchemy logs --address 0xdAC17F958D2ee523a2206206994597C13D831ec7 --topic 0xddf252ad...
-  alchemy logs --from-block latest --json`,
+  alchemy evm logs --from-block 18000000 --to-block 18000010
+  alchemy evm logs --address 0xdAC17F958D2ee523a2206206994597C13D831ec7 --from-block 18000000 --to-block 18000010
+  alchemy evm logs --address 0xdAC17F958D2ee523a2206206994597C13D831ec7 --topic 0xddf252ad...
+  alchemy evm logs --from-block latest --json`,
     )
     .option("--address <address>", "Contract address to filter logs")
     .option("--topic <topic...>", "Event topic(s) to filter (topic0, topic1, ...)")

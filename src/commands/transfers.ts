@@ -70,16 +70,16 @@ export function registerTransfers(program: Command) {
       `
 Examples:
   # Outgoing transfers from an address
-  alchemy data history 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  alchemy evm data history 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
 
   # Incoming transfers to an address
-  alchemy data history --to-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  alchemy evm data history --to-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
 
   # Outgoing ERC-20 transfers only
-  alchemy data history --from-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --category erc20
+  alchemy evm data history --from-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --category erc20
 
   # Transfers within a block range
-  alchemy data history 0xd8dA... --from-block 0x100000 --to-block latest`,
+  alchemy evm data history 0xd8dA... --from-block 0x100000 --to-block latest`,
     )
     .action(async (addressArg: string | undefined, opts) => {
       try {

@@ -52,12 +52,12 @@ export class Client implements AlchemyClient {
       parsed = new URL(`https://${hostname}`);
     } catch {
       throw errInvalidArgs(
-        `Unknown network '${network}'. Run 'alchemy network list' to see available networks.`,
+        `Unknown network '${network}'. Run 'alchemy evm network list' to see available networks.`,
       );
     }
     if (!parsed.hostname.endsWith(`.g.${domain}`)) {
       throw errInvalidArgs(
-        `Unknown network '${network}'. Run 'alchemy network list' to see available networks.`,
+        `Unknown network '${network}'. Run 'alchemy evm network list' to see available networks.`,
       );
     }
   }

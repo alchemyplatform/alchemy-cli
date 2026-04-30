@@ -54,10 +54,10 @@ export function registerNetwork(program: Command) {
 
         console.log(`\n  Current: ${green(current)}`);
         console.log(
-          `  ${dim("Need Admin API chain identifiers (e.g. ETH_MAINNET)? See: apps chains")}`,
+          `  ${dim("Need Admin API chain identifiers (e.g. ETH_MAINNET)? See: app chains")}`,
         );
         console.log(
-          `  ${dim("Need configured networks for an app? See: apps networks")}`,
+          `  ${dim("Need configured networks for an app? See: app networks")}`,
         );
 
         if (verbose) {

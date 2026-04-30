@@ -88,7 +88,7 @@ export async function fetchWithTimeout(
         const networkSlug = hostname.replace(new RegExp(`\\.g\\.${escapeRegExp(getBaseDomain())}$`), "");
         if (networkSlug !== hostname) {
           throw errInvalidArgs(
-            `Unknown network '${networkSlug}'. Run 'alchemy network list' to see available networks.`,
+            `Unknown network '${networkSlug}'. Run 'alchemy evm network list' to see available networks.`,
           );
         }
       } catch (innerErr) {

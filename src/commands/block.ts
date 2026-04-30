@@ -25,9 +25,9 @@ export function registerBlock(program: Command) {
       "after",
       `
 Examples:
-  alchemy block latest
-  alchemy block 17000000
-  alchemy block 0x1`,
+  alchemy evm block latest
+  alchemy evm block 17000000
+  alchemy evm block 0x1`,
     )
     .action(async (blockId: string) => {
       try {

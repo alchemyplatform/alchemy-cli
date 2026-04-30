@@ -13,7 +13,11 @@ import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
-import { parseAmount, fetchTokenDecimals, formatTokenAmount } from "./send/shared.js";
+import {
+  parseAmount,
+  fetchTokenDecimals,
+  formatTokenAmount,
+} from "../lib/token-amounts.js";
 
 const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 const NATIVE_DECIMALS = 18;
@@ -137,8 +141,8 @@ export function registerSwap(program: Command) {
       "after",
       `
 Examples:
-  alchemy swap quote --from 0xEeee...EEeE --to 0xA0b8...USDC --amount 1.0 -n eth-mainnet
-  alchemy swap quote --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0`,
+  alchemy evm swap quote --from 0xEeee...EEeE --to 0xA0b8...USDC --amount 1.0 -n eth-mainnet
+  alchemy evm swap quote --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0`,
     )
     .action(async (opts: SwapOpts) => {
       try {
@@ -165,9 +169,9 @@ Examples:
       "after",
       `
 Examples:
-  alchemy swap execute --from 0xEeee...EEeE --to 0xA0b8...USDC --amount 1.0 -n eth-mainnet
-  alchemy swap execute --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0
-  alchemy swap execute --from 0xEeee...EEeE --to 0xUSDC --amount 0.1 --gas-sponsored --gas-policy-id <id>`,
+  alchemy evm swap execute --from 0xEeee...EEeE --to 0xA0b8...USDC --amount 1.0 -n eth-mainnet
+  alchemy evm swap execute --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0
+  alchemy evm swap execute --from 0xEeee...EEeE --to 0xUSDC --amount 0.1 --gas-sponsored --gas-policy-id <id>`,
     )
     .action(async (_opts: unknown, cmd: Command) => {
       try {

@@ -1,8 +1,50 @@
 import { Command } from "commander";
-import { clientFromFlags } from "../lib/resolve.js";
-import { exitWithError } from "../lib/errors.js";
+import { clientFromFlags, resolveSolanaNetwork } from "../lib/resolve.js";
+import { errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { parseCLIParams } from "../lib/params.js";
 import { printSyntaxJSON, withSpinner } from "../lib/ui.js";
+import { registerNetwork } from "./network.js";
+import { registerSolanaSend } from "./send-solana.js";
+import { registerStatus } from "./status.js";
+
+function registerReservedSolanaCommand(args: {
+  cmd: Command;
+  signature: string;
+  description: string;
+  displayName: string;
+}) {
+  args.cmd
+    .command(args.signature)
+    .description(args.description)
+    .action(() => {
+      exitWithError(
+        errInvalidArgs(
+          `alchemy solana ${args.displayName} is reserved for the v1 Solana surface and is not implemented yet.`,
+        ),
+      );
+    });
+}
+
+function registerReservedSolanaCommands(cmd: Command) {
+  registerReservedSolanaCommand({
+    cmd,
+    signature: "program",
+    displayName: "program",
+    description: "Interact with Solana programs",
+  });
+  registerReservedSolanaCommand({
+    cmd,
+    signature: "swap",
+    displayName: "swap",
+    description: "Swap tokens on Solana",
+  });
+  registerReservedSolanaCommand({
+    cmd,
+    signature: "delegate",
+    displayName: "delegate",
+    description: "Delegate Solana token authority",
+  });
+}
 
 export function registerSolana(program: Command) {
   const cmd = program.command("solana").description("Solana RPC and DAS wrappers");
@@ -12,7 +54,9 @@ export function registerSolana(program: Command) {
     .description("Call a Solana JSON-RPC method")
     .action(async (method: string, params: string[]) => {
       try {
-        const client = clientFromFlags(program, { defaultNetwork: "solana-mainnet" });
+        const client = clientFromFlags(program, {
+          forceNetwork: resolveSolanaNetwork(program),
+        });
         const result = await withSpinner(`Calling ${method}…`, `Called ${method}`, () =>
           client.call(method, parseCLIParams(params)),
         );
@@ -27,7 +71,9 @@ export function registerSolana(program: Command) {
     .description("Call a Solana DAS method (e.g. getAssetsByOwner)")
     .action(async (method: string, params: string[]) => {
       try {
-        const client = clientFromFlags(program, { defaultNetwork: "solana-mainnet" });
+        const client = clientFromFlags(program, {
+          forceNetwork: resolveSolanaNetwork(program),
+        });
         // DAS methods use named params (object), not positional (array).
         // If the user passes a single JSON object, send it directly as params.
         const parsed = parseCLIParams(params);
@@ -42,4 +88,9 @@ export function registerSolana(program: Command) {
         exitWithError(err);
       }
     });
+
+  registerNetwork(cmd);
+  registerSolanaSend(cmd);
+  registerStatus(cmd, { networkMode: "solana" });
+  registerReservedSolanaCommands(cmd);
 }

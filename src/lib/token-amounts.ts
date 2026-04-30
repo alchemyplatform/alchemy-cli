@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { clientFromFlags } from "../../lib/resolve.js";
-import { errInvalidArgs } from "../../lib/errors.js";
+import { clientFromFlags } from "./resolve.js";
+import { errInvalidArgs } from "./errors.js";
 
 export function parseAmount(amount: string, decimals: number): bigint {
   if (!amount || amount.trim() === "") {

@@ -1,6 +1,10 @@
 import { Command } from "commander";
 import { buildWalletClient } from "../lib/smart-wallet.js";
-import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
+import {
+  clientFromFlags,
+  resolveNetwork,
+  resolveSolanaNetwork,
+} from "../lib/resolve.js";
 import { isSolanaNetwork } from "../lib/networks.js";
 import {
   readStdinArg,
@@ -63,7 +67,14 @@ type WalletCallStatusId = Parameters<
   ReturnType<typeof buildWalletClient>["client"]["getCallsStatus"]
 >[0]["id"];
 
-export function registerStatus(program: Command) {
+interface RegisterStatusOptions {
+  networkMode?: "auto" | "solana";
+}
+
+export function registerStatus(
+  program: Command,
+  options: RegisterStatusOptions = {},
+) {
   program
     .command("status")
     .description("Check the status of a transaction or operation")
@@ -72,17 +83,19 @@ export function registerStatus(program: Command) {
       "after",
       `
 Examples:
-  alchemy status call-123                               EVM smart wallet operation
-  alchemy status 0xTxHash... -n eth-mainnet             Raw EVM transaction
-  alchemy status 5wHu1qwD7q... -n solana-devnet         Solana transaction
-  echo "call-123" | alchemy status
+  alchemy evm status call-123                               EVM smart wallet operation
+  alchemy evm status 0xTxHash... -n eth-mainnet             Raw EVM transaction
+  alchemy solana status 5wHu1qwD7q... -n solana-devnet      Solana transaction
+  echo "call-123" | alchemy evm status
 
 Tip: use an EVM network for operation IDs and tx hashes, or a Solana network for signatures.`,
     )
     .action(async (idArg?: string) => {
       try {
         const id = normalizeId(idArg ?? (await readStdinArg("id")));
-        const network = resolveNetwork(program);
+        const network = options.networkMode === "solana"
+          ? resolveSolanaNetwork(program)
+          : resolveNetwork(program);
 
         if (isSolanaNetwork(network)) {
           validateSolanaTarget(id);
@@ -108,7 +121,7 @@ async function checkSolanaStatus(
   signature: string,
   network: string,
 ): Promise<SolanaSignatureStatusResult> {
-  const client = clientFromFlags(program, { defaultNetwork: "solana-mainnet" });
+  const client = clientFromFlags(program, { forceNetwork: network });
 
   const result = await withSpinner(
     "Checking status…",

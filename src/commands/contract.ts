@@ -279,11 +279,11 @@ export function registerContract(program: Command) {
       "after",
       `
 Examples:
-  alchemy contract read 0xA0b8...USDC "balanceOf(address)(uint256)" --args '["0xHolder"]'
-  alchemy contract read 0xA0b8...USDC "name()(string)"
-  alchemy contract read 0xA0b8...USDC "decimals()(uint8)"
-  alchemy contract read 0xContract balanceOf --abi-file ./erc20.json --args '["0xHolder"]'
-  alchemy contract read 0xPool "quote((address,uint256))(uint256)" --args '[["0xToken", "1000000"]]' --block 12345678`,
+  alchemy evm contract read 0xA0b8...USDC "balanceOf(address)(uint256)" --args '["0xHolder"]'
+  alchemy evm contract read 0xA0b8...USDC "name()(string)"
+  alchemy evm contract read 0xA0b8...USDC "decimals()(uint8)"
+  alchemy evm contract read 0xContract balanceOf --abi-file ./erc20.json --args '["0xHolder"]'
+  alchemy evm contract read 0xPool "quote((address,uint256))(uint256)" --args '[["0xToken", "1000000"]]' --block 12345678`,
     )
     .action(async (addressArg: string, functionArg: string, opts: ContractOpts) => {
       try {
@@ -312,9 +312,9 @@ Examples:
       "after",
       `
 Examples:
-  alchemy contract call 0xToken "approve(address,uint256)" --args '["0xSpender", "1000000"]'
-  alchemy contract call 0xToken "transfer(address,uint256)" --args '["0xTo", "1000000"]'
-  alchemy contract call 0xContract deposit --abi-file ./contract.json --value 0.1`,
+  alchemy evm contract call 0xToken "approve(address,uint256)" --args '["0xSpender", "1000000"]'
+  alchemy evm contract call 0xToken "transfer(address,uint256)" --args '["0xTo", "1000000"]'
+  alchemy evm contract call 0xContract deposit --abi-file ./contract.json --value 0.1`,
     )
     .action(async (addressArg: string, functionArg: string, _opts: unknown, cmd: Command) => {
       try {

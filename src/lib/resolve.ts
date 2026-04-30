@@ -8,6 +8,7 @@ import { Client } from "./client.js";
 import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
 import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errWalletKeyRequired } from "./errors.js";
+import { isSolanaNetwork } from "./networks.js";
 import { debug } from "./output.js";
 import { loadSession, isSessionValid, type WalletSession } from "./wallet-session.js";
 
@@ -56,6 +57,34 @@ export function resolveNetwork(program: Command, cfg?: Config, defaultNetwork?: 
   const config = cfg ?? load();
   if (config.network) return config.network;
   return defaultNetwork ?? "eth-mainnet";
+}
+
+export function resolveSolanaNetwork(program: Command, cfg?: Config): string {
+  const opts = getCommandOptions(program);
+  if (opts.network) {
+    if (!isSolanaNetwork(opts.network)) {
+      throw errInvalidArgs(
+        `Network '${opts.network}' is not a Solana network. Use a solana-* network with the solana namespace.`,
+      );
+    }
+    return opts.network;
+  }
+
+  if (process.env.ALCHEMY_NETWORK) {
+    if (!isSolanaNetwork(process.env.ALCHEMY_NETWORK)) {
+      throw errInvalidArgs(
+        `ALCHEMY_NETWORK='${process.env.ALCHEMY_NETWORK}' is not a Solana network. Use a solana-* network with the solana namespace.`,
+      );
+    }
+    return process.env.ALCHEMY_NETWORK;
+  }
+
+  const config = cfg ?? load();
+  if (config.network && isSolanaNetwork(config.network)) {
+    return config.network;
+  }
+
+  return "solana-mainnet";
 }
 
 export function resolveAppId(program: Command, cfg?: Config): string | undefined {

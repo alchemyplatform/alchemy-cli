@@ -21,7 +21,7 @@ describe("agent-prompt command", () => {
     );
     const program = new Command();
     program.command("balance").description("Get ETH balance");
-    program.command("apps").description("Manage apps");
+    program.command("app").description("Manage apps");
     registerAgentPrompt(program);
 
     await program.parseAsync(["node", "test", "agent-prompt"], {

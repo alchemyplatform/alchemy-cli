@@ -59,7 +59,7 @@ export function getSetupStatus(cfg: Config): SetupStatus {
       "alchemy auth",
       "alchemy config set api-key <key>",
       "alchemy config set access-key <key> && alchemy config set app <app-id>",
-      "alchemy wallet generate && alchemy config set x402 true",
+      "alchemy wallet connect --mode local --chain evm && alchemy config set x402 true",
     ],
   };
 }

@@ -9,6 +9,7 @@ const SOLANA_SIGNATURE =
 
 function mockStatusDeps(opts: {
   network: string;
+  solanaNetwork?: string;
   json?: boolean;
   call?: ReturnType<typeof vi.fn>;
   getCallsStatus?: ReturnType<typeof vi.fn>;
@@ -20,6 +21,7 @@ function mockStatusDeps(opts: {
 }) {
   const {
     network,
+    solanaNetwork = network,
     json = true,
     call = vi.fn(),
     getCallsStatus = vi.fn(),
@@ -44,6 +46,7 @@ function mockStatusDeps(opts: {
   }));
   vi.doMock("../../src/lib/resolve.js", () => ({
     resolveNetwork: () => network,
+    resolveSolanaNetwork: () => solanaNetwork,
     clientFromFlags: () => ({ call }),
   }));
   vi.doMock("../../src/lib/output.js", () => ({
@@ -80,10 +83,13 @@ function mockStatusDeps(opts: {
   };
 }
 
-async function runStatus(id: string) {
+async function runStatus(
+  id: string,
+  options?: { networkMode?: "auto" | "solana" },
+) {
   const { registerStatus } = await import("../../src/commands/status.js");
   const program = new Command();
-  registerStatus(program);
+  registerStatus(program, options);
   await program.parseAsync(["node", "test", "status", id], { from: "node" });
 }
 
@@ -294,6 +300,38 @@ describe("status command", () => {
       status: "confirmed",
       confirmationStatus: "finalized",
       slot: "123456",
+      error: null,
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("defaults to Solana when mounted under the solana namespace", async () => {
+    const call = vi.fn().mockResolvedValue({
+      value: [{
+        confirmationStatus: "confirmed",
+        slot: 654321,
+        err: null,
+      }],
+    });
+    const { printJSON, exitWithError } = mockStatusDeps({
+      network: "eth-mainnet",
+      solanaNetwork: "solana-mainnet",
+      call,
+    });
+
+    await runStatus(SOLANA_SIGNATURE, { networkMode: "solana" });
+
+    expect(call).toHaveBeenCalledWith("getSignatureStatuses", [
+      [SOLANA_SIGNATURE],
+      { searchTransactionHistory: true },
+    ]);
+    expect(printJSON).toHaveBeenCalledWith({
+      kind: "solana_signature",
+      id: SOLANA_SIGNATURE,
+      network: "solana-mainnet",
+      status: "confirmed",
+      confirmationStatus: "confirmed",
+      slot: "654321",
       error: null,
     });
     expect(exitWithError).not.toHaveBeenCalled();

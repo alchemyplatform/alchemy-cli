@@ -11,32 +11,19 @@ import { load as loadConfig } from "./lib/config.js";
 import { brandedHelp } from "./lib/ui.js";
 import { noColor, setNoColor, identity, esc } from "./lib/colors.js";
 import { registerConfig } from "./commands/config.js";
-import { registerRPC } from "./commands/rpc.js";
-import { registerData } from "./commands/data.js";
-import { registerTx } from "./commands/tx.js";
-import { registerReceipt } from "./commands/receipt.js";
-import { registerBlock } from "./commands/block.js";
-import { registerNetwork } from "./commands/network.js";
 import { registerVersion } from "./commands/version.js";
 import { registerApps } from "./commands/apps.js";
-import { registerWallet } from "./commands/wallet.js";
+import { registerWallets } from "./commands/wallet.js";
 import { registerAuth } from "./commands/auth.js";
-import { registerTrace } from "./commands/trace.js";
-import { registerDebug } from "./commands/debug.js";
-import { registerSimulate } from "./commands/simulate.js";
 import { registerWebhooks } from "./commands/webhooks.js";
 import { registerSolana } from "./commands/solana.js";
-import { registerGas } from "./commands/gas.js";
-import { registerLogs } from "./commands/logs.js";
 import { registerCompletions } from "./commands/completions.js";
-import { registerSend } from "./commands/send/index.js";
-import { registerContract } from "./commands/contract.js";
-import { registerSwap } from "./commands/swap.js";
-import { registerStatus } from "./commands/status.js";
-import { registerApprove } from "./commands/approve.js";
-import { registerBridge } from "./commands/bridge.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
+import { registerEvm } from "./commands/evm.js";
+import { registerXchain } from "./commands/xchain.js";
+import { registerInstall } from "./commands/install/index.js";
+import { registerDoctor } from "./commands/doctor.js";
 import { isInteractiveAllowed } from "./lib/interaction.js";
 import {
   getSetupStatus,
@@ -74,34 +61,27 @@ const ROOT_OPTION_GROUPS = [
 
 const ROOT_COMMAND_PILLARS = [
   {
-    label: "Node",
-    commands: ["tx", "block", "rpc", "trace", "debug", "gas", "logs"],
+    label: "Onchain",
+    commands: ["evm", "solana", "xchain"],
   },
   {
-    label: "Data",
-    commands: ["data", "simulate"],
-  },
-  {
-    label: "Onchain Execution",
-    commands: ["send", "contract", "swap", "bridge", "approve", "status"],
-  },
-  {
-    label: "Solana",
-    commands: ["solana"],
-  },
-  {
-    label: "Configuration",
-    commands: ["apps", "webhooks", "wallet", "network", "auth", "config"],
+    label: "Account & Platform",
+    commands: ["auth", "wallet", "app", "webhook", "config"],
   },
   {
     label: "Utilities",
     commands: [
       "completions",
       "agent-prompt",
+      "doctor",
       "update-check",
       "version",
       "help",
     ],
+  },
+  {
+    label: "Distribution",
+    commands: ["install"],
   },
 ] as const;
 
@@ -347,9 +327,9 @@ program
       `${hBrand("◆")} ${hBold("Quick Start")}`,
       `  ${hDim("────────────────────────────────────")}`,
       `  ${hBrand("alchemy")}                              ${hDim("Interactive mode with guided setup")}`,
-      `  ${hBrand("alchemy data balance")} ${hDim("<address>")}        ${hDim("Get native token balance")}`,
-      `  ${hBrand("alchemy block latest")}                  ${hDim("Latest block summary")}`,
-      `  ${hBrand("alchemy rpc eth_chainId")}               ${hDim("Raw JSON-RPC call")}`,
+      `  ${hBrand("alchemy evm data balance")} ${hDim("<address>")}    ${hDim("Get native token balance")}`,
+      `  ${hBrand("alchemy evm block latest")}              ${hDim("Latest block summary")}`,
+      `  ${hBrand("alchemy evm rpc eth_chainId")}           ${hDim("Raw JSON-RPC call")}`,
       `  ${hBrand("alchemy config list")}                   ${hDim("View current configuration")}`,
       "",
       `${hBrand("◆")} ${hBold("Exit Codes")}`,
@@ -394,6 +374,8 @@ program
       "version",
       "completions",
       "agent-prompt",
+      "doctor",
+      "install",
       "update-check",
       "wallet",
     ];
@@ -472,42 +454,23 @@ program
     program.help();
   });
 
-// Node
-registerRPC(program);
-registerTx(program);
-registerReceipt(program);
-registerBlock(program);
-registerTrace(program);
-registerDebug(program);
-registerGas(program);
-registerLogs(program);
-
-// Data
-registerData(program);
-registerSimulate(program);
-
-// Onchain Execution
-registerSend(program);
-registerContract(program);
-registerSwap(program);
-registerBridge(program);
-registerStatus(program);
-registerApprove(program);
-
-// Wallets
-registerWallet(program);
+// Onchain
+registerEvm(program);
+registerSolana(program);
+registerXchain(program);
+registerWallets(program);
 
 // Platform Configuration
 registerApps(program);
 registerWebhooks(program);
-registerNetwork(program);
-registerSolana(program);
 
 // CLI Settings
 registerAuth(program);
 registerConfig(program);
 registerAgentPrompt(program);
 registerCompletions(program);
+registerDoctor(program);
+registerInstall(program);
 registerUpdateCheck(program);
 registerVersion(program);
 program

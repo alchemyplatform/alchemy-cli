@@ -34,7 +34,7 @@ const APP_TWO: AppRecord = {
   createdAt: "2025-01-02T00:00:00.000Z",
 };
 
-describe("apps command", () => {
+describe("app command", () => {
   it("lists one page by default in JSON mode", async () => {
     const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
     const listApps = vi.fn().mockResolvedValue({ apps: [APP_ONE], cursor: "cursor_2" });
@@ -43,7 +43,7 @@ describe("apps command", () => {
     }));
 
     const { registerApps } = await import("../../src/commands/apps.js");
-    await runRegisteredCommand(registerApps, ["apps", "list"]);
+    await runRegisteredCommand(registerApps, ["app", "list"]);
 
     expect(listApps).toHaveBeenCalledWith({ cursor: undefined, limit: undefined });
     expect(printJSON).toHaveBeenCalledWith({ apps: [APP_ONE], cursor: "cursor_2" });
@@ -58,7 +58,7 @@ describe("apps command", () => {
     }));
 
     const { registerApps } = await import("../../src/commands/apps.js");
-    await runRegisteredCommand(registerApps, ["apps", "list", "--all"]);
+    await runRegisteredCommand(registerApps, ["app", "list", "--all"]);
 
     expect(listAllApps).toHaveBeenCalledWith({ limit: undefined });
     expect(printJSON).toHaveBeenCalledWith({
@@ -75,7 +75,7 @@ describe("apps command", () => {
   it.each([
     {
       title: "search filtering",
-      args: ["apps", "list", "--search", "second"],
+      args: ["app", "list", "--search", "second"],
       expected: {
         apps: [APP_TWO],
         pageInfo: { mode: "search", pages: 1, scannedApps: 2, search: "second" },
@@ -83,7 +83,7 @@ describe("apps command", () => {
     },
     {
       title: "id filtering",
-      args: ["apps", "list", "--id", "app_2"],
+      args: ["app", "list", "--id", "app_2"],
       expected: {
         apps: [APP_TWO],
         pageInfo: { mode: "search", pages: 1, scannedApps: 2, id: "app_2" },
@@ -111,7 +111,7 @@ describe("apps command", () => {
     }));
 
     const { registerApps } = await import("../../src/commands/apps.js");
-    await runRegisteredCommand(registerApps, ["apps", "list", "--all", "--cursor", "abc"]);
+    await runRegisteredCommand(registerApps, ["app", "list", "--all", "--cursor", "abc"]);
 
     expect(exitWithError).toHaveBeenCalledTimes(1);
     expect(exitWithError.mock.calls[0][0]).toMatchObject({ code: "INVALID_ARGS" });
@@ -126,7 +126,7 @@ describe("apps command", () => {
 
     const { registerApps } = await import("../../src/commands/apps.js");
     await runRegisteredCommand(registerApps, [
-      "apps",
+      "app",
       "create",
       "--name",
       "My App",
@@ -155,7 +155,7 @@ describe("apps command", () => {
     }));
 
     const { registerApps } = await import("../../src/commands/apps.js");
-    await runRegisteredCommand(registerApps, ["apps", "delete", "app_123"]);
+    await runRegisteredCommand(registerApps, ["app", "delete", "app_123"]);
 
     expect(deleteApp).toHaveBeenCalledWith("app_123");
     expect(printJSON).toHaveBeenCalledWith({ id: "app_123", status: "deleted" });

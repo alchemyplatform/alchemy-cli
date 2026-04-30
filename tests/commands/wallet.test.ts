@@ -11,7 +11,7 @@ describe("wallet command", () => {
     vi.unstubAllGlobals();
   });
 
-  it("wallet generate writes key/config and emits JSON", async () => {
+  it("wallet connect --mode local writes key/config and emits JSON", async () => {
     const printJSON = vi.fn();
     const exitWithError = vi.fn();
     const originalHome = process.env.HOME;
@@ -68,7 +68,7 @@ describe("wallet command", () => {
     const program = new Command();
     registerWallet(program);
 
-    await program.parseAsync(["node", "test", "wallet", "generate"], {
+    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local", "--chain", "both"], {
       from: "node",
     });
 
@@ -108,7 +108,7 @@ describe("wallet command", () => {
     else process.env.ALCHEMY_CONFIG = originalAlchemyCfg;
   });
 
-  it("wallet create writes key/config and emits JSON", async () => {
+  it("wallet connect --mode local can create local wallets", async () => {
     const printJSON = vi.fn();
     const exitWithError = vi.fn();
     const originalHome = process.env.HOME;
@@ -165,7 +165,7 @@ describe("wallet command", () => {
     const program = new Command();
     registerWallet(program);
 
-    await program.parseAsync(["node", "test", "wallet", "create"], {
+    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local", "--chain", "both"], {
       from: "node",
     });
 
@@ -185,7 +185,7 @@ describe("wallet command", () => {
     else process.env.ALCHEMY_CONFIG = originalAlchemyCfg;
   });
 
-  it("wallet import forwards read failures to exitWithError", async () => {
+  it("wallet connect --mode local --import forwards read failures to exitWithError", async () => {
     const exitWithError = vi.fn();
 
     vi.doMock("node:fs", () => ({
@@ -235,7 +235,7 @@ describe("wallet command", () => {
     const program = new Command();
     registerWallet(program);
 
-    await program.parseAsync(["node", "test", "wallet", "import", "/bad/path"], {
+    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local", "--import", "/bad/path"], {
       from: "node",
     });
 
@@ -1483,7 +1483,7 @@ describe("wallet command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
-  it("wallet create cleans up partial files when Solana persistence fails", async () => {
+  it("wallet connect --mode local cleans up partial files when Solana persistence fails", async () => {
     const printJSON = vi.fn();
     const exitWithError = vi.fn();
     const writeFileSync = vi.fn()
@@ -1550,7 +1550,7 @@ describe("wallet command", () => {
     const program = new Command();
     registerWallet(program);
 
-    await program.parseAsync(["node", "test", "wallet", "create"], {
+    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local", "--chain", "both"], {
       from: "node",
     });
 

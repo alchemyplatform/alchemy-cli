@@ -9,7 +9,10 @@ describe("new API namespace commands", () => {
 
   it("trace prefixes method names", async () => {
     const call = vi.fn().mockResolvedValue({ ok: true });
-    vi.doMock("../../src/lib/resolve.js", () => ({ clientFromFlags: () => ({ call }) }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+      resolveSolanaNetwork: () => "solana-mainnet",
+    }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_a: string, _b: string, fn: () => Promise<unknown>) => fn(),
       printSyntaxJSON: vi.fn(),
@@ -25,7 +28,10 @@ describe("new API namespace commands", () => {
 
   it("debug prefixes method names", async () => {
     const call = vi.fn().mockResolvedValue({ ok: true });
-    vi.doMock("../../src/lib/resolve.js", () => ({ clientFromFlags: () => ({ call }) }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+      resolveSolanaNetwork: () => "solana-mainnet",
+    }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_a: string, _b: string, fn: () => Promise<unknown>) => fn(),
       printSyntaxJSON: vi.fn(),
@@ -60,7 +66,10 @@ describe("new API namespace commands", () => {
 
   it("simulate execution calls execution method", async () => {
     const call = vi.fn().mockResolvedValue({ ok: true });
-    vi.doMock("../../src/lib/resolve.js", () => ({ clientFromFlags: () => ({ call }) }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+      resolveSolanaNetwork: () => "solana-mainnet",
+    }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_a: string, _b: string, fn: () => Promise<unknown>) => fn(),
       printSyntaxJSON: vi.fn(),
@@ -79,7 +88,10 @@ describe("new API namespace commands", () => {
 
   it("solana rpc forwards method", async () => {
     const call = vi.fn().mockResolvedValue({ ok: true });
-    vi.doMock("../../src/lib/resolve.js", () => ({ clientFromFlags: () => ({ call }) }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+      resolveSolanaNetwork: () => "solana-mainnet",
+    }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_a: string, _b: string, fn: () => Promise<unknown>) => fn(),
       printSyntaxJSON: vi.fn(),

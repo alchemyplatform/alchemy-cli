@@ -7,7 +7,7 @@ import {
 
 useCommandTestReset();
 
-describe("webhooks command", () => {
+describe("webhook command", () => {
   it("lists webhooks with webhook API key", async () => {
     const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
     const callNotify = vi.fn().mockResolvedValue({ data: [{ id: "wh_1" }] });
@@ -16,7 +16,7 @@ describe("webhooks command", () => {
 
     const { registerWebhooks } = await import("../../src/commands/webhooks.js");
     await runRegisteredCommand(registerWebhooks, [
-      "webhooks",
+      "webhook",
       "--webhook-api-key",
       "wh_key",
       "list",
@@ -35,7 +35,7 @@ describe("webhooks command", () => {
 
     const { registerWebhooks } = await import("../../src/commands/webhooks.js");
     await runRegisteredCommand(registerWebhooks, [
-      "webhooks",
+      "webhook",
       "--webhook-api-key",
       "wh_key",
       "create",

@@ -76,9 +76,9 @@ function handleDryRun(
 }
 
 export function registerApps(program: Command) {
-  const cmd = program.command("apps").description("Manage Alchemy apps");
+  const cmd = program.command("app").description("Manage Alchemy apps");
 
-  // ── apps list ──────────────────────────────────────────────────────
+  // ── app list ───────────────────────────────────────────────────────
 
   cmd
     .command("list")
@@ -232,7 +232,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps get ───────────────────────────────────────────────────────
+  // ── app get ────────────────────────────────────────────────────────
 
   cmd
     .command("get <id>")
@@ -263,7 +263,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps create ────────────────────────────────────────────────────
+  // ── app create ─────────────────────────────────────────────────────
 
   cmd
     .command("create")
@@ -314,7 +314,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps delete ────────────────────────────────────────────────────
+  // ── app delete ─────────────────────────────────────────────────────
 
   cmd
     .command("delete <id>")
@@ -354,7 +354,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps update ────────────────────────────────────────────────────
+  // ── app update ─────────────────────────────────────────────────────
 
   cmd
     .command("update <id>")
@@ -395,7 +395,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps networks ──────────────────────────────────────────────────
+  // ── app networks ───────────────────────────────────────────────────
 
   cmd
     .command("networks <id>")
@@ -428,7 +428,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps address-allowlist ─────────────────────────────────────────
+  // ── app address-allowlist ──────────────────────────────────────────
 
   cmd
     .command("address-allowlist <id>")
@@ -461,7 +461,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps origin-allowlist ──────────────────────────────────────────
+  // ── app origin-allowlist ───────────────────────────────────────────
 
   cmd
     .command("origin-allowlist <id>")
@@ -494,7 +494,7 @@ export function registerApps(program: Command) {
       }
     });
 
-  // ── apps ip-allowlist ──────────────────────────────────────────────
+  // ── app ip-allowlist ───────────────────────────────────────────────
 
   cmd
     .command("ip-allowlist <id>")

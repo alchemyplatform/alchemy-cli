@@ -39,6 +39,7 @@ describe("CLI mock E2E", () => {
         "test-api-key",
         "--network",
         "eth-mainnet",
+        "evm",
         "data",
         "balance",
         ADDRESS,
@@ -73,7 +74,7 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--api-key", "test-api-key", "data", "balance", ADDRESS],
+      ["--json", "--api-key", "test-api-key", "evm", "data", "balance", ADDRESS],
       { ALCHEMY_RPC_BASE_URL: server.baseURL },
     );
 
@@ -94,7 +95,7 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--api-key", "test-api-key", "tx", HASH],
+      ["--json", "--api-key", "test-api-key", "evm", "tx", HASH],
       { ALCHEMY_RPC_BASE_URL: server.baseURL },
     );
 
@@ -120,7 +121,7 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "apps", "list"],
+      ["--json", "app", "list"],
       { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
@@ -139,7 +140,7 @@ describe("CLI mock E2E", () => {
     );
   });
 
-  it("apps list --all paginates in JSON mode for complete results", async () => {
+  it("app list --all paginates in JSON mode for complete results", async () => {
     server = await startMockServer((request) => {
       if (request.path === "/v1/apps" && !request.query.get("cursor")) {
         return {
@@ -184,7 +185,7 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "apps", "list", "--all"],
+      ["--json", "app", "list", "--all"],
       { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
@@ -208,7 +209,7 @@ describe("CLI mock E2E", () => {
     expect(server.requests[1].query.get("cursor")).toBe("cursor_2");
   });
 
-  it("apps list --search scans pages and returns matches", async () => {
+  it("app list --search scans pages and returns matches", async () => {
     server = await startMockServer((request) => {
       if (request.path === "/v1/apps" && !request.query.get("cursor")) {
         return {
@@ -253,7 +254,7 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "apps", "list", "--search", "target"],
+      ["--json", "app", "list", "--search", "target"],
       { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
@@ -280,7 +281,7 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "apps", "list"],
+      ["--json", "app", "list"],
       { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
     );
 
@@ -293,7 +294,7 @@ describe("CLI mock E2E", () => {
   });
 
   it("lists full RPC network catalog without auth", async () => {
-    const result = await runCLI(["--json", "network", "list"]);
+    const result = await runCLI(["--json", "evm", "network", "list"]);
 
     expect(result.exitCode).toBe(0);
     const payload = parseJSON(result.stdout) as Array<{ id: string }>;
@@ -339,6 +340,7 @@ describe("CLI mock E2E", () => {
     const result = await runCLI(
       [
         "--json",
+        "evm",
         "network",
         "list",
         "--configured",
@@ -390,12 +392,12 @@ describe("CLI mock E2E", () => {
 
     const commands = payload.commands as Array<{ name: string }>;
     expect(commands.length).toBeGreaterThan(10);
-    expect(commands.some((c) => c.name === "data")).toBe(true);
+    expect(commands.some((c) => c.name === "evm")).toBe(true);
     expect(commands.some((c) => c.name === "update-check")).toBe(true);
     expect(commands.some((c) => c.name === "agent-prompt")).toBe(false);
     expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
     expect(payload.examples).toContain(
-      "alchemy --json --no-interactive data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
+      "alchemy --json --no-interactive evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
     );
   });
 
