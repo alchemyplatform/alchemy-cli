@@ -237,6 +237,8 @@ Additional env vars:
 | `apps address-allowlist` | `--addresses <addrs>` (required), `--dry-run` |
 | `apps origin-allowlist` | `--origins <origins>` (required), `--dry-run` |
 | `apps ip-allowlist` | `--ips <ips>` (required), `--dry-run` |
+| `install mcp` | `--client <claude,cursor,codex,other,all>`, `--dry-run` |
+| `install skills` | `--client <claude,cursor,codex,all>`, `--dry-run` |
 | `evm network list` | `--mainnet-only`, `--testnet-only`, `--search <term>` |
 | `config reset` | `-y, --yes` |
 

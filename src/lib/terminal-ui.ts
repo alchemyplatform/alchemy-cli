@@ -60,6 +60,7 @@ async function runListPrompt<T extends string>(opts: {
   message: string;
   options: PromptOption<T>[];
   initialValue?: T;
+  initialValues?: T[];
   placeholder?: string;
   allowMultiple?: boolean;
   required?: boolean;
@@ -67,6 +68,9 @@ async function runListPrompt<T extends string>(opts: {
   commitLabel?: string | null;
 }): Promise<RenderResult> {
   if (!stdin.isTTY || !stdout.isTTY) {
+    if (opts.allowMultiple) {
+      return { value: opts.initialValues ?? [], cancelled: false };
+    }
     const initial = opts.initialValue ?? opts.options.find((o) => !o.disabled)?.value ?? null;
     return { value: initial, cancelled: false };
   }
@@ -82,7 +86,7 @@ async function runListPrompt<T extends string>(opts: {
     0,
     opts.options.findIndex((o) => o.value === opts.initialValue && !o.disabled),
   );
-  const selected = new Set<T>();
+  const selected = new Set<T>(opts.initialValues ?? []);
   const maxVisible = 8;
   let renderedLines = 0;
 
@@ -136,10 +140,11 @@ async function runListPrompt<T extends string>(opts: {
           : active
             ? ansi.cyan("◆")
             : ansi.dim("◇");
+        const activeMark = active ? ansi.cyan("›") : " ";
         const label = optionLabel(option);
         const value = disabled ? ansi.dim(label) : label;
         const hint = option.hint ? ` ${ansi.dim(`— ${option.hint}`)}` : "";
-        lines.push(`  ${ansi.dim(FLOW_PIPE)}  ${selectedMark} ${value}${hint}`);
+        lines.push(`  ${ansi.dim(FLOW_PIPE)} ${activeMark} ${selectedMark} ${value}${hint}`);
       }
       if (filtered.length > maxVisible) {
         lines.push(`  ${ansi.dim(FLOW_PIPE)} ${ansi.dim(`${filtered.length} options`)}`);
@@ -356,12 +361,14 @@ export async function promptAutocomplete<T extends string>(opts: {
 export async function promptMultiselect<T extends string>(opts: {
   message: string;
   options: PromptOption<T>[];
+  initialValues?: T[];
   required?: boolean;
   cancelMessage?: string;
 }): Promise<T[] | null> {
   const result = await runListPrompt({
     message: opts.message,
     options: opts.options,
+    initialValues: opts.initialValues,
     allowMultiple: true,
     required: opts.required,
     commitLabel: "Selected",
