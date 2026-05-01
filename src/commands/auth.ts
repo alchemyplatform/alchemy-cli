@@ -73,6 +73,7 @@ export function registerAuth(program: Command) {
 
         // Save token to config
         const cfg = config.load();
+        const hasConfiguredApp = Boolean(cfg.app);
         config.save({
           ...cfg,
           auth_token: result.token,
@@ -92,11 +93,9 @@ export function registerAuth(program: Command) {
         );
 
         // After auth, try to fetch apps and let user select one
-        if (isInteractiveAllowed(program)) {
+        if (isInteractiveAllowed(program) && !hasConfiguredApp) {
           await selectAppAfterAuth(result.token);
         }
-
-        process.exit(0);
       } catch (err) {
         exitWithError(
           err instanceof CLIError

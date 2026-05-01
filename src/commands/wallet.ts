@@ -23,7 +23,7 @@ import {
   resolveWalletSession,
   resolveActiveSigner,
 } from "../lib/resolve.js";
-import { promptConfirm, promptSelect } from "../lib/terminal-ui.js";
+import { promptConfirm, promptSelect, promptText } from "../lib/terminal-ui.js";
 import QRCode from "qrcode";
 import { printHuman, isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, ErrorCode, errAuthRequired, errInvalidArgs, errWalletKeyRequired, exitWithError } from "../lib/errors.js";
@@ -521,6 +521,21 @@ async function runSessionConnect(opts: { program: Command; force: boolean }): Pr
       ["Expires", remoteSession.expiresAt ?? session.expiresAt],
     ]);
     console.log(`  ${green("✓")} Wallet session created`);
+  }
+
+  if (!isJSONMode() && isInteractiveAllowed(opts.program)) {
+    const answer = await promptText({
+      message: "Press Enter to open browser and approve your wallet session",
+      cancelMessage: "Wallet connect cancelled.",
+    });
+    if (answer === null) {
+      clearSession();
+      await disconnectRemoteWalletSession(authToken, remoteSession.sessionId).catch(() => undefined);
+      return;
+    }
+  }
+
+  if (!isJSONMode()) {
     console.log(`  Opening browser for approval...`);
     console.log(`  ${dim("Waiting for dashboard approval to complete connection.")}`);
   }
