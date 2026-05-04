@@ -107,7 +107,7 @@ export function buildWalletClient(
 
   if (gasSponsored && !gasPolicyId) {
     throw errInvalidArgs(
-      "Gas sponsorship requires a gas policy ID. Set one with --gas-policy-id or `alchemy config set gas-policy-id <id>`.",
+      "Gas sponsorship requires a gas policy ID. Set one with --gas-policy-id or `alchemy config set evm-gas-policy-id <id>`.",
     );
   }
 

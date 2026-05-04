@@ -249,6 +249,8 @@ describe("performSolanaSend", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: (cmd: Command) => Boolean(cmd.opts<{ feeSponsored?: boolean }>().feeSponsored),
+      resolveSolanaFeePolicyId: (cmd: Command) => cmd.opts<{ feePolicyId?: string }>().feePolicyId,
       clientFromFlags: vi.fn((_program, opts) => ({
         network: opts?.forceNetwork ?? "unexpected-network",
       })),
@@ -319,6 +321,8 @@ describe("performSolanaSend", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
       clientFromFlags: vi.fn((_program, opts) => ({
         network: opts?.forceNetwork ?? "unexpected-network",
       })),
@@ -389,6 +393,8 @@ describe("performSolanaSend", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
       clientFromFlags: () => ({ network: "solana-devnet" }),
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -433,6 +439,8 @@ describe("performSolanaSend", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
       clientFromFlags: () => ({ network: "solana-devnet" }),
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -478,6 +486,8 @@ describe("performSolanaSend", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
       clientFromFlags: () => ({ network: "solana-devnet" }),
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -525,6 +535,8 @@ describe("performSolanaSend", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => true,
       resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => true,
+      resolveSolanaFeePolicyId: () => undefined,
       clientFromFlags: () => ({ network: "solana-devnet" }),
     }));
     vi.doMock("../../src/lib/validators.js", () => ({

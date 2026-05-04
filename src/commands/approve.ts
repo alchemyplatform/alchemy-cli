@@ -212,8 +212,8 @@ export function registerApprove(program: Command) {
     .option("-y, --yes", "Skip confirmation prompt for unlimited approval");
   addSignerOption(approveCmd);
   approveCmd
-    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
-    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
+    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_EVM_GAS_SPONSORED)")
+    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_EVM_GAS_POLICY_ID)")
     .addHelpText(
       "after",
       `

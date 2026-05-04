@@ -175,30 +175,84 @@ describe("resolve.ts precedence", () => {
     expect(clientCtor).toHaveBeenCalledWith("root-api-key", "base-mainnet");
   });
 
-  it("resolveGasSponsored order: flag > env > config", async () => {
+  it("resolveGasSponsored order: flag > EVM env > EVM config", async () => {
     vi.doMock("../../src/lib/config.js", () => ({
-      load: () => ({ gas_sponsored: true }),
+      load: () => ({ evm_gas_sponsored: true }),
     }));
     const { resolveGasSponsored } = await import("../../src/lib/resolve.js");
 
-    process.env.ALCHEMY_GAS_SPONSORED = "false";
+    process.env.ALCHEMY_EVM_GAS_SPONSORED = "false";
     expect(resolveGasSponsored(makeProgram({ gasSponsored: true }))).toBe(true);
     expect(resolveGasSponsored(makeProgram({}))).toBe(false);
-    delete process.env.ALCHEMY_GAS_SPONSORED;
+    delete process.env.ALCHEMY_EVM_GAS_SPONSORED;
     expect(resolveGasSponsored(makeProgram({}))).toBe(true);
+
+    vi.resetModules();
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    const { resolveGasSponsored: resolveGasSponsoredDefault } = await import("../../src/lib/resolve.js");
+    expect(resolveGasSponsoredDefault(makeProgram({}))).toBe(false);
   });
 
-  it("resolveGasPolicyId order: flag > env > config", async () => {
+  it("resolveGasPolicyId order: flag > EVM env > EVM config", async () => {
     vi.doMock("../../src/lib/config.js", () => ({
-      load: () => ({ gas_policy_id: "cfg-policy" }),
+      load: () => ({ evm_gas_policy_id: "evm-cfg-policy" }),
     }));
     const { resolveGasPolicyId } = await import("../../src/lib/resolve.js");
 
-    process.env.ALCHEMY_GAS_POLICY_ID = "env-policy";
+    process.env.ALCHEMY_EVM_GAS_POLICY_ID = "evm-env-policy";
     expect(resolveGasPolicyId(makeProgram({ gasPolicyId: "flag-policy" }))).toBe("flag-policy");
-    expect(resolveGasPolicyId(makeProgram({}))).toBe("env-policy");
-    delete process.env.ALCHEMY_GAS_POLICY_ID;
-    expect(resolveGasPolicyId(makeProgram({}))).toBe("cfg-policy");
+    expect(resolveGasPolicyId(makeProgram({}))).toBe("evm-env-policy");
+    delete process.env.ALCHEMY_EVM_GAS_POLICY_ID;
+    expect(resolveGasPolicyId(makeProgram({}))).toBe("evm-cfg-policy");
+
+    vi.resetModules();
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    const { resolveGasPolicyId: resolveGasPolicyIdDefault } = await import("../../src/lib/resolve.js");
+    expect(resolveGasPolicyIdDefault(makeProgram({}))).toBeUndefined();
+  });
+
+  it("resolveSolanaFeeSponsored order: flag > Solana env > Solana config", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ solana_fee_sponsored: true }),
+    }));
+    const { resolveSolanaFeeSponsored } = await import("../../src/lib/resolve.js");
+
+    process.env.ALCHEMY_SOLANA_FEE_SPONSORED = "false";
+    expect(resolveSolanaFeeSponsored(makeProgram({ feeSponsored: true }))).toBe(true);
+    expect(resolveSolanaFeeSponsored(makeProgram({}))).toBe(false);
+    delete process.env.ALCHEMY_SOLANA_FEE_SPONSORED;
+    expect(resolveSolanaFeeSponsored(makeProgram({}))).toBe(true);
+
+    vi.resetModules();
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    const { resolveSolanaFeeSponsored: resolveSolanaFeeSponsoredNoFallback } = await import("../../src/lib/resolve.js");
+    expect(resolveSolanaFeeSponsoredNoFallback(makeProgram({}))).toBe(false);
+  });
+
+  it("resolveSolanaFeePolicyId order: flag > Solana env > Solana config", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ solana_fee_policy_id: "solana-cfg-policy" }),
+    }));
+    const { resolveSolanaFeePolicyId } = await import("../../src/lib/resolve.js");
+
+    process.env.ALCHEMY_SOLANA_FEE_POLICY_ID = "solana-env-policy";
+    expect(resolveSolanaFeePolicyId(makeProgram({ feePolicyId: "flag-policy" }))).toBe("flag-policy");
+    expect(resolveSolanaFeePolicyId(makeProgram({}))).toBe("solana-env-policy");
+    delete process.env.ALCHEMY_SOLANA_FEE_POLICY_ID;
+    expect(resolveSolanaFeePolicyId(makeProgram({}))).toBe("solana-cfg-policy");
+
+    vi.resetModules();
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    const { resolveSolanaFeePolicyId: resolveSolanaFeePolicyIdNoFallback } = await import("../../src/lib/resolve.js");
+    expect(resolveSolanaFeePolicyIdNoFallback(makeProgram({}))).toBeUndefined();
   });
 
   it("resolveActiveSigner order: flag > env > config > legacy env", async () => {

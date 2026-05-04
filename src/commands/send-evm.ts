@@ -20,8 +20,8 @@ export function registerEvmSend(program: Command) {
     .option("--token <address>", "ERC-20 token contract address (omit for native token)");
   addSignerOption(sendCmd);
   sendCmd
-    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
-    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
+    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_EVM_GAS_SPONSORED)")
+    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_EVM_GAS_POLICY_ID)")
     .addHelpText(
       "after",
       `

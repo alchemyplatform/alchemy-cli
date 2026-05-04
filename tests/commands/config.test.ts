@@ -22,6 +22,10 @@ const KEY_MAP = {
   "wallet-address": "wallet_address",
   wallet_address: "wallet_address",
   x402: "x402",
+  "evm-gas-sponsored": "evm_gas_sponsored",
+  evm_gas_sponsored: "evm_gas_sponsored",
+  "evm-gas-policy-id": "evm_gas_policy_id",
+  evm_gas_policy_id: "evm_gas_policy_id",
 } as const;
 
 function mockConfigModule(deps: {
@@ -121,6 +125,44 @@ describe("config command", () => {
 
     const { registerConfig } = await import("../../src/commands/config.js");
     await runRegisteredCommand(registerConfig, ["config", "reset", "network"]);
+
+    expect(save).toHaveBeenCalledWith({ api_key: "k" });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("resets EVM sponsorship key without wiping other config values", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
+    const save = vi.fn();
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({
+        api_key: "k",
+        evm_gas_sponsored: true,
+      }),
+      save,
+    });
+    mockConfigDependencies({ interactive: false });
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "reset", "evm-gas-sponsored"]);
+
+    expect(save).toHaveBeenCalledWith({ api_key: "k" });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("resets EVM policy ID key without wiping other config values", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
+    const save = vi.fn();
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({
+        api_key: "k",
+        evm_gas_policy_id: "evm-policy",
+      }),
+      save,
+    });
+    mockConfigDependencies({ interactive: false });
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "reset", "evm-gas-policy-id"]);
 
     expect(save).toHaveBeenCalledWith({ api_key: "k" });
     expect(exitWithError).not.toHaveBeenCalled();

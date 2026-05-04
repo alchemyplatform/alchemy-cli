@@ -332,20 +332,20 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
-    .command("gas-sponsored <enabled>")
-    .description("Enable or disable gas sponsorship by default (true|false)")
+    .command("evm-gas-sponsored <enabled>")
+    .description("Enable or disable EVM gas sponsorship by default (true|false)")
     .action((enabled: string) => {
       try {
         const normalized = enabled.trim().toLowerCase();
         if (normalized !== "true" && normalized !== "false") {
-          throw errInvalidArgs("gas-sponsored must be 'true' or 'false'");
+          throw errInvalidArgs("evm-gas-sponsored must be 'true' or 'false'");
         }
-        const gas_sponsored = normalized === "true";
+        const evm_gas_sponsored = normalized === "true";
         const cfg = config.load();
-        config.save({ ...cfg, gas_sponsored });
+        config.save({ ...cfg, evm_gas_sponsored });
         printHuman(
-          `${green("✓")} Set gas-sponsored to ${gas_sponsored}\n`,
-          { key: "gas-sponsored", value: String(gas_sponsored), status: "set" },
+          `${green("✓")} Set evm-gas-sponsored to ${evm_gas_sponsored}\n`,
+          { key: "evm-gas-sponsored", value: String(evm_gas_sponsored), status: "set" },
         );
       } catch (err) {
         exitWithError(err);
@@ -353,13 +353,47 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
-    .command("gas-policy-id <id>")
-    .description("Set the gas policy ID for sponsored transactions")
+    .command("evm-gas-policy-id <id>")
+    .description("Set the EVM gas policy ID for sponsored transactions")
     .action((id: string) => {
       try {
         const cfg = config.load();
-        config.save({ ...cfg, gas_policy_id: id });
-        printHuman(`${green("✓")} Set gas-policy-id\n`, { key: "gas-policy-id", status: "set" });
+        config.save({ ...cfg, evm_gas_policy_id: id });
+        printHuman(`${green("✓")} Set evm-gas-policy-id\n`, { key: "evm-gas-policy-id", status: "set" });
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  setCmd
+    .command("solana-fee-sponsored <enabled>")
+    .description("Enable or disable Solana fee sponsorship by default (true|false)")
+    .action((enabled: string) => {
+      try {
+        const normalized = enabled.trim().toLowerCase();
+        if (normalized !== "true" && normalized !== "false") {
+          throw errInvalidArgs("solana-fee-sponsored must be 'true' or 'false'");
+        }
+        const solana_fee_sponsored = normalized === "true";
+        const cfg = config.load();
+        config.save({ ...cfg, solana_fee_sponsored });
+        printHuman(
+          `${green("✓")} Set solana-fee-sponsored to ${solana_fee_sponsored}\n`,
+          { key: "solana-fee-sponsored", value: String(solana_fee_sponsored), status: "set" },
+        );
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  setCmd
+    .command("solana-fee-policy-id <id>")
+    .description("Set the Solana fee policy ID for sponsored transactions")
+    .action((id: string) => {
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, solana_fee_policy_id: id });
+        printHuman(`${green("✓")} Set solana-fee-policy-id\n`, { key: "solana-fee-policy-id", status: "set" });
       } catch (err) {
         exitWithError(err);
       }
@@ -381,7 +415,8 @@ export function registerConfig(program: Command) {
           network: "eth-mainnet",
           verbose: "false",
           x402: "false",
-          gas_sponsored: "false",
+          evm_gas_sponsored: "false",
+          solana_fee_sponsored: "false",
         };
         const normalizedKey = config.KEY_MAP[key] ?? key;
         const defaultValue = defaults[normalizedKey] ?? defaults[key];
@@ -459,12 +494,19 @@ export function registerConfig(program: Command) {
             : dim("(not set, defaults to false)"),
         ],
         [
-          "gas-sponsored",
-          cfg.gas_sponsored !== undefined
-            ? String(cfg.gas_sponsored)
+          "evm-gas-sponsored",
+          cfg.evm_gas_sponsored !== undefined
+            ? String(cfg.evm_gas_sponsored)
             : dim("(not set, defaults to false)"),
         ],
-        ["gas-policy-id", cfg.gas_policy_id || dim("(not set)")],
+        ["evm-gas-policy-id", cfg.evm_gas_policy_id || dim("(not set)")],
+        [
+          "solana-fee-sponsored",
+          cfg.solana_fee_sponsored !== undefined
+            ? String(cfg.solana_fee_sponsored)
+            : dim("(not set, defaults to false)"),
+        ],
+        ["solana-fee-policy-id", cfg.solana_fee_policy_id || dim("(not set)")],
       ];
 
       printKeyValueBox(pairs);
@@ -489,7 +531,7 @@ export function registerConfig(program: Command) {
           const mapped = RESET_KEY_MAP[key];
           if (!mapped) {
             throw errInvalidArgs(
-              `invalid reset key '${key}' (valid: api-key, access-key, app, network, verbose, wallet-key-file, x402)`,
+              `invalid reset key '${key}' (valid: ${config.validKeys().join(", ")}, app)`,
             );
           }
 

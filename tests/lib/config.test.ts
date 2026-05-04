@@ -65,20 +65,30 @@ describe("config set/get", () => {
     expect(config.get({}, "unknown")).toBeUndefined();
   });
 
-  it("sets and gets gas-sponsored", () => {
+  it("sets and gets EVM gas policy config", () => {
     const cfg: config.Config = {};
-    const { ok, config: updated } = config.set(cfg, "gas-sponsored", "true");
-    expect(ok).toBe(true);
-    expect(updated.gas_sponsored).toBe(true);
-    expect(config.get(updated, "gas-sponsored")).toBe("true");
+    const sponsoredResult = config.set(cfg, "evm-gas-sponsored", "true");
+    expect(sponsoredResult.ok).toBe(true);
+    expect(sponsoredResult.config.evm_gas_sponsored).toBe(true);
+    expect(config.get(sponsoredResult.config, "evm-gas-sponsored")).toBe("true");
+
+    const policyResult = config.set(sponsoredResult.config, "evm-gas-policy-id", "evm-policy");
+    expect(policyResult.ok).toBe(true);
+    expect(config.get(policyResult.config, "evm-gas-policy-id")).toBe("evm-policy");
+    expect(config.get(policyResult.config, "evm_gas_policy_id")).toBe("evm-policy");
   });
 
-  it("sets and gets gas-policy-id", () => {
+  it("sets and gets Solana fee policy config", () => {
     const cfg: config.Config = {};
-    const { ok, config: updated } = config.set(cfg, "gas-policy-id", "policy-123");
-    expect(ok).toBe(true);
-    expect(config.get(updated, "gas-policy-id")).toBe("policy-123");
-    expect(config.get(updated, "gas_policy_id")).toBe("policy-123");
+    const sponsoredResult = config.set(cfg, "solana-fee-sponsored", "true");
+    expect(sponsoredResult.ok).toBe(true);
+    expect(sponsoredResult.config.solana_fee_sponsored).toBe(true);
+    expect(config.get(sponsoredResult.config, "solana-fee-sponsored")).toBe("true");
+
+    const policyResult = config.set(sponsoredResult.config, "solana-fee-policy-id", "solana-policy");
+    expect(policyResult.ok).toBe(true);
+    expect(config.get(policyResult.config, "solana-fee-policy-id")).toBe("solana-policy");
+    expect(config.get(policyResult.config, "solana_fee_policy_id")).toBe("solana-policy");
   });
 
   it("sets and gets delegated-wallet", () => {
@@ -122,6 +132,22 @@ describe("config toMap", () => {
   it("includes active-signer when configured", () => {
     const m = config.toMap({ active_signer: "session" });
     expect(m["active-signer"]).toBe("session");
+  });
+
+  it("includes chain-specific sponsorship policy config", () => {
+    const m = config.toMap({
+      evm_gas_sponsored: true,
+      evm_gas_policy_id: "evm-policy",
+      solana_fee_sponsored: true,
+      solana_fee_policy_id: "solana-policy",
+    });
+
+    expect(m).toMatchObject({
+      "evm-gas-sponsored": "true",
+      "evm-gas-policy-id": "evm-policy",
+      "solana-fee-sponsored": "true",
+      "solana-fee-policy-id": "solana-policy",
+    });
   });
 
   it("returns empty map for empty config", () => {

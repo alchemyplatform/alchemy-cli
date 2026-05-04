@@ -27,8 +27,10 @@ export interface Config {
   siwe_token_expires_at?: string;
   solana_wallet_key_file?: string;
   solana_wallet_address?: string;
-  gas_sponsored?: boolean;
-  gas_policy_id?: string;
+  evm_gas_sponsored?: boolean;
+  evm_gas_policy_id?: string;
+  solana_fee_sponsored?: boolean;
+  solana_fee_policy_id?: string;
   delegated_wallet?: boolean;
   active_signer?: "session" | "local";
 }
@@ -55,10 +57,14 @@ export const KEY_MAP: Record<string, keyof Config> = {
   solana_wallet_key_file: "solana_wallet_key_file",
   "solana-wallet-address": "solana_wallet_address",
   solana_wallet_address: "solana_wallet_address",
-  "gas-sponsored": "gas_sponsored",
-  gas_sponsored: "gas_sponsored",
-  "gas-policy-id": "gas_policy_id",
-  gas_policy_id: "gas_policy_id",
+  "evm-gas-sponsored": "evm_gas_sponsored",
+  evm_gas_sponsored: "evm_gas_sponsored",
+  "evm-gas-policy-id": "evm_gas_policy_id",
+  evm_gas_policy_id: "evm_gas_policy_id",
+  "solana-fee-sponsored": "solana_fee_sponsored",
+  solana_fee_sponsored: "solana_fee_sponsored",
+  "solana-fee-policy-id": "solana_fee_policy_id",
+  solana_fee_policy_id: "solana_fee_policy_id",
   "delegated-wallet": "delegated_wallet",
   delegated_wallet: "delegated_wallet",
   "active-signer": "active_signer",
@@ -107,8 +113,10 @@ const configSchema = z
     siwe_token_expires_at: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     solana_wallet_key_file: safeTextSchema(MAX_PATH_LEN).optional().catch(undefined),
     solana_wallet_address: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
-    gas_sponsored: z.boolean().optional().catch(undefined),
-    gas_policy_id: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    evm_gas_sponsored: z.boolean().optional().catch(undefined),
+    evm_gas_policy_id: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
+    solana_fee_sponsored: z.boolean().optional().catch(undefined),
+    solana_fee_policy_id: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     delegated_wallet: z.boolean().optional().catch(undefined),
     active_signer: z.enum(["session", "local"]).optional().catch(undefined),
   })
@@ -193,7 +201,13 @@ export function set(
 ): { ok: boolean; config: Config } {
   const mapped = KEY_MAP[key];
   if (!mapped) return { ok: false, config: cfg };
-  if (mapped === "verbose" || mapped === "x402" || mapped === "gas_sponsored" || mapped === "delegated_wallet") {
+  if (
+    mapped === "verbose" ||
+    mapped === "x402" ||
+    mapped === "evm_gas_sponsored" ||
+    mapped === "solana_fee_sponsored" ||
+    mapped === "delegated_wallet"
+  ) {
     const normalized = value.trim().toLowerCase();
     if (normalized !== "true" && normalized !== "false") {
       return { ok: false, config: cfg };
@@ -219,8 +233,10 @@ export function validKeys(): string[] {
     "verbose",
     "wallet-key-file",
     "x402",
-    "gas-sponsored",
-    "gas-policy-id",
+    "evm-gas-sponsored",
+    "evm-gas-policy-id",
+    "solana-fee-sponsored",
+    "solana-fee-policy-id",
   ];
 }
 
@@ -239,8 +255,10 @@ export function toMap(cfg: Config): Record<string, string> {
   if (cfg.auth_token_expires_at) m["auth-token-expires-at"] = cfg.auth_token_expires_at;
   if (cfg.solana_wallet_key_file) m["solana-wallet-key-file"] = cfg.solana_wallet_key_file;
   if (cfg.solana_wallet_address) m["solana-wallet-address"] = cfg.solana_wallet_address;
-  if (cfg.gas_sponsored !== undefined) m["gas-sponsored"] = String(cfg.gas_sponsored);
-  if (cfg.gas_policy_id) m["gas-policy-id"] = cfg.gas_policy_id;
+  if (cfg.evm_gas_sponsored !== undefined) m["evm-gas-sponsored"] = String(cfg.evm_gas_sponsored);
+  if (cfg.evm_gas_policy_id) m["evm-gas-policy-id"] = cfg.evm_gas_policy_id;
+  if (cfg.solana_fee_sponsored !== undefined) m["solana-fee-sponsored"] = String(cfg.solana_fee_sponsored);
+  if (cfg.solana_fee_policy_id) m["solana-fee-policy-id"] = cfg.solana_fee_policy_id;
   if (cfg.active_signer !== undefined) m["active-signer"] = cfg.active_signer;
   return m;
 }

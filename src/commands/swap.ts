@@ -185,8 +185,8 @@ Examples:
     .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)");
   addSignerOption(executeCmd);
   executeCmd
-    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_GAS_SPONSORED)")
-    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_GAS_POLICY_ID)")
+    .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_EVM_GAS_SPONSORED)")
+    .option("--gas-policy-id <id>", "Gas policy ID for sponsorship (env: ALCHEMY_EVM_GAS_POLICY_ID)")
     .addHelpText(
       "after",
       `

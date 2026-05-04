@@ -28,6 +28,8 @@ describe("solana delegate command", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
       clientFromFlags: vi.fn((_program, opts) => ({
         network: opts?.forceNetwork ?? "unexpected-network",
       })),
@@ -112,6 +114,8 @@ describe("solana delegate command", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => true,
       resolveGasPolicyId: () => "policy-id",
+      resolveSolanaFeeSponsored: () => true,
+      resolveSolanaFeePolicyId: () => "policy-id",
       clientFromFlags: vi.fn((_program, opts) => ({
         network: opts?.forceNetwork ?? "unexpected-network",
       })),
@@ -173,6 +177,8 @@ describe("solana delegate command", () => {
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
       clientFromFlags: vi.fn(),
     }));
     vi.doMock("../../src/lib/validators.js", () => ({

@@ -104,7 +104,7 @@ export async function runLiveSolanaCLI(
 ): Promise<RunCLIResult> {
   const sponsoredArgs =
     opts?.sponsored && config.solanaGasPolicyId
-      ? ["--gas-sponsored", "--gas-policy-id", config.solanaGasPolicyId]
+      ? ["--fee-sponsored", "--fee-policy-id", config.solanaGasPolicyId]
       : [];
 
   return runCLI(

@@ -21,6 +21,8 @@ interface CommandOptions {
   solanaWalletKeyFile?: string;
   gasSponsored?: boolean;
   gasPolicyId?: string;
+  feeSponsored?: boolean;
+  feePolicyId?: string;
   delegatedWallet?: boolean;
   signer?: string;
 }
@@ -181,19 +183,37 @@ export function resolveSolanaWalletKey(program: Command, cfg?: Config): string |
 export function resolveGasSponsored(program: Command, cfg?: Config): boolean {
   const opts = getCommandOptions(program);
   if (opts.gasSponsored) return true;
-  if (process.env.ALCHEMY_GAS_SPONSORED) {
-    return process.env.ALCHEMY_GAS_SPONSORED.trim().toLowerCase() === "true";
+  if (process.env.ALCHEMY_EVM_GAS_SPONSORED) {
+    return process.env.ALCHEMY_EVM_GAS_SPONSORED.trim().toLowerCase() === "true";
   }
   const config = cfg ?? load();
-  return config.gas_sponsored === true;
+  return config.evm_gas_sponsored === true;
 }
 
 export function resolveGasPolicyId(program: Command, cfg?: Config): string | undefined {
   const opts = getCommandOptions(program);
   if (opts.gasPolicyId) return opts.gasPolicyId;
-  if (process.env.ALCHEMY_GAS_POLICY_ID) return process.env.ALCHEMY_GAS_POLICY_ID;
+  if (process.env.ALCHEMY_EVM_GAS_POLICY_ID) return process.env.ALCHEMY_EVM_GAS_POLICY_ID;
   const config = cfg ?? load();
-  return config.gas_policy_id;
+  return config.evm_gas_policy_id;
+}
+
+export function resolveSolanaFeeSponsored(program: Command, cfg?: Config): boolean {
+  const opts = getCommandOptions(program);
+  if (opts.feeSponsored) return true;
+  if (process.env.ALCHEMY_SOLANA_FEE_SPONSORED) {
+    return process.env.ALCHEMY_SOLANA_FEE_SPONSORED.trim().toLowerCase() === "true";
+  }
+  const config = cfg ?? load();
+  return config.solana_fee_sponsored === true;
+}
+
+export function resolveSolanaFeePolicyId(program: Command, cfg?: Config): string | undefined {
+  const opts = getCommandOptions(program);
+  if (opts.feePolicyId) return opts.feePolicyId;
+  if (process.env.ALCHEMY_SOLANA_FEE_POLICY_ID) return process.env.ALCHEMY_SOLANA_FEE_POLICY_ID;
+  const config = cfg ?? load();
+  return config.solana_fee_policy_id;
 }
 
 function parseBoolean(value: string): boolean | undefined {
