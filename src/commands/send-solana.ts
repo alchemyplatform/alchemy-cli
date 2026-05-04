@@ -3,8 +3,6 @@ import { address as solAddress } from "@solana/kit";
 import {
   clientFromFlags,
   resolveSolanaNetwork,
-  resolveGasSponsored,
-  resolveGasPolicyId,
   resolveSolanaWalletKey,
 } from "../lib/resolve.js";
 import { validateSolanaAddress } from "../lib/validators.js";
@@ -19,18 +17,22 @@ import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import {
   parseSolanaKeyBytes,
+  createSolanaSignerFromKeyBytes,
   buildSolTransferInstruction,
   buildAndSendSolanaTransaction,
   waitForSolanaConfirmation,
   SOL_DECIMALS,
 } from "../lib/solana-tx.js";
+import { resolveSolanaFeeSponsorship } from "../lib/solana-fees.js";
 import { parseAmount } from "../lib/token-amounts.js";
 
 export function registerSolanaSend(program: Command) {
   const sendCmd = program
     .command("send <to> <amount>")
     .description("Send SOL to an address")
-    .option("--token <address>", "SPL token contract address (not yet supported)");
+    .option("--token <address>", "SPL token contract address (not yet supported)")
+    .option("--fee-sponsored", "Enable Solana fee sponsorship")
+    .option("--fee-policy-id <id>", "Solana fee policy ID for sponsorship");
   addSignerOption(sendCmd);
   sendCmd.action(
     async (
@@ -80,21 +82,10 @@ export async function performSolanaSend(
   const symbol = nativeTokenSymbol(network);
   const lamports = parseAmount(amountArg, SOL_DECIMALS);
 
-  const { createKeyPairSignerFromBytes, createKeyPairSignerFromPrivateKeyBytes } = await import("@solana/kit");
-  const signer = keyBytes.length === 64
-    ? await createKeyPairSignerFromBytes(keyBytes, true)
-    : await createKeyPairSignerFromPrivateKeyBytes(keyBytes, true);
-
+  const signer = await createSolanaSignerFromKeyBytes(keyBytes);
   const instruction = buildSolTransferInstruction(signer, to, lamports);
 
-  const sponsored = resolveGasSponsored(program);
-  const gasPolicyId = resolveGasPolicyId(program);
-
-  if (sponsored && !gasPolicyId) {
-    throw errInvalidArgs(
-      "Gas sponsorship requires a gas policy ID. Set one with --gas-policy-id or `alchemy config set gas-policy-id <id>`.",
-    );
-  }
+  const { sponsored, feePolicyId } = resolveSolanaFeeSponsorship(program);
 
   const client = clientFromFlags(program, { forceNetwork: network });
 
@@ -106,7 +97,7 @@ export async function performSolanaSend(
       instructions: [instruction],
       senderKeyBytes: keyBytes,
       sponsored,
-      gasPolicyId,
+      gasPolicyId: feePolicyId,
     }),
   );
 
@@ -136,7 +127,7 @@ export async function performSolanaSend(
     ];
 
     if (sponsored) {
-      pairs.push(["Gas", green("Sponsored")]);
+      pairs.push(["Fee", green("Sponsored")]);
     }
 
     pairs.push(["Signature", result.signature]);

@@ -4,6 +4,8 @@ import { errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { parseCLIParams } from "../lib/params.js";
 import { printSyntaxJSON, withSpinner } from "../lib/ui.js";
 import { registerNetwork } from "./network.js";
+import { registerSolanaDelegate } from "./solana-delegate.js";
+import { registerSolanaProgram } from "./solana-program.js";
 import { registerSolanaSend } from "./send-solana.js";
 import { registerStatus } from "./status.js";
 
@@ -28,21 +30,9 @@ function registerReservedSolanaCommand(args: {
 function registerReservedSolanaCommands(cmd: Command) {
   registerReservedSolanaCommand({
     cmd,
-    signature: "program",
-    displayName: "program",
-    description: "Interact with Solana programs",
-  });
-  registerReservedSolanaCommand({
-    cmd,
     signature: "swap",
     displayName: "swap",
     description: "Swap tokens on Solana",
-  });
-  registerReservedSolanaCommand({
-    cmd,
-    signature: "delegate",
-    displayName: "delegate",
-    description: "Delegate Solana token authority",
   });
 }
 
@@ -91,6 +81,8 @@ export function registerSolana(program: Command) {
 
   registerNetwork(cmd);
   registerSolanaSend(cmd);
+  registerSolanaProgram(cmd);
+  registerSolanaDelegate(cmd);
   registerStatus(cmd, { networkMode: "solana" });
   registerReservedSolanaCommands(cmd);
 }

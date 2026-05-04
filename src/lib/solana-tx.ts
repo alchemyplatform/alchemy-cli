@@ -10,6 +10,7 @@ import {
   getTransactionDecoder,
   pipe,
   address,
+  AccountRole,
   type Address,
   type Instruction,
   type KeyPairSigner,
@@ -23,8 +24,9 @@ import { errInvalidArgs, errSolanaTransactionFailed } from "./errors.js";
 
 const SOL_DECIMALS = 9;
 const SPONSOR_FEE_PAYER_PLACEHOLDER = address("Amh6quo1FcmL16Qmzdugzjq3Lv1zXzTW7ktswyLDzits");
+const SPL_TOKEN_PROGRAM_ADDRESS = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
-export { SOL_DECIMALS };
+export { SOL_DECIMALS, SPL_TOKEN_PROGRAM_ADDRESS };
 
 export function parseSolanaKeyBytes(secret: string): Uint8Array {
   const trimmed = secret.trim();
@@ -48,7 +50,9 @@ export function parseSolanaKeyBytes(secret: string): Uint8Array {
   return Uint8Array.from(Buffer.from(trimmed, "hex"));
 }
 
-async function signerFromKeyBytes(keyBytes: Uint8Array) {
+export async function createSolanaSignerFromKeyBytes(
+  keyBytes: Uint8Array,
+): Promise<KeyPairSigner> {
   if (keyBytes.length === 64) {
     return createKeyPairSignerFromBytes(keyBytes, true);
   }
@@ -70,6 +74,62 @@ export function buildSolTransferInstruction(
   });
 }
 
+function encodeU64LE(value: bigint): Uint8Array {
+  if (value < 0n || value > 0xffff_ffff_ffff_ffffn) {
+    throw errInvalidArgs("Amount must fit in an unsigned 64-bit integer.");
+  }
+
+  const bytes = new Uint8Array(8);
+  let remaining = value;
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = Number(remaining & 0xffn);
+    remaining >>= 8n;
+  }
+  return bytes;
+}
+
+export function buildSplTokenApproveCheckedInstruction(args: {
+  tokenAccount: Address;
+  mint: Address;
+  delegate: Address;
+  owner: KeyPairSigner;
+  amount: bigint;
+  decimals: number;
+}): Instruction {
+  if (!Number.isInteger(args.decimals) || args.decimals < 0 || args.decimals > 255) {
+    throw errInvalidArgs("Token decimals must be an integer between 0 and 255.");
+  }
+
+  return {
+    programAddress: SPL_TOKEN_PROGRAM_ADDRESS,
+    accounts: [
+      { address: args.tokenAccount, role: AccountRole.WRITABLE },
+      { address: args.mint, role: AccountRole.READONLY },
+      { address: args.delegate, role: AccountRole.READONLY },
+      { address: args.owner.address, role: AccountRole.READONLY_SIGNER },
+    ],
+    data: new Uint8Array([
+      13,
+      ...encodeU64LE(args.amount),
+      args.decimals,
+    ]),
+  };
+}
+
+export function buildSplTokenRevokeInstruction(args: {
+  tokenAccount: Address;
+  owner: KeyPairSigner;
+}): Instruction {
+  return {
+    programAddress: SPL_TOKEN_PROGRAM_ADDRESS,
+    accounts: [
+      { address: args.tokenAccount, role: AccountRole.WRITABLE },
+      { address: args.owner.address, role: AccountRole.READONLY_SIGNER },
+    ],
+    data: new Uint8Array([5]),
+  };
+}
+
 export interface SolanaSendResult {
   signature: string;
   fromAddress: string;
@@ -84,7 +144,7 @@ export async function buildAndSendSolanaTransaction(opts: {
 }): Promise<SolanaSendResult> {
   const { client, instructions, senderKeyBytes, sponsored, gasPolicyId } = opts;
 
-  const signer = await signerFromKeyBytes(senderKeyBytes);
+  const signer = await createSolanaSignerFromKeyBytes(senderKeyBytes);
 
   // Get recent blockhash
   const blockhashResult = await client.call("getLatestBlockhash", [{ commitment: "finalized" }]) as {
@@ -109,7 +169,7 @@ export async function buildAndSendSolanaTransaction(opts: {
 
   if (sponsored) {
     if (!gasPolicyId) {
-      throw errInvalidArgs("Gas sponsorship requires a gas policy ID.");
+      throw errInvalidArgs("Fee sponsorship requires a fee policy ID.");
     }
 
     // Serialize for sponsorship request

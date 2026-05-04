@@ -235,6 +235,72 @@ describe("performEvmSend", () => {
 });
 
 describe("performSolanaSend", () => {
+  it("accepts explicit fee sponsorship flags", async () => {
+    vi.doUnmock("../../src/commands/send-solana.js");
+
+    const buildAndSendSolanaTransaction = vi.fn().mockResolvedValue({
+      signature: "sponsored-sol-sig",
+      fromAddress: "SoFromAddr",
+    });
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveNetwork: () => "solana-devnet",
+      resolveSolanaNetwork: () => "solana-devnet",
+      resolveGasSponsored: () => false,
+      resolveGasPolicyId: () => undefined,
+      clientFromFlags: vi.fn((_program, opts) => ({
+        network: opts?.forceNetwork ?? "unexpected-network",
+      })),
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateSolanaAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "SOL",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/solana-tx.js", () => ({
+      parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),
+      createSolanaSignerFromKeyBytes: async () => ({ address: "SoSignerAddr" }),
+      buildSolTransferInstruction: vi.fn().mockReturnValue({ kind: "transfer-ix" }),
+      buildAndSendSolanaTransaction,
+      waitForSolanaConfirmation: vi.fn().mockResolvedValue(true),
+      SOL_DECIMALS: 9,
+    }));
+    vi.doMock("@solana/kit", () => ({
+      address: (value: string) => value,
+    }));
+
+    const { registerSolanaSend } = await import("../../src/commands/send-solana.js");
+    const program = new Command();
+    registerSolanaSend(program);
+
+    await program.parseAsync([
+      "node",
+      "test",
+      "send",
+      "SoRecipientAddr",
+      "0.5",
+      "--fee-sponsored",
+      "--fee-policy-id",
+      "policy-id",
+    ], { from: "node" });
+
+    expect(buildAndSendSolanaTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      sponsored: true,
+      gasPolicyId: "policy-id",
+    }));
+  });
+
   it("sends a native SOL transfer and prints JSON output", async () => {
     vi.doUnmock("../../src/commands/send-solana.js");
 
@@ -274,6 +340,7 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),
+      createSolanaSignerFromKeyBytes: async () => ({ address: "SoSignerAddr" }),
       buildSolTransferInstruction,
       buildAndSendSolanaTransaction,
       waitForSolanaConfirmation,
@@ -341,6 +408,7 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: vi.fn(),
+      createSolanaSignerFromKeyBytes: vi.fn(),
       buildSolTransferInstruction: vi.fn(),
       buildAndSendSolanaTransaction: vi.fn(),
       waitForSolanaConfirmation: vi.fn(),
@@ -384,6 +452,7 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: vi.fn(),
+      createSolanaSignerFromKeyBytes: vi.fn(),
       buildSolTransferInstruction: vi.fn(),
       buildAndSendSolanaTransaction: vi.fn(),
       waitForSolanaConfirmation: vi.fn(),
@@ -428,6 +497,7 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: vi.fn(),
+      createSolanaSignerFromKeyBytes: vi.fn(),
       buildSolTransferInstruction: vi.fn(),
       buildAndSendSolanaTransaction: vi.fn(),
       waitForSolanaConfirmation: vi.fn(),
@@ -446,7 +516,7 @@ describe("performSolanaSend", () => {
     });
   });
 
-  it("requires a gas policy id for sponsored Solana sends", async () => {
+  it("requires a fee policy id for sponsored Solana sends", async () => {
     vi.doUnmock("../../src/commands/send-solana.js");
 
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -474,6 +544,7 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),
+      createSolanaSignerFromKeyBytes: async () => ({ address: "SoSignerAddr" }),
       buildSolTransferInstruction: vi.fn(),
       buildAndSendSolanaTransaction: vi.fn(),
       waitForSolanaConfirmation: vi.fn(),
@@ -488,7 +559,7 @@ describe("performSolanaSend", () => {
     const { performSolanaSend } = await import("../../src/commands/send-solana.js");
     await expect(performSolanaSend({} as Command, "SoRecipientAddr", "0.5")).rejects.toMatchObject({
       code: ErrorCode.INVALID_ARGS,
-      message: expect.stringContaining("Gas sponsorship requires a gas policy ID"),
+      message: expect.stringContaining("Fee sponsorship requires a fee policy ID"),
     });
   });
 });
