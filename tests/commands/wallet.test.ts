@@ -873,6 +873,104 @@ describe("wallet command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("wallet connect cancels approval polling on Ctrl-C", async () => {
+    const exitWithError = vi.fn();
+    const clearSession = vi.fn();
+    const openBrowser = vi.fn();
+    const promptText = vi.fn().mockResolvedValue("");
+    const createRemoteWalletSession = vi.fn().mockResolvedValue({
+      sessionId: "remote-session",
+      approvalUrl: "https://dashboard.alchemy.com/approve",
+      expiresAt: "2026-04-21T00:00:00.000Z",
+    });
+    const disconnectRemoteWalletSession = vi.fn().mockResolvedValue({
+      sessionId: "remote-session",
+      status: "revoked",
+      alreadyDisconnected: false,
+    });
+    const getRemoteWalletSession = vi.fn(
+      () => new Promise<never>(() => undefined),
+    );
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(((code?: string | number | null) => {
+        throw new Error(`process.exit ${String(code)}`);
+      }) as never);
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printJSON: vi.fn(),
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => true,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/auth.js", () => ({
+      openBrowser,
+    }));
+    vi.doMock("../../src/lib/wallet-api.js", () => ({
+      createRemoteWalletSession,
+      disconnectRemoteWalletSession,
+      getRemoteWalletSession,
+      getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      createPendingSession: () => ({
+        sessionId: "local-session",
+        status: "pending",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        expiresAt: "2026-04-21T00:00:00.000Z",
+        envelopeVersion: "v1",
+        publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+        privateKeyPem: "pem",
+      }),
+      loadSession: () => null,
+      clearSession,
+      updateSession: vi.fn(),
+      isSessionValid: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn(),
+      promptConfirm: vi.fn(),
+      promptText,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    const parsePromise = program.parseAsync(
+      ["node", "test", "wallet", "connect", "--mode", "session"],
+      { from: "node" },
+    );
+    await vi.waitFor(() => {
+      expect(getRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
+    });
+
+    process.emit("SIGINT", "SIGINT");
+
+    await expect(parsePromise).rejects.toThrow("process.exit 130");
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(exitWithError).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(130);
+  });
+
   it("wallet connect cancels cleanly when the user declines to replace an existing session", async () => {
     const exitWithError = vi.fn();
     const createRemoteWalletSession = vi.fn();

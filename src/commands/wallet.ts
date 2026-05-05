@@ -112,11 +112,101 @@ const ADDRESS_SLICE_LEN = 12;
 type WalletStatus = "active" | "expired" | "none";
 type RemoteWalletStatus = Awaited<ReturnType<typeof getRemoteWalletSession>>["status"];
 
+class WalletConnectInterruptedError extends Error {
+  constructor() {
+    super("Wallet connect cancelled.");
+    this.name = "WalletConnectInterruptedError";
+  }
+}
+
+function isWalletConnectInterruptedError(err: unknown): err is WalletConnectInterruptedError {
+  return err instanceof WalletConnectInterruptedError;
+}
+
 function normalizeRemoteStatusForStorage(status: RemoteWalletStatus): "pending" | "approved" | "revoked" | "expired" {
   if (status === "denied") {
     return "revoked";
   }
   return status;
+}
+
+function createInterruptibleDelay(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(new WalletConnectInterruptedError());
+  }
+
+  return new Promise((resolve, reject) => {
+    const onAbort = (): void => {
+      clearTimeout(timeout);
+      reject(new WalletConnectInterruptedError());
+    };
+    const timeout = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function waitForInterruptible<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) {
+    return Promise.reject(new WalletConnectInterruptedError());
+  }
+
+  let onAbort!: () => void;
+  const interrupt = new Promise<never>((_, reject) => {
+    onAbort = () => reject(new WalletConnectInterruptedError());
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+
+  try {
+    return await Promise.race([promise, interrupt]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
+async function withApprovalInterruptHandler<T>(args: {
+  authToken: string;
+  sessionId: string;
+  run: (signal: AbortSignal) => Promise<T>;
+}): Promise<T> {
+  const controller = new AbortController();
+  const previousSigintListeners = process.listeners("SIGINT");
+  let hasInterrupted = false;
+
+  const onSigint = (): void => {
+    if (hasInterrupted) {
+      process.exit(130);
+    }
+    hasInterrupted = true;
+    if (!isJSONMode()) {
+      process.stderr.write(
+        "\nWallet connect cancelled. Cleaning up... Press Ctrl-C again to force exit.\n",
+      );
+    }
+    controller.abort();
+  };
+
+  // Temporarily own SIGINT during approval polling so the first Ctrl-C can
+  // clean up wallet session state; restore existing handlers immediately after.
+  process.removeAllListeners("SIGINT");
+  process.on("SIGINT", onSigint);
+
+  try {
+    return await args.run(controller.signal);
+  } catch (err) {
+    if (isWalletConnectInterruptedError(err)) {
+      await disconnectRemoteWalletSession(args.authToken, args.sessionId).catch(() => undefined);
+      clearSession();
+    }
+    throw err;
+  } finally {
+    process.removeListener("SIGINT", onSigint);
+    for (const listener of previousSigintListeners) {
+      process.on("SIGINT", listener);
+    }
+  }
 }
 
 function isFutureIsoDate(value: string): boolean {
@@ -542,24 +632,33 @@ async function runSessionConnect(opts: { program: Command; force: boolean }): Pr
 
   openBrowser(remoteSession.approvalUrl);
 
-  const startedAt = Date.now();
-  let approvedSession: Awaited<ReturnType<typeof getRemoteWalletSession>> | null = null;
-  while (Date.now() - startedAt < CONNECT_TIMEOUT_MS) {
-    const current = await getRemoteWalletSession(authToken, remoteSession.sessionId);
-    if (current.status === "approved") {
-      approvedSession = current;
-      break;
-    }
-    if (current.status === "denied" || current.status === "revoked" || current.status === "expired") {
-      clearSession();
-      throw new CLIError(
-        ErrorCode.INTERNAL_ERROR,
-        `Wallet session ${current.status}.`,
-        "Run 'alchemy wallet connect' to start a new approval flow.",
-      );
-    }
-    await new Promise((resolve) => setTimeout(resolve, CONNECT_POLL_INTERVAL_MS));
-  }
+  const approvedSession = await withApprovalInterruptHandler({
+    authToken,
+    sessionId: remoteSession.sessionId,
+    run: async (signal) => {
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < CONNECT_TIMEOUT_MS) {
+        const current = await waitForInterruptible(
+          getRemoteWalletSession(authToken, remoteSession.sessionId),
+          signal,
+        );
+        if (current.status === "approved") {
+          return current;
+        }
+        if (current.status === "denied" || current.status === "revoked" || current.status === "expired") {
+          clearSession();
+          throw new CLIError(
+            ErrorCode.INTERNAL_ERROR,
+            `Wallet session ${current.status}.`,
+            "Run 'alchemy wallet connect' to start a new approval flow.",
+          );
+        }
+        await createInterruptibleDelay(CONNECT_POLL_INTERVAL_MS, signal);
+      }
+
+      return null;
+    },
+  });
 
   if (!approvedSession) {
     throw new CLIError(
@@ -832,6 +931,9 @@ export function registerWallets(program: Command) {
       try {
         await runConnectFlow(program, opts);
       } catch (err) {
+        if (isWalletConnectInterruptedError(err)) {
+          process.exit(130);
+        }
         exitWithError(err);
       }
     });
