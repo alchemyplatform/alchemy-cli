@@ -56,6 +56,24 @@ describe("parseBaseURLOverride", () => {
     expect(() => parseBaseURLOverride(ENV_VAR)).toThrow(/must target localhost/);
   });
 
+  it("returns URL for explicitly allowed remote host", () => {
+    process.env[ENV_VAR] = "https://admin-api.alchemypreview.com";
+    const result = parseBaseURLOverride(ENV_VAR, {
+      allowedHostnames: ["admin-api.alchemypreview.com"],
+    });
+    expect(result).not.toBeNull();
+    expect(result!.hostname).toBe("admin-api.alchemypreview.com");
+  });
+
+  it("requires HTTPS for explicitly allowed remote host", () => {
+    process.env[ENV_VAR] = "http://admin-api.alchemypreview.com";
+    expect(() =>
+      parseBaseURLOverride(ENV_VAR, {
+        allowedHostnames: ["admin-api.alchemypreview.com"],
+      }),
+    ).toThrow(/can only use non-HTTPS for localhost/);
+  });
+
   it("throws for invalid URL", () => {
     process.env[ENV_VAR] = "not-a-url";
     expect(() => parseBaseURLOverride(ENV_VAR)).toThrow(/Invalid/);

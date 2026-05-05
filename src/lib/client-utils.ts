@@ -20,7 +20,14 @@ export function isLocalhost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
-export function parseBaseURLOverride(envVarName: string): URL | null {
+interface BaseURLOverrideOptions {
+  allowedHostnames?: readonly string[];
+}
+
+export function parseBaseURLOverride(
+  envVarName: string,
+  options: BaseURLOverrideOptions = {},
+): URL | null {
   const raw = process.env[envVarName];
   if (!raw) return null;
 
@@ -31,9 +38,14 @@ export function parseBaseURLOverride(envVarName: string): URL | null {
     throw errInvalidArgs(`Invalid ${envVarName} value.`);
   }
 
-  if (!isLocalhost(parsed.hostname)) {
+  const allowedHostnames = options.allowedHostnames ?? [];
+  const isAllowedHost = allowedHostnames.includes(parsed.hostname);
+  if (!isLocalhost(parsed.hostname) && !isAllowedHost) {
+    const targetDescription = allowedHostnames.length > 0
+      ? `localhost or one of: ${allowedHostnames.join(", ")}`
+      : "localhost or 127.0.0.1";
     throw errInvalidArgs(
-      `${envVarName} must target localhost or 127.0.0.1.`,
+      `${envVarName} must target ${targetDescription}.`,
     );
   }
 

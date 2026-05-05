@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { execFile } from "node:child_process";
+import type { Socket } from "node:net";
 import { platform } from "node:os";
 import { URL } from "node:url";
 import { getBaseDomain } from "./client-utils.js";
@@ -51,14 +52,52 @@ export function openBrowser(url: string): void {
 
 interface CallbackResult {
   code: string;
-  sendSuccess: () => void;
-  sendError: (message: string) => void;
+  sendSuccess: () => Promise<void>;
+  sendError: (message: string) => Promise<void>;
+}
+
+function closeServer(args: {
+  server: ReturnType<typeof createServer>;
+  sockets: Set<Socket>;
+}): Promise<void> {
+  const { server, sockets } = args;
+  return new Promise((resolve) => {
+    server.close(() => resolve());
+    for (const socket of sockets) {
+      socket.destroy();
+    }
+  });
+}
+
+async function sendCallbackResponse(args: {
+  server: ReturnType<typeof createServer>;
+  sockets: Set<Socket>;
+  req: IncomingMessage;
+  res: ServerResponse;
+  statusCode: number;
+  body: string;
+}): Promise<void> {
+  const { server, sockets, req, res, statusCode, body } = args;
+  req.socket.setKeepAlive(false);
+  res.shouldKeepAlive = false;
+  res.writeHead(statusCode, {
+    "Content-Type": "text/html",
+    Connection: "close",
+  });
+  await new Promise<void>((resolve) => {
+    res.end(body, () => resolve());
+  });
+  await closeServer({ server, sockets });
 }
 
 export function waitForCallback(port: number, timeoutMs = 120_000): Promise<CallbackResult> {
   return new Promise((resolve, reject) => {
+    const sockets = new Set<Socket>();
     const timer = setTimeout(() => {
       server.close();
+      for (const socket of sockets) {
+        socket.destroy();
+      }
       reject(new Error("Authentication timed out. Please try again."));
     }, timeoutMs);
 
@@ -75,20 +114,32 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
       if (error) {
         const description = url.searchParams.get("error_description") || error;
         clearTimeout(timer);
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(authErrorHtml(description));
-        server.close();
-        reject(new Error(`Authentication failed: ${description}`));
+        void sendCallbackResponse({
+          server,
+          sockets,
+          req,
+          res,
+          statusCode: 200,
+          body: authErrorHtml(description),
+        }).finally(() => {
+          reject(new Error(`Authentication failed: ${description}`));
+        });
         return;
       }
 
       const code = url.searchParams.get("code");
       if (!code) {
         clearTimeout(timer);
-        res.writeHead(400);
-        res.end("Missing auth code");
-        server.close();
-        reject(new Error("Authentication callback missing auth code."));
+        void sendCallbackResponse({
+          server,
+          sockets,
+          req,
+          res,
+          statusCode: 400,
+          body: "Missing auth code",
+        }).finally(() => {
+          reject(new Error("Authentication callback missing auth code."));
+        });
         return;
       }
 
@@ -96,16 +147,22 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
 
       resolve({
         code,
-        sendSuccess: () => {
-          res.writeHead(200, { "Content-Type": "text/html" });
-          res.end(AUTH_SUCCESS_HTML);
-          server.close();
-        },
-        sendError: (message: string) => {
-          res.writeHead(500, { "Content-Type": "text/html" });
-          res.end(authErrorHtml(message));
-          server.close();
-        },
+        sendSuccess: () => sendCallbackResponse({
+          server,
+          sockets,
+          req,
+          res,
+          statusCode: 200,
+          body: AUTH_SUCCESS_HTML,
+        }),
+        sendError: (message: string) => sendCallbackResponse({
+          server,
+          sockets,
+          req,
+          res,
+          statusCode: 500,
+          body: authErrorHtml(message),
+        }),
       });
     });
 
@@ -121,6 +178,13 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
       } else {
         reject(err);
       }
+    });
+
+    server.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.on("close", () => {
+        sockets.delete(socket);
+      });
     });
 
     server.listen(port, "127.0.0.1");
@@ -198,10 +262,10 @@ export async function performBrowserLogin(
       expiresInSeconds: options?.expiresInSeconds ?? DEFAULT_EXPIRES_IN_SECONDS,
       codeVerifier,
     });
-    callback.sendSuccess();
+    await callback.sendSuccess();
     return result;
   } catch (err) {
-    callback.sendError("Failed to complete authentication. Please try again.");
+    await callback.sendError("Failed to complete authentication. Please try again.");
     throw err;
   }
 }

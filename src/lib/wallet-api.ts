@@ -17,6 +17,7 @@ import { debug } from "./output.js";
 
 const WALLET_API_BASE_URL_ENV = "ALCHEMY_WALLET_API_BASE_URL";
 const ADMIN_API_BASE_URL_ENV = "ALCHEMY_ADMIN_API_BASE_URL";
+const STAGING_ADMIN_API_HOST = "admin-api.alchemypreview.com";
 const rawWalletSessionStateSchema = z.enum([
   "pending",
   "approved",
@@ -202,8 +203,9 @@ export interface CompleteEvmSigningChallengeInput {
 }
 
 function baseURLOverride(): URL | null {
-  return parseBaseURLOverride(WALLET_API_BASE_URL_ENV)
-    ?? parseBaseURLOverride(ADMIN_API_BASE_URL_ENV);
+  const options = { allowedHostnames: [STAGING_ADMIN_API_HOST] };
+  return parseBaseURLOverride(WALLET_API_BASE_URL_ENV, options)
+    ?? parseBaseURLOverride(ADMIN_API_BASE_URL_ENV, options);
 }
 
 function allowedHosts(): Set<string> {

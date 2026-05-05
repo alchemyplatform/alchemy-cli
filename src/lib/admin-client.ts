@@ -10,6 +10,8 @@ import {
 import { isLocalhost, parseBaseURLOverride, fetchWithTimeout, getBaseDomain } from "./client-utils.js";
 import { debug } from "./output.js";
 
+const STAGING_ADMIN_API_HOST = "admin-api.alchemypreview.com";
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface ChainNetwork {
@@ -101,7 +103,9 @@ export class AdminClient {
   }
 
   private baseURLOverride(): URL | null {
-    return parseBaseURLOverride(AdminClient.ADMIN_API_BASE_URL_ENV);
+    return parseBaseURLOverride(AdminClient.ADMIN_API_BASE_URL_ENV, {
+      allowedHostnames: [STAGING_ADMIN_API_HOST],
+    });
   }
 
   private validateAccessKey(accessKey: string): void {

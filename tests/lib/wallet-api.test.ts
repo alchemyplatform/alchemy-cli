@@ -94,6 +94,22 @@ describe("wallet-api", () => {
     });
   });
 
+  it("allows the staging admin API override for wallet routes", async () => {
+    process.env.ALCHEMY_ADMIN_API_BASE_URL = "https://admin-api.alchemypreview.com";
+
+    const { getWalletApiBaseUrl } = await import("../../src/lib/wallet-api.js");
+    expect(getWalletApiBaseUrl()).toBe("https://admin-api.alchemypreview.com");
+  });
+
+  it("rejects arbitrary remote wallet API overrides", async () => {
+    process.env.ALCHEMY_WALLET_API_BASE_URL = "https://example.com";
+
+    const { getWalletApiBaseUrl } = await import("../../src/lib/wallet-api.js");
+    expect(() => getWalletApiBaseUrl()).toThrow(
+      /must target localhost or one of: admin-api\.alchemypreview\.com/,
+    );
+  });
+
   it("normalizes provider session fields into legacy CLI session fields", async () => {
     const baseUrl = await createTestServer((req, res) => {
       expect(req.url).toBe("/wallet/sessions/session-123");

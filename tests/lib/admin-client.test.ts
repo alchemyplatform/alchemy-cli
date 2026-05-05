@@ -85,7 +85,10 @@ const MOCK_CHAIN: ChainNetwork = {
 };
 
 describe("AdminClient", () => {
+  const originalEnv = { ...process.env };
+
   afterEach(async () => {
+    process.env = { ...originalEnv };
     await closeServer();
   });
 
@@ -158,6 +161,30 @@ describe("AdminClient", () => {
       expect(err).toBeInstanceOf(CLIError);
       expect((err as CLIError).code).toBe(ErrorCode.INVALID_ARGS);
     }
+  });
+
+  it("allows the staging admin API override", () => {
+    process.env.ALCHEMY_ADMIN_API_BASE_URL = "https://admin-api.alchemypreview.com";
+    class InspectableAdminClient extends AdminClient {
+      getBaseURL(): string {
+        return this.baseURL();
+      }
+    }
+
+    const client = new InspectableAdminClient("test-access-key");
+    expect(client.getBaseURL()).toBe("https://admin-api.alchemypreview.com");
+  });
+
+  it("rejects arbitrary remote admin API overrides", () => {
+    process.env.ALCHEMY_ADMIN_API_BASE_URL = "https://example.com";
+    class InspectableAdminClient extends AdminClient {
+      getBaseURL(): string {
+        return this.baseURL();
+      }
+    }
+
+    const client = new InspectableAdminClient("test-access-key");
+    expect(() => client.getBaseURL()).toThrow(/must target localhost or one of: admin-api\.alchemypreview\.com/);
   });
 
   it("listChains returns networks", async () => {
