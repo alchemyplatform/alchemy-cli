@@ -60,3 +60,5 @@ jobs:
         run: pnpm run build
       - name: Publish alpha to npm
         run: pnpm changeset publish
+        env:
+          NPM_CONFIG_PROVENANCE: "false"
