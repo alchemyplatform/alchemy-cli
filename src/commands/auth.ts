@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, getLoginUrl, performBrowserLogin, revokeToken } from "../lib/auth.js";
+import { AUTH_PORT, prepareLogin, completeLogin, revokeToken } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
@@ -47,29 +47,51 @@ export function registerAuth(program: Command) {
           }
         }
 
+        // Start callback server immediately so the URL works even before Enter
+        const prepared = prepareLogin();
+
         if (!isJSONMode()) {
           console.log("");
           console.log(`  ${brand("◆")} ${bold("Alchemy Authentication")}`);
           console.log(`  ${dim("────────────────────────────────────")}`);
           console.log("");
-          console.log(`  ${dim(getLoginUrl(AUTH_PORT))}`);
+          console.log(`  ${dim(prepared.loginUrl)}`);
           console.log("");
         }
 
+        // If the user pastes the URL and completes auth before pressing
+        // Enter, abort the prompt and skip opening the browser.
+        const promptAbort = new AbortController();
+        let earlyAuth = false;
+        prepared.callbackPromise
+          .then(() => {
+            earlyAuth = true;
+            promptAbort.abort();
+          })
+          .catch(() => {
+            // Rejection is handled by completeLogin when it awaits the same promise.
+          });
+
         if (!yes && !isJSONMode() && isInteractiveAllowed(program)) {
           const answer = await promptText({
-            message: "Press Enter to open browser and link your Alchemy account",
+            message: "Press Enter to open browser, or paste the link above to authenticate",
             cancelMessage: "Login cancelled.",
+            abortSignal: promptAbort.signal,
           });
-          if (answer === null) return;
+          if (answer === null) {
+            prepared.cancel();
+            return;
+          }
         }
 
-        if (!isJSONMode()) {
+        if (!earlyAuth && !isJSONMode()) {
           console.log(`  Opening browser to log in...`);
           console.log(`  ${dim("Waiting for authentication...")}`);
         }
 
-        const result = await performBrowserLogin();
+        const result = await completeLogin(prepared, {
+          skipBrowserOpen: earlyAuth,
+        });
 
         // Save token to config
         const cfg = config.load();

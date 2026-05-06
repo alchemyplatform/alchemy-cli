@@ -50,10 +50,10 @@ describe("auth callback server", () => {
 
   it("sends success with connection close and shuts down the callback server", async () => {
     const port = await getOpenPort();
-    const callbackPromise = waitForCallback(port);
+    const handle = waitForCallback(port);
     const responsePromise = fetch(`http://127.0.0.1:${port}/callback?code=auth-code`);
 
-    const callback = await callbackPromise;
+    const callback = await handle.promise;
     expect(callback.code).toBe("auth-code");
 
     await callback.sendSuccess();
@@ -67,7 +67,7 @@ describe("auth callback server", () => {
 
   it("destroys active callback connections while shutting down after success", async () => {
     const port = await getOpenPort();
-    const callbackPromise = waitForCallback(port);
+    const handle = waitForCallback(port);
     const heldSocket = await createHeldCallbackConnection(port);
     const heldSocketClosed = new Promise<void>((resolve) => {
       heldSocket.once("close", () => resolve());
@@ -75,7 +75,7 @@ describe("auth callback server", () => {
 
     try {
       const responsePromise = fetch(`http://127.0.0.1:${port}/callback?code=auth-code`);
-      const callback = await callbackPromise;
+      const callback = await handle.promise;
 
       await expectResolvesWithin(callback.sendSuccess(), 500);
 

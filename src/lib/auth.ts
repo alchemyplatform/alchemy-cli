@@ -90,8 +90,14 @@ async function sendCallbackResponse(args: {
   await closeServer({ server, sockets });
 }
 
-export function waitForCallback(port: number, timeoutMs = 120_000): Promise<CallbackResult> {
-  return new Promise((resolve, reject) => {
+export interface CallbackHandle {
+  promise: Promise<CallbackResult>;
+  cancel: () => void;
+}
+
+export function waitForCallback(port: number, timeoutMs = 120_000): CallbackHandle {
+  let cancelFn: () => void;
+  const promise = new Promise<CallbackResult>((resolve, reject) => {
     const sockets = new Set<Socket>();
     const timer = setTimeout(() => {
       server.close();
@@ -100,6 +106,11 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
       }
       reject(new Error("Authentication timed out. Please try again."));
     }, timeoutMs);
+
+    cancelFn = () => {
+      clearTimeout(timer);
+      closeServer({ server, sockets });
+    };
 
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url || "/", `http://localhost:${port}`);
@@ -191,6 +202,7 @@ export function waitForCallback(port: number, timeoutMs = 120_000): Promise<Call
     // Allow the process to exit naturally even if the server is still listening.
     server.unref();
   });
+  return { promise, cancel: () => cancelFn() };
 }
 
 export interface TokenExchangeResult {
@@ -241,6 +253,50 @@ export async function exchangeCodeForToken(
   return { token: data.authToken, expiresAt: data.expiresAt };
 }
 
+export interface PreparedLogin {
+  loginUrl: string;
+  callbackPromise: Promise<CallbackResult>;
+  codeVerifier: string;
+  port: number;
+  cancel: () => void;
+}
+
+/**
+ * Start the callback server and generate PKCE values.
+ * Call this early so the redirect URL works immediately.
+ */
+export function prepareLogin(port = AUTH_PORT): PreparedLogin {
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = deriveCodeChallenge(codeVerifier);
+  const loginUrl = getLoginUrl(port, codeChallenge);
+  const handle = waitForCallback(port);
+  return { loginUrl, callbackPromise: handle.promise, codeVerifier, port, cancel: handle.cancel };
+}
+
+/**
+ * Complete the login: optionally open browser, await callback, exchange code.
+ */
+export async function completeLogin(
+  prepared: PreparedLogin,
+  options?: { expiresInSeconds?: number; skipBrowserOpen?: boolean },
+): Promise<TokenExchangeResult> {
+  if (!options?.skipBrowserOpen) {
+    openBrowser(prepared.loginUrl);
+  }
+  const callback = await prepared.callbackPromise;
+  try {
+    const result = await exchangeCodeForToken(callback.code, prepared.port, {
+      expiresInSeconds: options?.expiresInSeconds ?? DEFAULT_EXPIRES_IN_SECONDS,
+      codeVerifier: prepared.codeVerifier,
+    });
+    await callback.sendSuccess();
+    return result;
+  } catch (err) {
+    await callback.sendError("Failed to complete authentication. Please try again.");
+    throw err;
+  }
+}
+
 /**
  * Runs the full browser login flow: bind server, open browser, exchange code.
  * Returns the token and expiry. Caller is responsible for saving to config.
@@ -249,25 +305,8 @@ export async function performBrowserLogin(
   port = AUTH_PORT,
   options?: { expiresInSeconds?: number },
 ): Promise<TokenExchangeResult> {
-  // PKCE: generate verifier/challenge pair to bind code to this CLI instance
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = deriveCodeChallenge(codeVerifier);
-
-  const loginUrl = getLoginUrl(port, codeChallenge);
-  const callbackPromise = waitForCallback(port);
-  openBrowser(loginUrl);
-  const callback = await callbackPromise;
-  try {
-    const result = await exchangeCodeForToken(callback.code, port, {
-      expiresInSeconds: options?.expiresInSeconds ?? DEFAULT_EXPIRES_IN_SECONDS,
-      codeVerifier,
-    });
-    await callback.sendSuccess();
-    return result;
-  } catch (err) {
-    await callback.sendError("Failed to complete authentication. Please try again.");
-    throw err;
-  }
+  const prepared = prepareLogin(port);
+  return completeLogin(prepared, { expiresInSeconds: options?.expiresInSeconds });
 }
 
 export type RevokeResult = "revoked" | "already_invalid" | "server_error" | "network_error";

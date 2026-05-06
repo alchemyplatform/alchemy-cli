@@ -263,6 +263,7 @@ export async function promptText(opts: {
   defaultValue?: string;
   cancelMessage?: string;
   clearAfterSubmit?: boolean;
+  abortSignal?: AbortSignal;
 }): Promise<string | null> {
   if (!stdin.isTTY || !stdout.isTTY) {
     return opts.defaultValue ?? opts.initialValue ?? "";
@@ -275,18 +276,28 @@ export async function promptText(opts: {
   const question = `  ${ansi.cyan("◆")} ${opts.message}${opts.placeholder ? ` ${ansi.dim(`(${opts.placeholder})`)}` : ""}: `;
   const previousRawMode = stdin.isRaw;
   if (previousRawMode) stdin.setRawMode(false);
-  const value = await new Promise<string | null>((resolve) => {
+  const ABORTED = Symbol("aborted");
+  const value = await new Promise<string | typeof ABORTED | null>((resolve) => {
     rl.on("SIGINT", () => resolve(null));
     rl.question(question, (answer) => resolve(answer));
+    if (opts.abortSignal) {
+      const onAbort = () => resolve(ABORTED);
+      if (opts.abortSignal.aborted) {
+        onAbort();
+      } else {
+        opts.abortSignal.addEventListener("abort", onAbort, { once: true });
+      }
+    }
   });
   rl.close();
   restoreKeypressListeners();
   if (previousRawMode) stdin.setRawMode(true);
-  if (opts.clearAfterSubmit) {
+  if (opts.clearAfterSubmit || value === ABORTED) {
     // Clear the prompt line and spacer line so sensitive/temporary
     // prompt input does not remain visible after submit.
     clearRenderedLines(2);
   }
+  if (value === ABORTED) return "";
   if (value === null) {
     printCancel(opts.cancelMessage);
     return null;
