@@ -69,7 +69,7 @@ describe("printError", () => {
     const err = new CLIError(
       ErrorCode.INVALID_API_KEY,
       "Invalid API key. Check your key and try again.",
-      "alchemy config set api-key <your-key>",
+      "alchemy config set app",
       "Unauthorized request to https://eth-mainnet.g.alchemy.com/v2/abcd1234secret",
     );
 

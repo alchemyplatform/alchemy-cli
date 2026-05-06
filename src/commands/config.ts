@@ -194,24 +194,6 @@ export function registerConfig(program: Command) {
   const setCmd = cmd.command("set").description("Set a config value");
 
   setCmd
-    .command("api-key <key>")
-    .description("Set the Alchemy API key for RPC requests")
-    .action((key: string) => {
-      try {
-        const cfg = config.load();
-        config.save({ ...cfg, api_key: key });
-        printHuman(`${green("✓")} Set api-key\n`, { key: "api-key", status: "set" });
-        if (!isJSONMode() && cfg.app?.apiKey && cfg.app.apiKey !== key) {
-          console.log(
-            `  ${yellow("◆")} ${dim("Warning: api-key differs from the selected app key. RPC commands use api-key; run 'alchemy config set app <app-id>' to resync.")}`,
-          );
-        }
-      } catch (err) {
-        exitWithError(err);
-      }
-    });
-
-  setCmd
     .command("webhook-api-key <key>")
     .description("Set the Alchemy webhook API key for Notify operations")
     .action((key: string) => {

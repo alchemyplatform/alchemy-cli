@@ -42,9 +42,9 @@ const RETRYABLE_CODES: ReadonlySet<string> = new Set([
 
 const ERROR_RECOVERY: Record<ErrorCodeType, string> = {
   AUTH_REQUIRED:
-    "Set ALCHEMY_API_KEY env var or run: alchemy config set api-key <key>",
+    "Set ALCHEMY_API_KEY env var or run: alchemy config set app",
   INVALID_API_KEY:
-    "Check your API key and set a valid one: alchemy config set api-key <key>",
+    "Check your API key and select a valid app: alchemy config set app",
   NETWORK_NOT_ENABLED:
     "Enable the target network for your app at dashboard.alchemy.com",
   INVALID_ACCESS_KEY:

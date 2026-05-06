@@ -5,12 +5,11 @@ const DEFAULT_BASE_DOMAIN = "alchemy.com";
 
 /**
  * Returns the base domain for all Alchemy endpoints.
- * Defaults to "alchemy.com". Can be overridden by setting both
- * ALCHEMY_UNSAFE_OVERRIDES=1 and ALCHEMY_BASE_DOMAIN=<domain>.
- * This is intended for internal development/testing only.
+ * Defaults to "alchemy.com". Override with ALCHEMY_BASE_DOMAIN
+ * for staging/testing (e.g. ALCHEMY_BASE_DOMAIN=alchemypreview.com).
  */
 export function getBaseDomain(): string {
-  if (process.env.ALCHEMY_UNSAFE_OVERRIDES === "1" && process.env.ALCHEMY_BASE_DOMAIN) {
+  if (process.env.ALCHEMY_BASE_DOMAIN) {
     return process.env.ALCHEMY_BASE_DOMAIN;
   }
   return DEFAULT_BASE_DOMAIN;

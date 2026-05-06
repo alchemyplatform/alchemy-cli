@@ -1151,18 +1151,23 @@ describe("wallet command", () => {
       exitWithError,
     }));
 
+    const processExit = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error(`process.exit called`);
+    }) as never);
+
     const { registerWallet } = await import("../../src/commands/wallet.js");
     const program = new Command();
     registerWallet(program);
 
     await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "session"], {
       from: "node",
-    });
+    }).catch(() => {});
 
     expect(openBrowser).not.toHaveBeenCalled();
     expect(getRemoteWalletSession).not.toHaveBeenCalled();
     expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
     expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(processExit).toHaveBeenCalledWith(130);
     expect(exitWithError).not.toHaveBeenCalled();
   });
 

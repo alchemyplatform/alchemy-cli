@@ -57,7 +57,7 @@ export function getSetupStatus(cfg: Config): SetupStatus {
     missing: ["Provide one auth path: alchemy auth OR api-key OR access-key+app OR SIWx wallet"],
     nextCommands: [
       "alchemy auth",
-      "alchemy config set api-key <key>",
+      "alchemy config set app",
       "alchemy config set access-key <key> && alchemy config set app <app-id>",
       "alchemy wallet connect --mode local --chain evm && alchemy config set x402 true",
     ],

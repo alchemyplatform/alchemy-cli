@@ -71,7 +71,6 @@ const COMMAND_NAMES = [
   "solana das",
   "config",
   "config set",
-  "config set api-key",
   "config set app",
   "config set network",
   "config set verbose",

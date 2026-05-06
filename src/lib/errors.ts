@@ -104,7 +104,7 @@ export function errInvalidAPIKey(details?: string): CLIError {
   return new CLIError(
     ErrorCode.INVALID_API_KEY,
     "Invalid API key. Check your key and try again.",
-    "alchemy config set api-key <your-key>",
+    "alchemy config set app",
     details,
   );
 }

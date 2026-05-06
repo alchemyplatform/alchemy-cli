@@ -628,7 +628,8 @@ async function runSessionConnect(opts: { program: Command; force: boolean }): Pr
         message: "Replace the existing wallet session?",
         cancelMessage: "Wallet connect cancelled.",
       });
-      if (replace !== true) return;
+      if (replace === null) throw new WalletConnectInterruptedError();
+      if (!replace) return;
     }
     clearSession();
   }
@@ -682,7 +683,7 @@ async function runSessionConnect(opts: { program: Command; force: boolean }): Pr
     if (answer === null) {
       clearSession();
       await disconnectRemoteWalletSession(authToken, remoteSession.sessionId).catch(() => undefined);
-      return;
+      throw new WalletConnectInterruptedError();
     }
   }
 
@@ -885,7 +886,7 @@ async function runConnectFlow(
       initialValue: "session",
       cancelMessage: "Wallet connect cancelled.",
     });
-    if (choice === null) return;
+    if (choice === null) throw new WalletConnectInterruptedError();
     mode = choice;
   }
 
