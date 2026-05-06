@@ -33,8 +33,26 @@ jobs:
             echo "No changesets found; alpha publishes require at least one pending changeset."
             exit 1
           fi
-      - name: Version alpha snapshot
-        run: pnpm changeset version --snapshot alpha
+      - name: Version alpha prerelease
+        run: |
+          pnpm changeset pre enter alpha
+          pnpm changeset version
+          node <<'EOF'
+          const fs = require("node:fs");
+
+          const pkgPath = "package.json";
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+
+          if (!/-alpha\.\d+$/.test(pkg.version)) {
+            throw new Error(`Expected an alpha prerelease version, got ${pkg.version}`);
+          }
+
+          pkg.version = pkg.version.replace(
+            /-alpha\.\d+$/,
+            `-alpha.${process.env.GITHUB_RUN_NUMBER}`,
+          );
+          fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+          EOF
         env:
           # Use workflow token for Changesets GitHub changelog lookups.
           GITHUB_TOKEN: ${{ github.token }}
