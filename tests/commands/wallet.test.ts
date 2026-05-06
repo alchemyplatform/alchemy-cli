@@ -453,6 +453,7 @@ describe("wallet command", () => {
       resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
       resolveAuthToken: vi.fn(),
       resolveWalletSession: () => null,
+      resolveActiveSigner: vi.fn(),
     }));
     vi.doMock("../../src/lib/interaction.js", () => ({
       isInteractiveAllowed: () => false,
@@ -502,7 +503,286 @@ describe("wallet command", () => {
     expect(printJSON).toHaveBeenCalledWith({
       type: "solana",
       address: "SoLaNaAdDrEsS123",
+      source: "local",
     });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("wallet qr uses the session EVM address when session is the active signer", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("node:fs", () => ({
+      readFileSync: vi.fn(),
+      writeFileSync: vi.fn(),
+      mkdirSync: vi.fn(),
+      rmSync: vi.fn(),
+      existsSync: vi.fn(() => false),
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ active_signer: "session" }),
+      save: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: () => "0xwallet",
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: vi.fn(),
+      resolveWalletSession: () => ({ evmAddress: "0xsession" }),
+      resolveActiveSigner: () => "session",
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn(),
+      promptConfirm: vi.fn(),
+      promptText: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: vi.fn(),
+      privateKeyToAccount: () => ({ address: "0xlocal" }),
+    }));
+    vi.doMock("@solana/kit", () => ({
+      createKeyPairSignerFromPrivateKeyBytes: vi.fn(),
+      createKeyPairSignerFromBytes: vi.fn(),
+    }));
+    vi.doMock("qrcode", () => ({
+      default: { toString: vi.fn() },
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "qr", "--type", "evm"], {
+      from: "node",
+    });
+
+    expect(printJSON).toHaveBeenCalledWith({
+      type: "evm",
+      address: "0xsession",
+      source: "session",
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("wallet qr --type evm ignores a malformed Solana key", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+    const createKeyPairSignerFromPrivateKeyBytes = vi.fn();
+    const createKeyPairSignerFromBytes = vi.fn();
+
+    vi.doMock("node:fs", () => ({
+      readFileSync: vi.fn(),
+      writeFileSync: vi.fn(),
+      mkdirSync: vi.fn(),
+      rmSync: vi.fn(),
+      existsSync: vi.fn(() => false),
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+      save: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: () => "0xwallet",
+      resolveSolanaWalletKey: () => "not-json-or-hex",
+      resolveAuthToken: vi.fn(),
+      resolveWalletSession: () => null,
+      resolveActiveSigner: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn(),
+      promptConfirm: vi.fn(),
+      promptText: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: vi.fn(),
+      privateKeyToAccount: () => ({ address: "0xlocal" }),
+    }));
+    vi.doMock("@solana/kit", () => ({
+      createKeyPairSignerFromPrivateKeyBytes,
+      createKeyPairSignerFromBytes,
+    }));
+    vi.doMock("qrcode", () => ({
+      default: { toString: vi.fn() },
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "qr", "--type", "evm"], {
+      from: "node",
+    });
+
+    expect(printJSON).toHaveBeenCalledWith({
+      type: "evm",
+      address: "0xlocal",
+      source: "local",
+    });
+    expect(createKeyPairSignerFromPrivateKeyBytes).not.toHaveBeenCalled();
+    expect(createKeyPairSignerFromBytes).not.toHaveBeenCalled();
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("wallet qr fails instead of falling back when the explicit local signer is missing", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("node:fs", () => ({
+      readFileSync: vi.fn(),
+      writeFileSync: vi.fn(),
+      mkdirSync: vi.fn(),
+      rmSync: vi.fn(),
+      existsSync: vi.fn(() => false),
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ active_signer: "local" }),
+      save: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: () => undefined,
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: vi.fn(),
+      resolveWalletSession: () => ({ evmAddress: "0xsession" }),
+      resolveActiveSigner: () => "local",
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn(),
+      promptConfirm: vi.fn(),
+      promptText: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: vi.fn(),
+      privateKeyToAccount: vi.fn(),
+    }));
+    vi.doMock("@solana/kit", () => ({
+      createKeyPairSignerFromPrivateKeyBytes: vi.fn(),
+      createKeyPairSignerFromBytes: vi.fn(),
+    }));
+    vi.doMock("qrcode", () => ({
+      default: { toString: vi.fn() },
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "qr", "--type", "evm"], {
+      from: "node",
+    });
+
+    expect(printJSON).not.toHaveBeenCalled();
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringContaining("Wallet key required"),
+    }));
+  });
+
+  it("wallet qr aligns terminal QR output with the address", async () => {
+    const exitWithError = vi.fn();
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const qrToString = vi.fn().mockResolvedValue("QR line 1\nQR line 2");
+
+    vi.doMock("node:fs", () => ({
+      readFileSync: vi.fn(),
+      writeFileSync: vi.fn(),
+      mkdirSync: vi.fn(),
+      rmSync: vi.fn(),
+      existsSync: vi.fn(() => false),
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ active_signer: "local" }),
+      save: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: () => "0xwallet",
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: vi.fn(),
+      resolveWalletSession: () => ({ evmAddress: "0xsession" }),
+      resolveActiveSigner: () => "local",
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn(),
+      promptConfirm: vi.fn(),
+      promptText: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      printJSON: vi.fn(),
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: vi.fn(),
+      privateKeyToAccount: () => ({ address: "0xlocal" }),
+    }));
+    vi.doMock("@solana/kit", () => ({
+      createKeyPairSignerFromPrivateKeyBytes: vi.fn(),
+      createKeyPairSignerFromBytes: vi.fn(),
+    }));
+    vi.doMock("qrcode", () => ({
+      default: { toString: qrToString },
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "qr", "--type", "evm"], {
+      from: "node",
+    });
+
+    expect(qrToString).toHaveBeenCalledWith("0xlocal", { type: "terminal", small: true });
+    expect(log).toHaveBeenCalledWith("  QR line 1\n  QR line 2");
+    expect(log).toHaveBeenCalledWith("  0xlocal");
+    log.mockRestore();
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
@@ -527,6 +807,7 @@ describe("wallet command", () => {
       resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
       resolveAuthToken: vi.fn(),
       resolveWalletSession: () => null,
+      resolveActiveSigner: vi.fn(),
     }));
     vi.doMock("../../src/lib/interaction.js", () => ({
       isInteractiveAllowed: () => true,
@@ -579,6 +860,7 @@ describe("wallet command", () => {
     expect(printJSON).toHaveBeenCalledWith({
       type: "solana",
       address: "SoLaNaAdDrEsS123",
+      source: "local",
     });
     expect(exitWithError).not.toHaveBeenCalled();
   });

@@ -26,12 +26,22 @@ import {
 import { promptConfirm, promptSelect, promptText } from "../lib/terminal-ui.js";
 import QRCode from "qrcode";
 import { printHuman, isJSONMode, printJSON } from "../lib/output.js";
-import { CLIError, ErrorCode, errAuthRequired, errInvalidArgs, errWalletKeyRequired, exitWithError } from "../lib/errors.js";
+import {
+  CLIError,
+  ErrorCode,
+  errAuthRequired,
+  errInvalidArgs,
+  errNoActiveSession,
+  errSolanaWalletKeyRequired,
+  errWalletKeyRequired,
+  exitWithError,
+} from "../lib/errors.js";
 import { green, dim, printKeyValue } from "../lib/ui.js";
 import { createPendingSession, loadSession, clearSession, isSessionValid, updateSession } from "../lib/wallet-session.js";
 import * as walletSession from "../lib/wallet-session.js";
 
 type WalletType = "evm" | "solana";
+type WalletSource = "session" | "local";
 const CONNECT_POLL_INTERVAL_MS = 2_000;
 const CONNECT_TIMEOUT_MS = 5 * 60_000;
 const DEFAULT_WALLET_CAPABILITIES = {
@@ -355,6 +365,57 @@ async function resolveQrWalletType(
   }
 
   return "evm";
+}
+
+function resolveQrAddress(args: {
+  preferredSource: "session" | "local" | null;
+  sessionAddress: string | null;
+  localAddress: string | null;
+}): { address: string; source: WalletSource } | null {
+  if (args.preferredSource === "session") {
+    return args.sessionAddress
+      ? { address: args.sessionAddress, source: "session" }
+      : null;
+  }
+
+  if (args.preferredSource === "local") {
+    return args.localAddress
+      ? { address: args.localAddress, source: "local" }
+      : null;
+  }
+
+  if (args.sessionAddress) {
+    return { address: args.sessionAddress, source: "session" };
+  }
+
+  if (args.localAddress) {
+    return { address: args.localAddress, source: "local" };
+  }
+
+  return null;
+}
+
+function missingQrWalletError(type: WalletType, source: WalletSource | null): Error {
+  if (source === "session") {
+    return type === "solana"
+      ? errInvalidArgs(
+          "The session wallet does not yet support Solana QR selection. Use `alchemy wallet use local` or configure a local Solana wallet with `alchemy wallet connect --mode local --chain solana`.",
+        )
+      : errNoActiveSession();
+  }
+
+  if (source === "local") {
+    return type === "solana" ? errSolanaWalletKeyRequired() : errWalletKeyRequired();
+  }
+
+  return errInvalidArgs(`No ${type === "solana" ? "Solana" : "EVM"} wallet is configured.`);
+}
+
+function indentBlock(text: string, prefix = "  "): string {
+  return text
+    .split("\n")
+    .map((line) => line ? `${prefix}${line}` : line)
+    .join("\n");
 }
 
 export function generateAndPersistWallet(): { address: string; keyFile: string } {
@@ -1089,33 +1150,96 @@ export function registerWallets(program: Command) {
     .option("--solana", "Show Solana address instead of EVM")
     .action(async (opts: { type?: string; solana?: boolean }) => {
       try {
-        const evmKey = resolveWalletKey(program);
-        const solanaKey = resolveSolanaWalletKey(program);
-        if (!evmKey && !solanaKey) throw errWalletKeyRequired();
+        const cfg = config.load();
+        const session = resolveWalletSession();
+        const sessionEvm = session?.evmAddress ?? null;
+        const sessionSolana = session?.solanaAddress ?? null;
+        const needsAvailability = !opts.type && !opts.solana && isInteractiveAllowed(program);
+        const available = needsAvailability
+          ? {
+              evm: Boolean(sessionEvm || resolveWalletKey(program, cfg)),
+              solana: Boolean(sessionSolana || resolveSolanaWalletKey(program, cfg)),
+            }
+          : {
+              evm: Boolean(sessionEvm),
+              solana: Boolean(sessionSolana),
+            };
 
-        const type = await resolveQrWalletType(program, opts, {
-          evm: Boolean(evmKey),
-          solana: Boolean(solanaKey),
-        });
+        const type = await resolveQrWalletType(program, opts, available);
         if (type === null) return;
 
-        let address: string;
+        const explicitSigner = typeof resolveActiveSigner === "function"
+          ? resolveActiveSigner(program, cfg) ?? null
+          : null;
+        let missingSource: WalletSource | null = explicitSigner;
 
-        if (type === "solana") {
-          if (!solanaKey) throw errInvalidArgs("No Solana wallet is configured.");
-          address = await getSolanaWalletAddress(solanaKey);
-        } else {
-          if (!evmKey) throw errInvalidArgs("No EVM wallet is configured.");
-          address = getEvmWalletAddress(evmKey);
-        }
+        const resolved = type === "solana"
+          ? await (async () => {
+              if (explicitSigner === "session") {
+                return resolveQrAddress({
+                  preferredSource: "session",
+                  sessionAddress: sessionSolana,
+                  localAddress: null,
+                });
+              }
+
+              const solanaKey = explicitSigner === "local" || !sessionSolana
+                ? resolveSolanaWalletKey(program, cfg)
+                : undefined;
+              const localSolana = solanaKey ? await getSolanaWalletAddress(solanaKey) : null;
+              return resolveQrAddress({
+                preferredSource: explicitSigner,
+                sessionAddress: sessionSolana,
+                localAddress: localSolana,
+              });
+            })()
+          : (() => {
+              if (explicitSigner === "session") {
+                return resolveQrAddress({
+                  preferredSource: "session",
+                  sessionAddress: sessionEvm,
+                  localAddress: null,
+                });
+              }
+
+              if (explicitSigner === "local") {
+                const evmKey = resolveWalletKey(program, cfg);
+                const localEvm = evmKey ? getEvmWalletAddress(evmKey) : null;
+                return resolveQrAddress({
+                  preferredSource: "local",
+                  sessionAddress: null,
+                  localAddress: localEvm,
+                });
+              }
+
+              if (sessionEvm) {
+                missingSource = null;
+                return resolveQrAddress({
+                  preferredSource: null,
+                  sessionAddress: sessionEvm,
+                  localAddress: null,
+                });
+              }
+
+              const evmKey = resolveWalletKey(program, cfg);
+              const localEvm = evmKey ? getEvmWalletAddress(evmKey) : null;
+              missingSource = localEvm ? null : "local";
+              return resolveQrAddress({
+                preferredSource: null,
+                sessionAddress: null,
+                localAddress: localEvm,
+              });
+            })();
+
+        if (!resolved) throw missingQrWalletError(type, missingSource);
 
         if (isJSONMode()) {
-          printJSON({ type, address });
+          printJSON({ type, address: resolved.address, source: resolved.source });
         } else {
-          const qr = await QRCode.toString(address, { type: "terminal", small: true });
+          const qr = await QRCode.toString(resolved.address, { type: "terminal", small: true });
           console.log();
-          console.log(qr);
-          console.log(`  ${address}`);
+          console.log(indentBlock(qr));
+          console.log(`  ${resolved.address}`);
         }
       } catch (err) {
         exitWithError(err);
