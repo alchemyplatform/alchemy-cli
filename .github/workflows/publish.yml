@@ -37,6 +37,8 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+        env:
+          SKIP_SKILL_SYNC: "1"
       - run: pnpm run lint
       - run: pnpm run build
       - run: pnpm test

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "cli": {
+      "source": "OMGWINNING/internal-skills",
+      "sourceType": "github",
+      "skillPath": "engineering/agent-experience/skills/cli/SKILL.md",
+      "computedHash": "5cf0172d1d8fe0371caa0470ec582af701544f5a5c6d2c898ef4e20ec1558850"
+    },
+    "code-review": {
+      "source": "OMGWINNING/internal-skills",
+      "sourceType": "github",
+      "skillPath": "engineering/developer-experience/skills/code-review/SKILL.md",
+      "computedHash": "dcdae4df2656ac6336c639981b19b09dc0d086cea95eaae4179b2fdf1b31b11d"
+    },
+    "git": {
+      "source": "OMGWINNING/internal-skills",
+      "sourceType": "github",
+      "skillPath": "engineering/developer-experience/skills/git/SKILL.md",
+      "computedHash": "604479b5eaef777dcc5d680aa964aee8193185c12e43380c2995acc795904623"
+    },
+    "lsp-setup": {
+      "source": "OMGWINNING/internal-skills",
+      "sourceType": "github",
+      "skillPath": "engineering/developer-experience/skills/lsp-setup/SKILL.md",
+      "computedHash": "840fa5c9c0162d91dc3ffa9497df6852987222a6a3d73e03f5dfe4d130d0a276"
+    },
+    "typescript": {
+      "source": "OMGWINNING/internal-skills",
+      "sourceType": "github",
+      "skillPath": "engineering/developer-experience/skills/typescript/SKILL.md",
+      "computedHash": "1c9a59a23ad53e188571ff53c3308f2c6a9c2b2a2dacdd1cfbb352c448571d51"
+    },
+    "validation": {
+      "source": "OMGWINNING/internal-skills",
+      "sourceType": "github",
+      "skillPath": "engineering/developer-experience/skills/validation/SKILL.md",
+      "computedHash": "d0238f7f6855adc15b9e05ab363278c78a224b532a229c33d05a1c47a99b283f"
+    }
+  }
+}

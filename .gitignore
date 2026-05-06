@@ -30,6 +30,9 @@ coverage/
 plans/
 docs/
 
-# Agent artifacts
-.agents/
-skills-lock.json
+# Generated agent skills
+.agents/skills/
+.claude/skills
+.codex/skills
+.cursor/skills
+.continue/

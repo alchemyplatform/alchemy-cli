@@ -11,6 +11,8 @@
     "dev": "tsup --watch",
     "live:check": "node --env-file-if-exists=.env.local --import=tsx scripts/live-check.ts",
     "postinstall": "node ./scripts/postinstall.cjs",
+    "sync:skills": "node scripts/sync-skills.mjs",
+    "update:skills": "npx skills update && pnpm sync:skills",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "pnpm build && vitest run --config vitest.e2e.config.ts",
