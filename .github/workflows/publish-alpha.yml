@@ -59,4 +59,4 @@ jobs:
       - name: Build alpha package
         run: pnpm run build
       - name: Publish alpha to npm
-        run: pnpm changeset publish --tag alpha
+        run: pnpm changeset publish
