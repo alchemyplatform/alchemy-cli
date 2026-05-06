@@ -6,7 +6,7 @@ import type { App } from "../lib/admin-client.js";
 import { adminClientFromFlags } from "../lib/resolve.js";
 import { errNotFound, errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { printHuman, printJSON, isJSONMode } from "../lib/output.js";
-import { green, dim, yellow, withSpinner, printKeyValueBox, maskIf } from "../lib/ui.js";
+import { green, dim, yellow, withSpinner, printKeyValue, maskIf } from "../lib/ui.js";
 import {
   promptAutocomplete,
   promptConfirm,
@@ -509,7 +509,7 @@ export function registerConfig(program: Command) {
         ["solana-fee-policy-id", cfg.solana_fee_policy_id || dim("(not set)")],
       ];
 
-      printKeyValueBox(pairs);
+      printKeyValue(pairs);
 
       if (hasApiKeyMismatch) {
         console.log("");
@@ -583,7 +583,7 @@ export function registerConfig(program: Command) {
         return;
       }
 
-      printKeyValueBox([
+      printKeyValue([
         ["Complete", status.complete ? "yes" : "no"],
         ["Satisfied by", status.satisfiedBy ?? dim("(none)")],
       ]);

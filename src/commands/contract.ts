@@ -13,7 +13,7 @@ import { resolveAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, ErrorCode, exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
-import { withSpinner, printKeyValueBox, green, dim } from "../lib/ui.js";
+import { withSpinner, printKeyValue, green, dim, successBadge } from "../lib/ui.js";
 
 /**
  * Parse a human-readable function signature into a viem-compatible ABI.
@@ -385,7 +385,7 @@ export async function performContractRead(
 
     pairs.push(["Raw", dim(raw)]);
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }
 
@@ -466,8 +466,8 @@ export async function performContractCall(
       pairs.push(["Tx Hash", txHash]);
     }
 
-    pairs.push(["Status", green("Confirmed")]);
+    pairs.push(["Status", `${successBadge()} ${green("Confirmed")}`]);
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }

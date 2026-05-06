@@ -41,11 +41,17 @@ function toSafeErrorJSON(err: CLIError): Record<string, unknown> {
 
 function wrapWithPrefix(text: string, prefix: string, width: number): string[] {
   const safeWidth = Math.max(20, width - prefix.length);
+  const continuation = " ".repeat(prefix.length);
   const words = text.trim().split(/\s+/);
   if (words.length === 0 || (words.length === 1 && words[0] === "")) return [prefix];
 
   const lines: string[] = [];
   let current = "";
+
+  const flush = () => {
+    const linePrefix = lines.length === 0 ? prefix : continuation;
+    lines.push(`${linePrefix}${current}`);
+  };
 
   for (const word of words) {
     if (current.length === 0) {
@@ -55,13 +61,13 @@ function wrapWithPrefix(text: string, prefix: string, width: number): string[] {
     if (current.length + 1 + word.length <= safeWidth) {
       current += ` ${word}`;
     } else {
-      lines.push(`${prefix}${current}`);
+      flush();
       current = word;
     }
   }
 
   if (current.length > 0) {
-    lines.push(`${prefix}${current}`);
+    flush();
   }
 
   return lines;

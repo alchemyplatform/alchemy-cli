@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { isJSONMode, printJSON } from "../lib/output.js";
-import { dim, printKeyValueBox } from "../lib/ui.js";
+import { dim, printKeyValue } from "../lib/ui.js";
 import { getUpdateStatus } from "../lib/update-check.js";
 
 function formatCheckedAt(checkedAt: number | null): string {
@@ -19,7 +19,7 @@ export function registerUpdateCheck(program: Command) {
         return;
       }
 
-      printKeyValueBox([
+      printKeyValue([
         ["Current version", status.currentVersion],
         ["Latest version", status.latestVersion ?? dim("(unknown)")],
         ["Update available", status.updateAvailable ? "yes" : "no"],

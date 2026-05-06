@@ -31,6 +31,7 @@ describe("solana program command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       printTable: vi.fn(),
       green: (s: string) => s,
@@ -92,6 +93,7 @@ describe("solana program command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       printTable: vi.fn(),
       green: (s: string) => s,
@@ -134,6 +136,7 @@ describe("solana program command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       printTable: vi.fn(),
       green: (s: string) => s,
@@ -171,6 +174,7 @@ describe("solana program command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       printTable: vi.fn(),
       green: (s: string) => s,

@@ -27,7 +27,7 @@ import { promptConfirm, promptSelect, promptText } from "../lib/terminal-ui.js";
 import QRCode from "qrcode";
 import { printHuman, isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, ErrorCode, errAuthRequired, errInvalidArgs, errWalletKeyRequired, exitWithError } from "../lib/errors.js";
-import { green, dim, printKeyValueBox } from "../lib/ui.js";
+import { green, dim, printKeyValue } from "../lib/ui.js";
 import { createPendingSession, loadSession, clearSession, isSessionValid, updateSession } from "../lib/wallet-session.js";
 import * as walletSession from "../lib/wallet-session.js";
 
@@ -603,7 +603,7 @@ async function runSessionConnect(opts: { program: Command; force: boolean }): Pr
   });
 
   if (!isJSONMode()) {
-    printKeyValueBox([
+    printKeyValue([
       ["Session ID", remoteSession.sessionId],
       ["Status", "pending"],
       ["Approval URL", remoteSession.approvalUrl],
@@ -709,7 +709,7 @@ async function runSessionConnect(opts: { program: Command; force: boolean }): Pr
       expiresAt: approvedSession.expiresAt ?? remoteSession.expiresAt ?? session.expiresAt,
     });
   } else {
-    printKeyValueBox([
+    printKeyValue([
       ["Session ID", approvedSession.sessionId ?? remoteSession.sessionId],
       ["Status", green("approved")],
       ["Wallet ID", walletId],
@@ -736,7 +736,7 @@ function printPostLocalCreateSummary(
     pairs.push(["Solana Address", green(result.solana.address)]);
     pairs.push(["Solana Key file", result.solana.keyFile]);
   }
-  printKeyValueBox(pairs);
+  printKeyValue(pairs);
   console.log(`  ${green("✓")} Local wallet configured`);
 }
 
@@ -745,7 +745,7 @@ function printPostLocalImportSummary(result: { evm: { address: string; keyFile: 
     printJSON({ mode: "local", evm: result.evm });
     return;
   }
-  printKeyValueBox([
+  printKeyValue([
     ["Address", green(result.evm.address)],
     ["Key file", result.evm.keyFile],
   ]);
@@ -1013,7 +1013,7 @@ export function registerWallets(program: Command) {
           pairs.push(["Backend Status", snap.remoteStatus ?? dim("not checked")]);
         }
 
-        printKeyValueBox(pairs);
+        printKeyValue(pairs);
 
         if (activeSigner === null) {
           console.log(
@@ -1075,7 +1075,7 @@ export function registerWallets(program: Command) {
           if (localState.evmAddress) pairs.push(["Local EVM", localState.evmAddress]);
           if (localSolanaAddress) pairs.push(["Local Solana", localSolanaAddress]);
           if (activeSigner) pairs.push(["Active Signer", green(activeSigner)]);
-          printKeyValueBox(pairs);
+          printKeyValue(pairs);
         }
       } catch (err) {
         exitWithError(err);
@@ -1147,7 +1147,7 @@ export function registerWallets(program: Command) {
         if (isJSONMode()) {
           printJSON({ activeSigner: target });
         } else {
-          printKeyValueBox([["Active Signer", green(target)]]);
+          printKeyValue([["Active Signer", green(target)]]);
           console.log(`  ${green("✓")} Active signer set to ${target}`);
         }
       } catch (err) {

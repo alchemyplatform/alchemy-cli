@@ -29,6 +29,7 @@ describe("onboarding flow", () => {
       dim: (s: string) => s,
       green: (s: string) => s,
       maskIf: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
 
@@ -68,6 +69,7 @@ describe("onboarding flow", () => {
       dim: (s: string) => s,
       green: (s: string) => s,
       maskIf: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
 
@@ -99,6 +101,7 @@ describe("onboarding flow", () => {
       dim: (s: string) => s,
       green: (s: string) => s,
       maskIf: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
 
@@ -135,6 +138,7 @@ describe("onboarding flow", () => {
       dim: (s: string) => s,
       green: (s: string) => s,
       maskIf: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
 

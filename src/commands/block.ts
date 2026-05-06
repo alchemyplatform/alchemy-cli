@@ -12,7 +12,7 @@ import {
   bold,
   dim,
   withSpinner,
-  printKeyValueBox,
+  printKeyValue,
   printSyntaxJSON,
 } from "../lib/ui.js";
 
@@ -90,7 +90,7 @@ Examples:
           }
         }
 
-        printKeyValueBox(pairs);
+        printKeyValue(pairs);
 
         if (verbose) {
           console.log("");

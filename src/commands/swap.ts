@@ -11,7 +11,7 @@ import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
-import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
+import { withSpinner, printKeyValue, green, successBadge } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { networkToChain } from "../lib/chains.js";
 import { resolveNetwork } from "../lib/resolve.js";
@@ -265,7 +265,7 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
       ["Network", network],
     );
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }
 
@@ -358,9 +358,9 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
       pairs.push(["Tx Hash", txHash]);
     }
 
-    pairs.push(["Status", confirmed ? green("Confirmed") : `Pending (${status.status})`]);
+    pairs.push(["Status", confirmed ? `${successBadge()} ${green("Confirmed")}` : `Pending (${status.status})`]);
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }
 

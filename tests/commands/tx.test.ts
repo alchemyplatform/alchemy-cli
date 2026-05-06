@@ -43,6 +43,7 @@ describe("tx command", () => {
         fn: () => Promise<unknown>,
       ) => fn(),
       etherscanTxURL: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
@@ -85,7 +86,6 @@ describe("tx command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
-      successBadge: () => "\u2713",
       failBadge: () => "\u2717",
       withSpinner: async (
         _start: string,
@@ -94,6 +94,7 @@ describe("tx command", () => {
       ) => fn(),
       weiToEth: (wei: bigint) => wei.toString(),
       etherscanTxURL: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));

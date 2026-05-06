@@ -20,7 +20,7 @@ import {
 } from "../lib/errors.js";
 import { promptConfirm } from "../lib/terminal-ui.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
-import { withSpinner, printKeyValueBox, green, dim } from "../lib/ui.js";
+import { withSpinner, printKeyValue, green, dim, successBadge } from "../lib/ui.js";
 import {
   parseAmount,
   fetchTokenDecimals,
@@ -357,8 +357,8 @@ async function performApprove(
       pairs.push(["Tx Hash", txHash]);
     }
 
-    pairs.push(["Status", green("Confirmed")]);
+    pairs.push(["Status", `${successBadge()} ${green("Confirmed")}`]);
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }

@@ -7,7 +7,7 @@ import {
   green,
   withSpinner,
   etherscanTxURL,
-  printKeyValueBox,
+  printKeyValue,
 } from "../lib/ui.js";
 import { formatHexWithRaw, formatWeiWithRaw, formatGweiWithRaw } from "../lib/block-format.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
@@ -74,7 +74,7 @@ Tip: use 'alchemy evm receipt <hash>' to get the transaction receipt (status, ga
           pairs.push(["Explorer", explorerURL]);
         }
 
-        printKeyValueBox(pairs);
+        printKeyValue(pairs);
 
         if (verbose) {
           console.log("");

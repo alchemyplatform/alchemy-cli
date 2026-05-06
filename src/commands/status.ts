@@ -16,7 +16,7 @@ import { exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { formatWithCommas } from "../lib/block-format.js";
 import {
   withSpinner,
-  printKeyValueBox,
+  printKeyValue,
   green,
   red,
   dim,
@@ -356,7 +356,7 @@ function printStatus(
       pairs.push(["Error", dim(formatError(result.error))]);
     }
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
     return;
   }
 
@@ -384,7 +384,7 @@ function printStatus(
       pairs.push(["Explorer", explorerURL]);
     }
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
     return;
   }
 
@@ -412,7 +412,7 @@ function printStatus(
     pairs.push(["Explorer", explorerURL]);
   }
 
-  printKeyValueBox(pairs);
+  printKeyValue(pairs);
 }
 
 function formatHumanStatus(

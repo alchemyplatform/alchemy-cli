@@ -68,6 +68,14 @@ export function printKeyValue(
   withBottomPadding = true,
 ): void {
   if (isJSONMode()) return;
+  console.log("");
+  if (pairs.length === 0) {
+    if (withBottomPadding) {
+      console.log("");
+    }
+    return;
+  }
+
   const maxLen = Math.max(...pairs.map(([k]) => stripAnsi(k).length));
   for (const [key, value] of pairs) {
     const visibleKeyLen = stripAnsi(key).length;
@@ -77,35 +85,6 @@ export function printKeyValue(
   if (withBottomPadding) {
     console.log("");
   }
-}
-
-export function printKeyValueBox(
-  pairs: Array<[string, string]>,
-): void {
-  if (isJSONMode()) return;
-  if (pairs.length === 0) {
-    console.log(`  ${ansi.brand("┌──┐")}`);
-    console.log(`  ${ansi.brand("└──┘")}`);
-    return;
-  }
-
-  const keyWidth = Math.max(...pairs.map(([k]) => stripAnsi(k).length));
-  const contentRows = pairs.map(([key, value]) => {
-    const visibleKeyLen = stripAnsi(key).length;
-    const paddedKey = key + " ".repeat(Math.max(0, keyWidth - visibleKeyLen));
-    return `${ansi.dim(paddedKey)}  ${value}`;
-  });
-  const contentWidth = Math.max(...contentRows.map((row) => stripAnsi(row).length));
-
-  const top = `┌${"─".repeat(contentWidth + 2)}┐`;
-  const bottom = `└${"─".repeat(contentWidth + 2)}┘`;
-  console.log(`  ${ansi.dim(top)}`);
-  for (const row of contentRows) {
-    const visibleLen = stripAnsi(row).length;
-    const padded = row + " ".repeat(Math.max(0, contentWidth - visibleLen));
-    console.log(`  ${ansi.dim("│")} ${padded} ${ansi.dim("│")}`);
-  }
-  console.log(`  ${ansi.dim(bottom)}`);
 }
 
 export function emptyState(message: string): void {

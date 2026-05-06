@@ -4,7 +4,7 @@ import { CLIError, ErrorCode, errInvalidArgs, exitWithError } from "../lib/error
 import { parseOptionalInt, parseRequiredJSON } from "../lib/params.js";
 import { validateSolanaAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
-import { dim, green, printKeyValueBox, printTable, withSpinner } from "../lib/ui.js";
+import { dim, green, printKeyValue, printTable, withSpinner } from "../lib/ui.js";
 
 interface SolanaRpcAccount {
   lamports?: number;
@@ -153,7 +153,7 @@ export async function performSolanaProgramAccounts(
   }
 
   if (displayedAccounts.length === 0) {
-    printKeyValueBox([
+    printKeyValue([
       ["Program", programId],
       ["Network", network],
       ["Accounts", dim("none")],
@@ -198,7 +198,7 @@ export async function performSolanaProgramAccount(
   }
 
   if (result.value === null) {
-    printKeyValueBox([
+    printKeyValue([
       ["Address", accountAddress],
       ["Network", network],
       ["Status", dim("not found")],
@@ -238,7 +238,7 @@ export async function performSolanaProgramShow(
   }
 
   if (result.value === null) {
-    printKeyValueBox([
+    printKeyValue([
       ["Program", programId],
       ["Network", network],
       ["Status", dim("not found")],
@@ -260,7 +260,7 @@ function printAccountSummary(args: {
   network: string;
   account: SolanaRpcAccount;
 }): void {
-  printKeyValueBox([
+  printKeyValue([
     [args.label, args.address],
     ["Owner", args.account.owner ?? dim("unknown")],
     ["Lamports", args.account.lamports?.toString() ?? dim("unknown")],

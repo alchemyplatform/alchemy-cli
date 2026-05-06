@@ -9,7 +9,7 @@ import { errInvalidArgs, errSolanaWalletKeyRequired, exitWithError } from "../li
 import { addSignerOption, parseOptionalInt, parseSignerOpt } from "../lib/params.js";
 import { validateSolanaAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
-import { green, printKeyValueBox, withSpinner } from "../lib/ui.js";
+import { green, printKeyValue, successBadge, withSpinner } from "../lib/ui.js";
 import { formatTokenAmount, parseAmount } from "../lib/token-amounts.js";
 import {
   buildAndSendSolanaTransaction,
@@ -195,8 +195,8 @@ export async function performSolanaDelegateApprove(
   }
 
   pairs.push(["Signature", result.signature]);
-  pairs.push(["Status", confirmed ? green("Confirmed") : "Pending"]);
-  printKeyValueBox(pairs);
+  pairs.push(["Status", confirmed ? `${successBadge()} ${green("Confirmed")}` : "Pending"]);
+  printKeyValue(pairs);
 }
 
 export async function performSolanaDelegateRevoke(
@@ -257,6 +257,6 @@ export async function performSolanaDelegateRevoke(
   }
 
   pairs.push(["Signature", result.signature]);
-  pairs.push(["Status", confirmed ? green("Confirmed") : "Pending"]);
-  printKeyValueBox(pairs);
+  pairs.push(["Status", confirmed ? `${successBadge()} ${green("Confirmed")}` : "Pending"]);
+  printKeyValue(pairs);
 }

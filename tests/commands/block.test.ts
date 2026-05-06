@@ -51,6 +51,7 @@ describe("block command", () => {
       bold: (s: string) => s,
       dim: (s: string) => s,
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       printSyntaxJSON: vi.fn(),
     }));
@@ -83,6 +84,7 @@ describe("block command", () => {
       bold: (s: string) => s,
       dim: (s: string) => s,
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       printSyntaxJSON: vi.fn(),
     }));
@@ -123,6 +125,7 @@ describe("block command", () => {
         _end: string,
         fn: () => Promise<unknown>,
       ) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       printSyntaxJSON: vi.fn(),
     }));

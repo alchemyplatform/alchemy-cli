@@ -11,7 +11,7 @@ import {
   failBadge,
   withSpinner,
   etherscanTxURL,
-  printKeyValueBox,
+  printKeyValue,
 } from "../lib/ui.js";
 import { formatHexQuantity, formatGwei } from "../lib/block-format.js";
 
@@ -90,7 +90,7 @@ Tip: use 'alchemy evm tx <hash>' for transaction details (value, block, nonce). 
           pairs.push(["Explorer", explorerURL]);
         }
 
-        printKeyValueBox(pairs);
+        printKeyValue(pairs);
       } catch (err) {
         exitWithError(err);
       }

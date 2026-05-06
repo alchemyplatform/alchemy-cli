@@ -143,8 +143,10 @@ describe("performEvmSend", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("viem", () => ({
       encodeFunctionData: vi.fn(),
@@ -209,8 +211,10 @@ describe("performEvmSend", () => {
     const printKeyValueBox = vi.fn();
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: printKeyValueBox,
       printKeyValueBox,
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("viem", () => ({
       encodeFunctionData,
@@ -267,8 +271,10 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),
@@ -339,8 +345,10 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),
@@ -409,8 +417,10 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: vi.fn(),
@@ -455,8 +465,10 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: vi.fn(),
@@ -502,8 +514,10 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: vi.fn(),
@@ -551,8 +565,10 @@ describe("performSolanaSend", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),

@@ -50,8 +50,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -125,8 +127,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: printKeyValueBox,
       printKeyValueBox,
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -206,8 +210,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -284,8 +290,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -433,8 +441,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -485,8 +495,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -550,8 +562,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -603,8 +617,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -650,8 +666,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress,
@@ -702,8 +720,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -752,8 +772,10 @@ describe("bridge command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),

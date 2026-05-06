@@ -43,8 +43,10 @@ describe("solana delegate command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: () => KEY_BYTES,
@@ -129,8 +131,10 @@ describe("solana delegate command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: () => KEY_BYTES,
@@ -190,8 +194,10 @@ describe("solana delegate command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
       parseSolanaKeyBytes: vi.fn(),

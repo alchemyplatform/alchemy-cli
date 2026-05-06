@@ -13,7 +13,7 @@ import {
   errSolanaWalletKeyRequired,
   exitWithError,
 } from "../lib/errors.js";
-import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
+import { withSpinner, printKeyValue, green, successBadge } from "../lib/ui.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import {
   parseSolanaKeyBytes,
@@ -131,8 +131,8 @@ export async function performSolanaSend(
     }
 
     pairs.push(["Signature", result.signature]);
-    pairs.push(["Status", confirmed ? green("Confirmed") : "Pending"]);
+    pairs.push(["Status", confirmed ? `${successBadge()} ${green("Confirmed")}` : "Pending"]);
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }

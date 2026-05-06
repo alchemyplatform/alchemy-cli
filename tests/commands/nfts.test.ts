@@ -108,6 +108,7 @@ describe("nfts command", () => {
       ) => fn(),
       dim: (s: string) => s,
       printTable: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       emptyState,
     }));

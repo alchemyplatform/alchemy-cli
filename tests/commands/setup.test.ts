@@ -23,6 +23,7 @@ describe("config status command", () => {
       printHuman: vi.fn(),
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       dim: (s: string) => s,
       green: (s: string) => s,

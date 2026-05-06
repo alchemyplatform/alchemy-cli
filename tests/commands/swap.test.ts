@@ -54,8 +54,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -159,8 +161,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -258,8 +262,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: printKeyValueBox,
       printKeyValueBox,
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -280,7 +286,7 @@ describe("swap command", () => {
     expect(printKeyValueBox).toHaveBeenCalledWith(expect.arrayContaining([
       ["Call ID", "call-123"],
       ["Tx Hash", "0xtxhash"],
-      ["Status", "Confirmed"],
+      ["Status", "✓ Confirmed"],
     ]));
   });
 
@@ -405,8 +411,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       validateAddress: vi.fn(),
@@ -453,8 +461,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -503,8 +513,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -552,8 +564,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -624,8 +638,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -704,8 +720,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -770,8 +788,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: printKeyValueBox,
       printKeyValueBox,
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -820,8 +840,10 @@ describe("swap command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       withSpinner: vi.fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
+      successBadge: () => "✓",
       dim: (s: string) => s,
     }));
     vi.doMock("../../src/lib/validators.js", () => ({

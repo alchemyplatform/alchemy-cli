@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { errInvalidArgs, exitWithError } from "../lib/errors.js";
-import { green, withSpinner, weiToEth, printKeyValueBox } from "../lib/ui.js";
+import { green, withSpinner, weiToEth, printKeyValue } from "../lib/ui.js";
 import { resolveAddress, readStdinLines } from "../lib/validators.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 
@@ -31,7 +31,7 @@ async function fetchBalance(
       network,
     });
   } else {
-    printKeyValueBox([
+    printKeyValue([
       ["Address", address],
       ["Balance", green(`${weiToEth(wei)} ${symbol}`)],
       ["Network", network],

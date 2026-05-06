@@ -29,6 +29,7 @@ describe("gas command", () => {
         _end: string,
         fn: () => Promise<unknown>,
       ) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/block-format.js", () => ({
@@ -80,6 +81,7 @@ describe("gas command", () => {
         _end: string,
         fn: () => Promise<unknown>,
       ) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/block-format.js", async () => (await vi.importActual("../../src/lib/block-format.js")));
@@ -123,6 +125,7 @@ describe("gas command", () => {
         _end: string,
         fn: () => Promise<unknown>,
       ) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/block-format.js", () => ({
@@ -168,6 +171,7 @@ describe("gas command", () => {
         _end: string,
         fn: () => Promise<unknown>,
       ) => fn(),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/block-format.js", () => ({

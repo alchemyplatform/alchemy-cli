@@ -32,6 +32,7 @@ describe("balance command", () => {
         fn: () => Promise<unknown>,
       ) => fn(),
       weiToEth: () => "0.000000000000000016",
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
     }));
@@ -91,6 +92,7 @@ describe("balance command", () => {
         fn: () => Promise<unknown>,
       ) => fn(),
       weiToEth: (wei: bigint) => (Number(wei) / 1e18).toFixed(18),
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
     }));
@@ -136,6 +138,7 @@ describe("balance command", () => {
         fn: () => Promise<unknown>,
       ) => fn(),
       weiToEth: () => "0",
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
       green: (s: string) => s,
     }));

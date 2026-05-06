@@ -36,6 +36,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -133,6 +134,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -219,6 +221,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -273,6 +276,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -336,6 +340,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -397,6 +402,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -464,6 +470,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -537,6 +544,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -614,6 +622,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/auth.js", () => ({
@@ -735,6 +744,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/auth.js", () => ({
@@ -822,6 +832,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/auth.js", () => ({
@@ -914,6 +925,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/auth.js", () => ({
@@ -994,6 +1006,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/terminal-ui.js", () => ({
@@ -1060,6 +1073,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/auth.js", () => ({
@@ -1127,6 +1141,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1222,6 +1237,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1295,6 +1311,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1361,6 +1378,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1438,6 +1456,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1515,6 +1534,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1588,6 +1608,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1656,6 +1677,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1725,6 +1747,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
@@ -1802,6 +1825,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("viem/accounts", () => ({
@@ -1874,6 +1898,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({
@@ -1924,6 +1949,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({
@@ -1974,6 +2000,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/errors.js", async () => ({
@@ -2019,6 +2046,7 @@ describe("wallet command", () => {
     vi.doMock("../../src/lib/ui.js", () => ({
       green: (s: string) => s,
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({

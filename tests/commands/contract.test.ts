@@ -35,8 +35,10 @@ function mockUI() {
   const printKeyValueBox = vi.fn();
   vi.doMock("../../src/lib/ui.js", () => ({
     withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+    printKeyValue: printKeyValueBox,
     printKeyValueBox,
     green: (value: string) => value,
+    successBadge: () => "✓",
     dim: (value: string) => value,
   }));
   return { printKeyValueBox };
@@ -262,7 +264,7 @@ describe("registerContract", () => {
       ["Call ID", "call-123"],
       ["Gas", "Sponsored"],
       ["Tx Hash", "0xtxhash"],
-      ["Status", "Confirmed"],
+      ["Status", "✓ Confirmed"],
     ]));
   });
 });

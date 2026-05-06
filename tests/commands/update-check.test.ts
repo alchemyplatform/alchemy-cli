@@ -15,6 +15,7 @@ describe("update-check command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       dim: (s: string) => s,
+      printKeyValue: vi.fn(),
       printKeyValueBox: vi.fn(),
     }));
     vi.doMock("../../src/lib/update-check.js", () => ({
@@ -52,6 +53,7 @@ describe("update-check command", () => {
     }));
     vi.doMock("../../src/lib/ui.js", () => ({
       dim: (s: string) => s,
+      printKeyValue: printKeyValueBox,
       printKeyValueBox,
     }));
     vi.doMock("../../src/lib/update-check.js", () => ({

@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
-import { dim, withSpinner, printTable, emptyState, printKeyValueBox, printSyntaxJSON } from "../lib/ui.js";
+import { dim, withSpinner, emptyState, printKeyValue, printSyntaxJSON } from "../lib/ui.js";
 import { validateAddress, resolveAddress, readStdinArg } from "../lib/validators.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { promptSelect } from "../lib/terminal-ui.js";
@@ -49,16 +49,12 @@ function filterNonZero(balances: TokenResponse["tokenBalances"]) {
   );
 }
 
-function formatTokenRows(balances: TokenResponse["tokenBalances"]): string[][] {
-  return filterNonZero(balances).map((tb) => {
-    let decimalBalance = dim("unparseable");
-    try {
-      decimalBalance = BigInt(tb.tokenBalance).toString();
-    } catch {
-      // Keep fallback when provider returns unexpected non-hex content.
-    }
-    return [tb.contractAddress, decimalBalance, tb.tokenBalance];
-  });
+function formatBaseUnits(rawBalance: string): string {
+  try {
+    return BigInt(rawBalance).toString();
+  } catch {
+    return dim("unparseable");
+  }
 }
 
 function formatWithDecimals(rawBalance: string, decimals: number | null): string {
@@ -100,16 +96,53 @@ async function resolveMetadata(
   return new Map(results);
 }
 
-function formatResolvedRows(
+function printIndentedPairs(pairs: Array<[string, string]>): void {
+  const maxLen = Math.max(...pairs.map(([key]) => key.length));
+  for (const [key, value] of pairs) {
+    const paddedKey = key + " ".repeat(Math.max(0, maxLen - key.length));
+    console.log(`  ${dim(paddedKey)}  ${value}`);
+  }
+}
+
+function printTokenBalanceList(
   balances: TokenResponse["tokenBalances"],
-  metadata: Map<string, TokenMetadata>,
-): string[][] {
-  return filterNonZero(balances).map((tb) => {
-    const meta = metadata.get(tb.contractAddress);
-    const symbol = meta?.symbol ?? "???";
-    const formatted = formatWithDecimals(tb.tokenBalance, meta?.decimals ?? null);
-    return [tb.contractAddress, symbol, `${formatted} ${symbol}`];
-  });
+  metadata: Map<string, TokenMetadata> | null,
+  startIndex = 0,
+): void {
+  const nonZero = filterNonZero(balances);
+
+  for (let index = 0; index < nonZero.length; index += 1) {
+    const tokenBalance = nonZero[index];
+    const meta = metadata?.get(tokenBalance.contractAddress);
+    const displayIndex = startIndex + index + 1;
+    const fallbackTitle = `Token ${displayIndex}`;
+    const trimmedSymbol = meta?.symbol?.trim();
+    const title = metadata ? trimmedSymbol || fallbackTitle : fallbackTitle;
+
+    if (index > 0) {
+      console.log("");
+    }
+
+    console.log(`  ${dim(title)}`);
+
+    if (metadata) {
+      const formatted = formatWithDecimals(
+        tokenBalance.tokenBalance,
+        meta?.decimals ?? null,
+      );
+      printIndentedPairs([
+        ["Contract", tokenBalance.contractAddress],
+        ["Balance", trimmedSymbol ? `${formatted} ${trimmedSymbol}` : formatted],
+      ]);
+      continue;
+    }
+
+    printIndentedPairs([
+      ["Contract", tokenBalance.contractAddress],
+      ["Balance", formatBaseUnits(tokenBalance.tokenBalance)],
+      ["Raw", tokenBalance.tokenBalance],
+    ]);
+  }
 }
 
 function formatResolvedJSON(
@@ -202,19 +235,13 @@ Examples:
 
         let totalShown = nonZero.length;
 
-        printKeyValueBox([
+        printKeyValue([
           ["Address", address],
           ["Network", client.network],
           ["Tokens", String(totalShown)],
         ]);
 
-        if (metadata) {
-          const rows = formatResolvedRows(result.tokenBalances, metadata);
-          printTable(["Contract", "Symbol", "Balance"], rows);
-        } else {
-          const rows = formatTokenRows(result.tokenBalances);
-          printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
-        }
+        printTokenBalanceList(result.tokenBalances, metadata);
 
         console.log(`\n  ${dim(`${totalShown} tokens (zero balances hidden).`)}`);
         if (!metadata) {
@@ -255,11 +282,9 @@ Examples:
                 "Metadata resolved",
                 () => resolveMetadata(client, nextResult.tokenBalances),
               );
-              const rows = formatResolvedRows(nextResult.tokenBalances, nextMeta);
-              printTable(["Contract", "Symbol", "Balance"], rows);
+              printTokenBalanceList(nextResult.tokenBalances, nextMeta, totalShown - nextNonZero.length);
             } else {
-              const rows = formatTokenRows(nextResult.tokenBalances);
-              printTable(["Contract", "Balance (base units)", "Raw (hex)"], rows);
+              printTokenBalanceList(nextResult.tokenBalances, null, totalShown - nextNonZero.length);
             }
           }
           console.log(`\n  ${dim(`${totalShown} tokens total (zero balances hidden).`)}`);

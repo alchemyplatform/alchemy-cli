@@ -11,7 +11,7 @@ import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
-import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
+import { withSpinner, printKeyValue, green, successBadge } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { networkToChain } from "../lib/chains.js";
 import {
@@ -298,7 +298,7 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
       ["To Network", opts.toNetwork],
     );
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }
 
@@ -393,8 +393,8 @@ async function performBridgeExecute(program: Command, opts: BridgeOpts) {
       pairs.push(["Tx Hash", txHash]);
     }
 
-    pairs.push(["Status", confirmed ? green("Confirmed") : `Pending (${status.status})`]);
+    pairs.push(["Status", confirmed ? `${successBadge()} ${green("Confirmed")}` : `Pending (${status.status})`]);
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }

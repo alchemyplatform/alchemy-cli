@@ -28,6 +28,7 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
 
   vi.doMock("../../src/lib/ui.js", () => ({
     green: (s: string) => s,
+    successBadge: () => "✓",
     dim: (s: string) => s,
     yellow: (s: string) => s,
     maskIf: (s: string) => s,
@@ -38,6 +39,7 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
     ) => fn(),
     printSyntaxJSON,
     printTable,
+    printKeyValue: printKeyValueBox,
     printKeyValueBox,
     emptyState,
   }));
@@ -65,6 +67,7 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
     printHuman,
     printSyntaxJSON,
     printTable,
+    printKeyValue: printKeyValueBox,
     printKeyValueBox,
     emptyState,
     exitWithError,

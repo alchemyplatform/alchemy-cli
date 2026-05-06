@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { isJSONMode, printJSON, verbose } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
-import { withSpinner, printKeyValueBox } from "../lib/ui.js";
+import { withSpinner, printKeyValue } from "../lib/ui.js";
 import { formatGwei, formatGweiWithRaw } from "../lib/block-format.js";
 
 export function registerGas(program: Command) {
@@ -68,7 +68,7 @@ Examples:
 
           pairs.push(["Network", network]);
 
-          printKeyValueBox(pairs);
+          printKeyValue(pairs);
 
           if (verbose) {
             console.log("");

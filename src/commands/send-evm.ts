@@ -5,7 +5,7 @@ import { clientFromFlags } from "../lib/resolve.js";
 import { resolveAddress, validateAddress } from "../lib/validators.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
-import { withSpinner, printKeyValueBox, green } from "../lib/ui.js";
+import { withSpinner, printKeyValue, green, successBadge } from "../lib/ui.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { fetchTokenDecimals, parseAmount } from "../lib/token-amounts.js";
 
@@ -133,8 +133,8 @@ export async function performEvmSend(
       pairs.push(["Tx Hash", txHash]);
     }
 
-    pairs.push(["Status", confirmed ? green("Confirmed") : `Pending (${status.status})`]);
+    pairs.push(["Status", confirmed ? `${successBadge()} ${green("Confirmed")}` : `Pending (${status.status})`]);
 
-    printKeyValueBox(pairs);
+    printKeyValue(pairs);
   }
 }

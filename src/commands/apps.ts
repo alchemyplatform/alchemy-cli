@@ -10,7 +10,7 @@ import {
   dim,
   withSpinner,
   printTable,
-  printKeyValueBox,
+  printKeyValue,
   emptyState,
   maskIf,
 } from "../lib/ui.js";
@@ -250,7 +250,7 @@ export function registerApps(program: Command) {
         }
 
         const networks = app.chainNetworks.map((n) => n.name).join(", ");
-        printKeyValueBox([
+        printKeyValue([
           ["ID", app.id],
           ["Name", app.name],
           ...(app.description ? [["Description", app.description] as [string, string]] : []),
@@ -304,7 +304,7 @@ export function registerApps(program: Command) {
           return;
         }
 
-        printKeyValueBox([
+        printKeyValue([
           ["ID", app.id],
           ["Name", app.name],
           ["API Key", maskIf(app.apiKey)],
