@@ -30,6 +30,8 @@ jobs:
   alpha:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug key format
+        run: echo "${{ secrets.APP_PRIVATE_KEY }}" | wc -l
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@v2
