@@ -1,13 +1,12 @@
 import { Command } from "commander";
 import type { Address } from "viem";
+import {
+  swapActions,
+  type RequestQuoteV0Params,
+  type RequestQuoteV0Result,
+} from "@alchemy/wallet-apis/experimental";
 import { buildWalletClient } from "../lib/smart-wallet.js";
 import type { PaymasterConfig } from "../lib/smart-wallet.js";
-import {
-  requestBridgeQuote,
-  type WalletApiBridgeCall,
-  type WalletApiBridgeQuote,
-  type WalletApiBridgeQuoteRequest,
-} from "../lib/wallet-api-experimental.js";
 import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
@@ -61,27 +60,13 @@ interface BridgeOpts {
   signer?: string;
 }
 
-interface BridgeWalletClient {
-  prepareCalls(params: Record<string, unknown>): Promise<WalletApiBridgeQuote>;
-  sendCalls(params: {
-    calls: WalletApiBridgeCall[];
-    capabilities?: { paymaster: PaymasterConfig };
-  }): Promise<{ id: string }>;
-  sendPreparedCalls(params: unknown): Promise<{ id: string }>;
-  signPreparedCalls(params: WalletApiBridgeQuote): Promise<unknown>;
-  signSignatureRequest(params: unknown): Promise<unknown>;
-  waitForCallsStatus(params: { id: string }): Promise<{
-    status?: string;
-    receipts?: Array<{ transactionHash?: string }>;
-  }>;
-}
-
-interface BridgeWalletContext {
-  client: BridgeWalletClient;
-  network: string;
-  address: Address;
-  paymaster: PaymasterConfig | undefined;
-}
+type WalletClient = ReturnType<typeof buildWalletClient>["client"];
+type PaymasterPermitQuote = Extract<RequestQuoteV0Result, { type: "paymaster-permit" }>;
+type RawCallsQuote = Extract<RequestQuoteV0Result, { rawCalls: true }>;
+type ExecutablePreparedQuote = Parameters<WalletClient["signPreparedCalls"]>[0];
+type PreparedCallsRequest = Parameters<WalletClient["prepareCalls"]>[0];
+type SignatureRequest = Parameters<WalletClient["signSignatureRequest"]>[0];
+type ExecutableQuote = ExecutablePreparedQuote | RawCallsQuote;
 
 function createBridgeQuoteRequest(
   fromToken: string,
@@ -90,7 +75,7 @@ function createBridgeQuoteRequest(
   toChainId: number,
   slippagePercent: number | undefined,
   paymaster?: PaymasterConfig,
-): WalletApiBridgeQuoteRequest {
+): RequestQuoteV0Params {
   const request = {
     fromToken: fromToken as Address,
     toToken: toToken as Address,
@@ -100,7 +85,7 @@ function createBridgeQuoteRequest(
       ? { slippage: slippagePercentToBasisPoints(slippagePercent) }
       : {}),
     ...(paymaster ? { capabilities: { paymaster } } : {}),
-  } satisfies WalletApiBridgeQuoteRequest;
+  } satisfies RequestQuoteV0Params;
 
   return request;
 }
@@ -141,65 +126,47 @@ function bridgeDestinationChainId(toNetwork: string): number {
 }
 
 async function prepareQuoteForExecution(
-  client: BridgeWalletClient,
-  quote: WalletApiBridgeQuote,
-): Promise<WalletApiBridgeQuote> {
+  client: WalletClient,
+  quote: RequestQuoteV0Result,
+): Promise<ExecutableQuote> {
   if (!("type" in quote) || quote.type !== "paymaster-permit" || !("modifiedRequest" in quote) || !("signatureRequest" in quote)) {
-    return quote;
+    return quote as ExecutableQuote;
   }
 
+  const permitQuote = quote as PaymasterPermitQuote & {
+    modifiedRequest: PreparedCallsRequest;
+    signatureRequest: SignatureRequest;
+  };
   const permitSignature = await withSpinner(
     "Signing permit…",
     "Permit signed",
-    () => client.signSignatureRequest(quote.signatureRequest),
+    () => client.signSignatureRequest(permitQuote.signatureRequest),
   );
 
   const preparedQuote = await withSpinner(
     "Preparing bridge…",
     "Bridge prepared",
     () => client.prepareCalls({
-      ...quote.modifiedRequest,
+      ...permitQuote.modifiedRequest,
       paymasterPermitSignature: permitSignature,
     }),
   );
 
-  if (
-    typeof preparedQuote === "object" &&
-    preparedQuote !== null &&
-    "type" in preparedQuote &&
-    preparedQuote.type === "paymaster-permit"
-  ) {
+  if ("type" in preparedQuote && preparedQuote.type === "paymaster-permit") {
     throw errInvalidArgs("Bridge quote still requires a paymaster permit after signing. The quote response format may be unsupported.");
   }
 
-  return preparedQuote;
+  return preparedQuote as ExecutableQuote;
 }
 
-function extractQuoteData(quote: WalletApiBridgeQuote): { type: string; minimumOutput?: bigint } {
-  const type = typeof quote.type === "string" ? quote.type : "unknown";
+function extractQuoteData(quote: RequestQuoteV0Result): { type: string; minimumOutput?: bigint } {
+  const type = "type" in quote ? quote.type : "unknown";
 
   if (quote.quote?.minimumToAmount !== undefined) {
     return { type, minimumOutput: BigInt(quote.quote.minimumToAmount) };
   }
 
   return { type };
-}
-
-function isRawCallsQuote(quote: WalletApiBridgeQuote): quote is WalletApiBridgeQuote & {
-  rawCalls: true;
-  calls: WalletApiBridgeCall[];
-} {
-  return (
-    quote.rawCalls === true &&
-    Array.isArray(quote.calls)
-  );
-}
-
-function buildBridgeWalletClient(
-  program: Command,
-  signer: "session" | "local" | undefined,
-): BridgeWalletContext {
-  return buildWalletClient(program, { signer }) as unknown as BridgeWalletContext;
 }
 
 export function registerBridge(program: Command) {
@@ -280,8 +247,9 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
   validateAddress(opts.to);
 
   const signer = parseSignerOpt(opts.signer);
-  const { client, network, paymaster } = buildBridgeWalletClient(program, signer);
+  const { client, network, paymaster } = buildWalletClient(program, { signer });
   validateBridgeNetworks(network, opts.toNetwork);
+  const swapClient = client.extend(swapActions);
 
   const fromInfo = await resolveTokenInfo(network, program, opts.from);
   const rawAmount = parseAmount(opts.amount, fromInfo.decimals);
@@ -294,7 +262,7 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
   const quote = await withSpinner(
     "Fetching bridge quote…",
     "Quote received",
-    () => requestBridgeQuote(client, createBridgeQuoteRequest(opts.from, opts.to, rawAmount, toChainId, slippage, paymaster)),
+    () => swapClient.requestQuoteV0(createBridgeQuoteRequest(opts.from, opts.to, rawAmount, toChainId, slippage, paymaster)),
   );
 
   const toInfo = await resolveTokenInfo(opts.toNetwork, program, opts.to);
@@ -343,9 +311,9 @@ async function performBridgeExecute(program: Command, opts: BridgeOpts) {
   validateAddress(opts.to);
 
   const signer = parseSignerOpt(opts.signer);
-  const { client, network, address: from, paymaster } = buildBridgeWalletClient(program, signer);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
   validateBridgeNetworks(network, opts.toNetwork);
-  const bridgeClient = client;
+  const swapClient = client.extend(swapActions);
 
   const fromInfo = await resolveTokenInfo(network, program, opts.from);
   const rawAmount = parseAmount(opts.amount, fromInfo.decimals);
@@ -358,31 +326,33 @@ async function performBridgeExecute(program: Command, opts: BridgeOpts) {
   const quote = await withSpinner(
     "Fetching bridge quote…",
     "Quote received",
-    () => requestBridgeQuote(client, createBridgeQuoteRequest(opts.from, opts.to, rawAmount, toChainId, slippage, paymaster)),
+    () => swapClient.requestQuoteV0(createBridgeQuoteRequest(opts.from, opts.to, rawAmount, toChainId, slippage, paymaster)),
   );
 
-  const preparedQuote = await prepareQuoteForExecution(bridgeClient, quote);
+  const preparedQuote = await prepareQuoteForExecution(client, quote);
 
   const { id } = await withSpinner(
     "Sending bridge transaction…",
     "Transaction submitted",
     async () => {
-      if (isRawCallsQuote(preparedQuote)) {
-        return bridgeClient.sendCalls({
-          calls: preparedQuote.calls,
+      if ("rawCalls" in preparedQuote && preparedQuote.rawCalls === true) {
+        const rawCallsQuote = preparedQuote as RawCallsQuote;
+        return client.sendCalls({
+          calls: rawCallsQuote.calls,
           capabilities: paymaster ? { paymaster } : undefined,
         });
       }
 
-      const signedQuote = await bridgeClient.signPreparedCalls(preparedQuote);
-      return bridgeClient.sendPreparedCalls(signedQuote);
+      const executablePreparedQuote = preparedQuote as ExecutablePreparedQuote;
+      const signedQuote = await client.signPreparedCalls(executablePreparedQuote);
+      return client.sendPreparedCalls(signedQuote);
     },
   );
 
   const status = await withSpinner(
     "Waiting for confirmation…",
     "Bridge confirmed",
-    () => bridgeClient.waitForCallsStatus({ id }),
+    () => client.waitForCallsStatus({ id }),
   );
 
   const txHash = status.receipts?.[0]?.transactionHash;

@@ -6,7 +6,6 @@ import {
   parseAbi,
   type Abi,
   type Address,
-  type Hex,
 } from "viem";
 import { buildWalletClient } from "../lib/smart-wallet.js";
 import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
@@ -262,31 +261,6 @@ interface ContractOpts {
   signer?: string;
 }
 
-interface ContractWalletClient {
-  sendCalls(params: {
-    calls: Array<{ to: Address; data: Hex; value?: bigint }>;
-    capabilities?: { paymaster: { policyId: string } };
-  }): Promise<{ id: string }>;
-  waitForCallsStatus(params: { id: string }): Promise<{
-    status?: string;
-    receipts?: Array<{ transactionHash?: string }>;
-  }>;
-}
-
-interface ContractWalletContext {
-  client: ContractWalletClient;
-  network: string;
-  address: Address;
-  paymaster: { policyId: string } | undefined;
-}
-
-function buildContractWalletClient(
-  program: Command,
-  signer: "session" | "local" | undefined,
-): ContractWalletContext {
-  return buildWalletClient(program, { signer }) as unknown as ContractWalletContext;
-}
-
 export function registerContract(program: Command) {
   const cmd = program.command("contract").description("Interact with smart contracts");
 
@@ -427,7 +401,7 @@ export async function performContractCall(
   const args = parseArgs(opts.args);
 
   const signer = parseSignerOpt(opts.signer);
-  const { client, network, address: from, paymaster } = buildContractWalletClient(program, signer);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
 
   const rpcClient = clientFromFlags(program);
   const contractAddress = await resolveAddress(addressArg, rpcClient) as Address;
