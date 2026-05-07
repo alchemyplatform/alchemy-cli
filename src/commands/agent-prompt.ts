@@ -145,7 +145,6 @@ function buildAgentPrompt(program: Command): AgentPrompt {
         method: "API key",
         envVar: "ALCHEMY_API_KEY",
         flag: "--api-key <key>",
-        configKey: "api-key",
         commandFamilies: [
           "evm data",
           "evm tx",

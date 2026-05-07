@@ -63,10 +63,6 @@ interface EvmTransactionStatusResult {
   error: unknown;
 }
 
-type WalletCallStatusId = Parameters<
-  ReturnType<typeof buildWalletClient>["client"]["getCallsStatus"]
->[0]["id"];
-
 interface RegisterStatusOptions {
   networkMode?: "auto" | "solana";
 }
@@ -173,7 +169,7 @@ async function checkEvmOperationStatus(
   const result = await withSpinner(
     "Checking status…",
     "Status retrieved",
-    () => client.getCallsStatus({ id: id as WalletCallStatusId }),
+    () => client.getCallsStatus({ id }),
   );
 
   const txHash = result.receipts?.[0]?.transactionHash;

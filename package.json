@@ -46,7 +46,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@alchemy/wallet-apis": "5.0.0-beta.22",
+    "@alchemy/wallet-apis": "5.0.0-beta.28",
     "@alchemy/x402": "^0.4.0",
     "@noble/hashes": "^2.0.1",
     "@solana-program/system": "^0.12.0",

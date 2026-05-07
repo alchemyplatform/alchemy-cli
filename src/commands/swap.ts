@@ -1,12 +1,13 @@
 import { Command } from "commander";
 import type { Address } from "viem";
-import {
-  swapActions,
-  type RequestQuoteV0Params,
-  type RequestQuoteV0Result,
-} from "@alchemy/wallet-apis/experimental";
 import { buildWalletClient } from "../lib/smart-wallet.js";
 import type { PaymasterConfig } from "../lib/smart-wallet.js";
+import {
+  requestBridgeQuote,
+  type WalletApiBridgeCall,
+  type WalletApiBridgeQuote,
+  type WalletApiBridgeQuoteRequest,
+} from "../lib/wallet-api-experimental.js";
 import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
@@ -63,21 +64,13 @@ interface SwapOpts {
   signer?: string;
 }
 
-type WalletClient = ReturnType<typeof buildWalletClient>["client"];
-type PaymasterPermitQuote = Extract<RequestQuoteV0Result, { type: "paymaster-permit" }>;
-type RawCallsQuote = Extract<RequestQuoteV0Result, { rawCalls: true }>;
-type ExecutablePreparedQuote = Parameters<WalletClient["signPreparedCalls"]>[0];
-type PreparedCallsRequest = Parameters<WalletClient["prepareCalls"]>[0];
-type SignatureRequest = Parameters<WalletClient["signSignatureRequest"]>[0];
-type ExecutableQuote = ExecutablePreparedQuote | RawCallsQuote;
-
 function createQuoteRequest(
   fromToken: string,
   toToken: string,
   fromAmount: bigint,
   slippagePercent: number | undefined,
   paymaster?: PaymasterConfig,
-): RequestQuoteV0Params {
+): WalletApiBridgeQuoteRequest {
   const request = {
     fromToken: fromToken as Address,
     toToken: toToken as Address,
@@ -86,7 +79,7 @@ function createQuoteRequest(
       ? { slippage: slippagePercentToBasisPoints(slippagePercent) }
       : {}),
     ...(paymaster ? { capabilities: { paymaster } } : {}),
-  } satisfies RequestQuoteV0Params;
+  } satisfies WalletApiBridgeQuoteRequest;
 
   return request;
 }
@@ -112,37 +105,38 @@ function validateSwapNetwork(network: string): void {
 }
 
 async function prepareQuoteForExecution(
-  client: WalletClient,
-  quote: RequestQuoteV0Result,
-): Promise<ExecutableQuote> {
+  client: ReturnType<typeof buildWalletClient>["client"],
+  quote: WalletApiBridgeQuote,
+): Promise<WalletApiBridgeQuote> {
   if (!("type" in quote) || quote.type !== "paymaster-permit" || !("modifiedRequest" in quote) || !("signatureRequest" in quote)) {
-    return quote as ExecutableQuote;
+    return quote;
   }
 
-  const permitQuote = quote as PaymasterPermitQuote & {
-    modifiedRequest: PreparedCallsRequest;
-    signatureRequest: SignatureRequest;
-  };
   const permitSignature = await withSpinner(
     "Signing permit…",
     "Permit signed",
-    () => client.signSignatureRequest(permitQuote.signatureRequest),
+    () => client.signSignatureRequest(quote.signatureRequest),
   );
 
   const preparedQuote = await withSpinner(
     "Preparing swap…",
     "Swap prepared",
     () => client.prepareCalls({
-      ...permitQuote.modifiedRequest,
+      ...quote.modifiedRequest,
       paymasterPermitSignature: permitSignature,
     }),
   );
 
-  if ("type" in preparedQuote && preparedQuote.type === "paymaster-permit") {
+  if (
+    typeof preparedQuote === "object" &&
+    preparedQuote !== null &&
+    "type" in preparedQuote &&
+    preparedQuote.type === "paymaster-permit"
+  ) {
     throw errInvalidArgs("Swap quote still requires a paymaster permit after signing. The quote response format may be unsupported.");
   }
 
-  return preparedQuote as ExecutableQuote;
+  return preparedQuote as WalletApiBridgeQuote;
 }
 
 export function registerSwap(program: Command) {
@@ -214,7 +208,6 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
 
   const signer = parseSignerOpt(opts.signer);
   const { client, network, paymaster } = buildWalletClient(program, { signer });
-  const swapClient = client.extend(swapActions);
 
   // Resolve from-token decimals and parse amount
   const fromInfo = await resolveTokenInfo(network, program, opts.from);
@@ -228,7 +221,7 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
   const quote = await withSpinner(
     "Fetching quote…",
     "Quote received",
-    () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
+    () => requestBridgeQuote(client, createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
   );
 
   // Resolve to-token info for display
@@ -278,7 +271,6 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
 
   const signer = parseSignerOpt(opts.signer);
   const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
-  const swapClient = client.extend(swapActions);
 
   const fromInfo = await resolveTokenInfo(network, program, opts.from);
   const rawAmount = parseAmount(opts.amount, fromInfo.decimals);
@@ -292,7 +284,7 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
   const quote = await withSpinner(
     "Fetching quote…",
     "Quote received",
-    () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
+    () => requestBridgeQuote(client, createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
   );
 
   const preparedQuote = await prepareQuoteForExecution(client, quote);
@@ -302,16 +294,14 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
     "Sending swap transaction…",
     "Transaction submitted",
     async () => {
-      if ("rawCalls" in preparedQuote && preparedQuote.rawCalls === true) {
-        const rawCallsQuote = preparedQuote as RawCallsQuote;
+      if (isRawCallsQuote(preparedQuote)) {
         return client.sendCalls({
-          calls: rawCallsQuote.calls,
+          calls: preparedQuote.calls,
           capabilities: paymaster ? { paymaster } : undefined,
         });
       }
 
-      const executablePreparedQuote = preparedQuote as ExecutablePreparedQuote;
-      const signedQuote = await client.signPreparedCalls(executablePreparedQuote);
+      const signedQuote = await client.signPreparedCalls(preparedQuote);
       return client.sendPreparedCalls(signedQuote);
     },
   );
@@ -366,12 +356,19 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function extractQuoteData(quote: RequestQuoteV0Result): { type: string; minimumOutput?: bigint } {
-  const type = "type" in quote ? quote.type : "unknown";
+function extractQuoteData(quote: WalletApiBridgeQuote): { type: string; minimumOutput?: bigint } {
+  const type = typeof quote.type === "string" ? quote.type : "unknown";
 
   if (quote.quote?.minimumToAmount !== undefined) {
     return { type, minimumOutput: BigInt(quote.quote.minimumToAmount) };
   }
 
   return { type };
+}
+
+function isRawCallsQuote(quote: WalletApiBridgeQuote): quote is WalletApiBridgeQuote & {
+  rawCalls: true;
+  calls: WalletApiBridgeCall[];
+} {
+  return quote.rawCalls === true && Array.isArray(quote.calls);
 }

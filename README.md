@@ -164,7 +164,7 @@ Per-command override: pass `--signer <session\|local>` to `evm send`, `evm appro
 | `install mcp` | Installs Alchemy's remote MCP server config | `alchemy install mcp --client claude --dry-run` |
 | `install skills` | Installs bundled Alchemy skills | `alchemy install skills --client cursor --dry-run` |
 | `update-check` | Checks whether a newer CLI version is available | `alchemy update-check --json --no-interactive` |
-| `config set ...` | Sets config values | `alchemy config set api-key <key>` |
+| `config set ...` | Sets config values | `alchemy config set app <app-id>` |
 | `config get <key>` | Gets one config value | `alchemy config get network` |
 | `config list` | Lists all config values | `alchemy config list` |
 | `config reset [key]` | Resets one or all config values | `alchemy config reset --yes` |
@@ -294,8 +294,8 @@ Errors are structured JSON in JSON mode:
 {
   "error": {
     "code": "AUTH_REQUIRED",
-    "message": "Not authenticated. Set ALCHEMY_API_KEY or run 'alchemy config set api-key <key>'.",
-    "hint": "alchemy config set api-key <your-key>"
+    "message": "Not authenticated. Run 'alchemy auth' to log in, or set ALCHEMY_API_KEY.",
+    "hint": "alchemy auth"
   }
 }
 ```

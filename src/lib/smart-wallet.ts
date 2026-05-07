@@ -1,6 +1,6 @@
 import { createSmartWalletClient, alchemyWalletTransport } from "@alchemy/wallet-apis";
 import { privateKeyToAccount } from "viem/accounts";
-import type { Chain, Address } from "viem";
+import type { Chain, Address, Hex } from "viem";
 import type { Command } from "commander";
 import {
   resolveAPIKey,
@@ -34,8 +34,31 @@ export interface PaymasterConfig {
   policyId: string;
 }
 
+export interface SmartWalletClientLike {
+  prepareCalls(params: Record<string, unknown>): Promise<unknown>;
+  sendCalls(params: {
+    calls: Array<{ to: Address; data?: Hex; value?: bigint }>;
+    capabilities?: { paymaster: PaymasterConfig };
+  }): Promise<{ id: string }>;
+  sendPreparedCalls(params: unknown): Promise<{ id: string }>;
+  signPreparedCalls(params: unknown): Promise<unknown>;
+  signSignatureRequest(params: unknown): Promise<unknown>;
+  getCallsStatus(params: { id: string }): Promise<{
+    status?: string;
+    receipts?: Array<{
+      transactionHash?: string;
+      blockNumber?: string | number | bigint;
+      gasUsed?: string | number | bigint;
+    }>;
+  }>;
+  waitForCallsStatus(params: { id: string }): Promise<{
+    status?: string;
+    receipts?: Array<{ transactionHash?: string }>;
+  }>;
+}
+
 export interface WalletContext {
-  client: ReturnType<typeof createSmartWalletClient>;
+  client: SmartWalletClientLike;
   network: string;
   chain: Chain;
   address: Address;
@@ -176,5 +199,11 @@ export function buildWalletClient(
     paymaster,
   });
 
-  return { client, network, chain, address: signerConfig.address, paymaster };
+  return {
+    client: client as unknown as SmartWalletClientLike,
+    network,
+    chain,
+    address: signerConfig.address,
+    paymaster,
+  };
 }

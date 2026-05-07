@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { Command } from "commander";
 import {
   installBaseCommandMocks,
   runRegisteredCommand,
@@ -70,27 +71,21 @@ function mockConfigDependencies(opts?: { interactive?: boolean; confirmResult?: 
 }
 
 describe("config command", () => {
-  it("sets API key without wiping other config values", async () => {
-    const { exitWithError, printHuman } = installBaseCommandMocks({ jsonMode: false });
-    const save = vi.fn();
-    mockConfigModule({
-      load: vi.fn().mockReturnValue({ network: "base-mainnet" }),
-      save,
-    });
+  it("does not register config set api-key", async () => {
+    installBaseCommandMocks({ jsonMode: false });
+    mockConfigModule({});
     mockConfigDependencies({ interactive: false });
 
     const { registerConfig } = await import("../../src/commands/config.js");
-    await runRegisteredCommand(registerConfig, ["config", "set", "api-key", "test-api-key"]);
+    const program = new Command();
+    registerConfig(program);
 
-    expect(save).toHaveBeenCalledWith({
-      network: "base-mainnet",
-      api_key: "test-api-key",
-    });
-    expect(printHuman).toHaveBeenCalledWith(
-      expect.stringContaining("Set api-key"),
-      { key: "api-key", status: "set" },
-    );
-    expect(exitWithError).not.toHaveBeenCalled();
+    const configCommand = program.commands.find((command) => command.name() === "config");
+    const setCommand = configCommand?.commands.find((command) => command.name() === "set");
+    const setSubcommandNames = setCommand?.commands.map((command) => command.name()) ?? [];
+
+    expect(setSubcommandNames).not.toContain("api-key");
+    expect(setSubcommandNames).toContain("app");
   });
 
   it("normalizes verbose boolean on set", async () => {
