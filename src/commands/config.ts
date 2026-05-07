@@ -194,6 +194,19 @@ export function registerConfig(program: Command) {
   const setCmd = cmd.command("set").description("Set a config value");
 
   setCmd
+    .command("api-key <key>")
+    .description("Set the Alchemy API key for RPC operations")
+    .action((key: string) => {
+      try {
+        const cfg = config.load();
+        config.save({ ...cfg, api_key: key });
+        printHuman(`${green("✓")} Set api-key\n`, { key: "api-key", status: "set" });
+      } catch (err) {
+        exitWithError(err);
+      }
+    });
+
+  setCmd
     .command("webhook-api-key <key>")
     .description("Set the Alchemy webhook API key for Notify operations")
     .action((key: string) => {

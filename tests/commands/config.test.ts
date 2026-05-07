@@ -70,6 +70,29 @@ function mockConfigDependencies(opts?: { interactive?: boolean; confirmResult?: 
 }
 
 describe("config command", () => {
+  it("sets API key without wiping other config values", async () => {
+    const { exitWithError, printHuman } = installBaseCommandMocks({ jsonMode: false });
+    const save = vi.fn();
+    mockConfigModule({
+      load: vi.fn().mockReturnValue({ network: "base-mainnet" }),
+      save,
+    });
+    mockConfigDependencies({ interactive: false });
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "set", "api-key", "test-api-key"]);
+
+    expect(save).toHaveBeenCalledWith({
+      network: "base-mainnet",
+      api_key: "test-api-key",
+    });
+    expect(printHuman).toHaveBeenCalledWith(
+      expect.stringContaining("Set api-key"),
+      { key: "api-key", status: "set" },
+    );
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
   it("normalizes verbose boolean on set", async () => {
     const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
     const save = vi.fn();
