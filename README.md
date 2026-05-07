@@ -2,7 +2,7 @@
 
 Alchemy CLI is a command-line tool for querying blockchain data and managing Alchemy apps/configuration.
 It supports both human-friendly terminal output and JSON output for automation.
-You can use API keys, access keys, or x402 wallet auth depending on the command.
+You can use browser login, API keys, access keys, or x402 wallet auth depending on the command.
 
 ## Installation
 
@@ -51,7 +51,7 @@ If you run `alchemy` with no command and no auth configured, the CLI will guide 
 
 If you have an auth token but haven't selected an app yet, the CLI will prompt you to pick one before running any command that requires an API key. Teams with many apps can type to search by name.
 
-If you use Notify webhooks, add webhook auth on top via `alchemy config set webhook-api-key <key>`, `--webhook-api-key`, or `ALCHEMY_WEBHOOK_API_KEY`.
+If you use Notify webhooks, add webhook auth on top via `alchemy config set webhook-api-key <key>`, `--webhook-api-key` on `alchemy webhook` commands, or `ALCHEMY_WEBHOOK_API_KEY`.
 
 ### Usage By Workflow
 
@@ -79,7 +79,7 @@ Have your agent run `agent-prompt` as its first step to get a complete, machine-
 
 ```bash
 # Agent runs this once to learn everything the CLI can do
-alchemy --json agent-prompt
+alchemy --json --no-interactive agent-prompt
 ```
 
 This returns a single JSON document with execution policy, preflight instructions, auth matrix, the full command tree with all arguments and options, error codes with recovery actions, and example invocations. No external docs required.
@@ -114,24 +114,21 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 ### Wallets
 
-`alchemy wallets` exposes a unified onchain-actions surface. The **session wallet** (Alchemy/Privy-managed, P-256 delegated signer) is the recommended flow; a **local wallet** (private key stored on disk) is supported as an alternative and is currently the only path for Solana.
+`alchemy wallet` exposes a unified onchain-actions surface. The **session wallet** (Alchemy/Privy-managed, P-256 delegated signer) is the recommended flow; a **local wallet** (private key stored on disk) is supported as an alternative.
 
 | Command | What it does | Example |
 |---|---|---|
-| `wallets connect` | Interactive: choose a session wallet (recommended) or a local wallet. For scripts, pass `--mode <session\|local>`. | `alchemy wallets connect` |
-| `wallets connect --mode local --chain evm` | Create a new local EVM key (non-interactive). `--chain` accepts `evm`, `solana`, or `both`. | `alchemy wallets connect --mode local --chain both` |
-| `wallets connect --mode local --import <path>` | Import an existing EVM private key from a file. | `alchemy wallets connect --mode local --import ./key.txt` |
-| `wallets status [--verify]` | Reports session, local EVM, local Solana, and the active signer. `--verify` reconciles the session with the backend. | `alchemy wallets status --verify` |
-| `wallets address` | Prints addresses for every configured signer. | `alchemy wallets address` |
-| `wallets use <session\|local>` | Selects which signer `evm send`, `evm swap`, `evm approve`, `xchain bridge`, and `evm contract call` use for EVM transactions. | `alchemy wallets use local` |
-| `wallets disconnect` | Revokes the current session (local + backend). Clears `active_signer` if it pointed at the session. | `alchemy wallets disconnect` |
-| `wallets qr [--type <evm\|solana>]` | Renders a configured address as a QR code. | `alchemy wallets qr --type evm` |
+| `wallet connect` | Interactive: choose a session wallet (recommended) or a local wallet. For scripts, pass `--mode <session\|local>`. | `alchemy wallet connect` |
+| `wallet connect --mode local --chain evm` | Create a new local EVM key (non-interactive). `--chain` accepts `evm`, `solana`, or `both`. | `alchemy wallet connect --mode local --chain both` |
+| `wallet connect --mode local --import <path>` | Import an existing EVM private key from a file. | `alchemy wallet connect --mode local --import ./key.txt` |
+| `wallet connect --mode session --instance-name <name>` | Connect a named session wallet instance. | `alchemy wallet connect --mode session --instance-name laptop` |
+| `wallet status [--verify]` | Reports session, local EVM, local Solana, and the active signer. `--verify` reconciles the session with the backend. | `alchemy wallet status --verify` |
+| `wallet address` | Prints addresses for every configured signer. | `alchemy wallet address` |
+| `wallet use <session\|local>` | Selects which signer `evm send`, `evm swap`, `evm approve`, `xchain bridge`, and `evm contract call` use for EVM transactions. | `alchemy wallet use local` |
+| `wallet disconnect` | Revokes the current session (local + backend). Clears `active_signer` if it pointed at the session. | `alchemy wallet disconnect` |
+| `wallet qr [--type <evm\|solana>]` | Renders a configured address as a QR code. | `alchemy wallet qr --type evm` |
 
 Per-command override: pass `--signer <session\|local>` to `evm send`, `evm approve`, `evm swap`, `xchain bridge`, or `evm contract call` to override the active signer for a single invocation.
-| `webhooks list` | Lists Notify webhooks | `alchemy webhooks list --webhook-api-key <key>` |
-| `webhooks create --body <json>` | Creates Notify webhook | `alchemy webhooks create --body '{...}' --webhook-api-key <key>` |
-| `webhooks update --body <json>` | Updates Notify webhook | `alchemy webhooks update --body '{...}' --webhook-api-key <key>` |
-| `webhooks delete <id>` | Deletes Notify webhook | `alchemy webhooks delete <id> --webhook-api-key <key>` |
 
 ### Chains
 
@@ -140,6 +137,10 @@ Per-command override: pass `--signer <session\|local>` to `evm send`, `evm appro
 | `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"'` |
 | `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}'` |
 | `solana network list` | Lists networks from the Solana namespace | `alchemy solana network list --search solana` |
+| `solana send <to> <amount>` | Sends SOL to an address | `alchemy solana send <pubkey> 0.1` |
+| `solana program accounts/account/show` | Inspects Solana program accounts and account metadata | `alchemy solana program accounts <program-id>` |
+| `solana delegate approve/revoke` | Approves or revokes SPL token delegates | `alchemy solana delegate approve --token-account <addr> --mint <mint> --delegate <addr> --amount 1 --decimals 6` |
+| `solana status [id]` | Checks Solana transaction or operation status | `alchemy solana status <signature>` |
 | `xchain bridge quote/execute` | Bridges tokens across chains | `alchemy xchain bridge quote --from 0xEeee... --to 0xEeee... --amount 0.1 --to-network base-mainnet -n eth-mainnet` |
 
 ### CLI Admin
@@ -150,16 +151,24 @@ Per-command override: pass `--signer <session\|local>` to `evm send`, `evm appro
 | `auth` (`auth login`) | Log in via browser (PKCE) | `alchemy auth` |
 | `auth status` | Show current authentication status | `alchemy auth status` |
 | `auth logout` | Clear saved authentication token | `alchemy auth logout` |
-| `apps list` | Lists apps (supports pagination/filtering) | `alchemy apps list --all` |
-| `apps chains` | Lists Admin API chain identifiers (e.g. `ETH_MAINNET`) | `alchemy apps chains` |
-| `apps get <id>` | Gets app details | `alchemy apps get <app-id>` |
-| `apps create` | Creates app | `alchemy apps create --name "My App" --networks eth-mainnet` |
-| `apps update <id>` | Updates app name/description | `alchemy apps update <app-id> --name "New Name"` |
-| `apps delete <id>` | Deletes app | `alchemy apps delete <app-id>` |
-| `apps networks <id>` | Updates app network allowlist | `alchemy apps networks <app-id> --networks eth-mainnet,polygon-mainnet` |
-| `apps address-allowlist <id>` | Updates app address allowlist | `alchemy apps address-allowlist <app-id> --addresses 0xabc,0xdef` |
-| `apps origin-allowlist <id>` | Updates app origin allowlist | `alchemy apps origin-allowlist <app-id> --origins https://example.com` |
-| `apps ip-allowlist <id>` | Updates app IP allowlist | `alchemy apps ip-allowlist <app-id> --ips 1.2.3.4,5.6.7.8` |
+| `app list` | Lists apps (supports pagination/filtering) | `alchemy app list --all` |
+| `app chains` | Lists Admin API chain identifiers (e.g. `ETH_MAINNET`) | `alchemy app chains` |
+| `app get <id>` | Gets app details | `alchemy app get <app-id>` |
+| `app create` | Creates app | `alchemy app create --name "My App" --networks eth-mainnet` |
+| `app update <id>` | Updates app name/description | `alchemy app update <app-id> --name "New Name"` |
+| `app delete <id>` | Deletes app | `alchemy app delete <app-id>` |
+| `app networks <id>` | Updates app network allowlist | `alchemy app networks <app-id> --networks eth-mainnet,polygon-mainnet` |
+| `app address-allowlist <id>` | Updates app address allowlist | `alchemy app address-allowlist <app-id> --addresses 0xabc,0xdef` |
+| `app origin-allowlist <id>` | Updates app origin allowlist | `alchemy app origin-allowlist <app-id> --origins https://example.com` |
+| `app ip-allowlist <id>` | Updates app IP allowlist | `alchemy app ip-allowlist <app-id> --ips 1.2.3.4,5.6.7.8` |
+| `app configured-networks` | Lists RPC network slugs configured for an app | `alchemy app configured-networks --app-id <app-id>` |
+| `app select [id]` | Selects the default app interactively or by ID | `alchemy app select <app-id>` |
+| `webhook list` | Lists Notify webhooks | `alchemy webhook list --webhook-api-key <key>` |
+| `webhook create --body <json>` | Creates Notify webhook | `alchemy webhook create --body '{...}' --webhook-api-key <key>` |
+| `webhook update --body <json>` | Updates Notify webhook | `alchemy webhook update --body '{...}' --webhook-api-key <key>` |
+| `webhook delete <id>` | Deletes Notify webhook | `alchemy webhook delete <id> --webhook-api-key <key>` |
+| `webhook addresses <id>` | Gets address activity webhook addresses | `alchemy webhook addresses <id> --webhook-api-key <key>` |
+| `webhook nft-filters <id>` | Gets NFT activity webhook filters | `alchemy webhook nft-filters <id> --webhook-api-key <key>` |
 | `doctor` | Runs readiness checks and suggestions | `alchemy doctor` |
 | `install mcp` | Installs Alchemy's remote MCP server config | `alchemy install mcp --client claude --dry-run` |
 | `install skills` | Installs bundled Alchemy skills | `alchemy install skills --client cursor --dry-run` |
@@ -169,7 +178,7 @@ Per-command override: pass `--signer <session\|local>` to `evm send`, `evm appro
 | `config list` | Lists all config values | `alchemy config list` |
 | `config reset [key]` | Resets one or all config values | `alchemy config reset --yes` |
 | `completions <shell>` | Generates shell completion scripts (bash/zsh/fish) | `eval "$(alchemy completions zsh)"` |
-| `agent-prompt` | Emits complete agent/automation usage instructions | `alchemy --json agent-prompt` |
+| `agent-prompt` | Emits complete agent/automation usage instructions | `alchemy --json --no-interactive agent-prompt` |
 | `version` | Prints CLI version | `alchemy version` |
 
 ## Flags
@@ -183,10 +192,10 @@ These apply to all commands.
 | Flag | Env var | Description |
 |---|---|---|
 | `--api-key <key>` | `ALCHEMY_API_KEY` | API key for blockchain query commands |
-| `--access-key <key>` | `ALCHEMY_ACCESS_KEY` | Access key for Admin API operations |
 | `-n, --network <network>` | `ALCHEMY_NETWORK` | Target network (default: `eth-mainnet`) |
 | `--x402` | — | Enable x402 wallet-based gateway auth |
-| `--wallet-key-file <path>` | — | Wallet private key file for x402 auth |
+| `--wallet-key-file <path>` | — | EVM wallet private key file for x402 auth and local signing |
+| `--solana-wallet-key-file <path>` | — | Solana wallet private key file for local signing |
 
 #### Output & formatting
 
@@ -211,7 +220,14 @@ Additional env vars:
 | Env var | Description |
 |---|---|
 | `ALCHEMY_CONFIG` | Custom path to config file |
-| `ALCHEMY_WALLET_KEY` | Wallet private key for x402 auth |
+| `ALCHEMY_ACCESS_KEY` | Access key for Admin API operations |
+| `ALCHEMY_WALLET_KEY` | EVM wallet private key for x402 auth and local signing |
+| `ALCHEMY_SOLANA_WALLET_KEY` | Solana wallet private key |
+| `ALCHEMY_ACTIVE_SIGNER` | Active EVM signer override (`session` or `local`) |
+| `ALCHEMY_EVM_GAS_SPONSORED` | Enable EVM gas sponsorship when set to `true` |
+| `ALCHEMY_EVM_GAS_POLICY_ID` | EVM gas sponsorship policy ID |
+| `ALCHEMY_SOLANA_FEE_SPONSORED` | Enable Solana fee sponsorship when set to `true` |
+| `ALCHEMY_SOLANA_FEE_POLICY_ID` | Solana fee sponsorship policy ID |
 | `ALCHEMY_WEBHOOK_API_KEY` | Webhook API key for Notify commands |
 
 ### Command-specific flags
@@ -228,18 +244,34 @@ Additional env vars:
 | `evm data price historical` | `--body <json>` (required) |
 | `evm data portfolio *` | `--body <json>` (required per subcommand) |
 | `evm simulate *` | `--tx <json>` or `--txs <json>` (required) |
-| `webhooks *` | `--webhook-api-key <key>` (or `ALCHEMY_WEBHOOK_API_KEY`, `ALCHEMY_NOTIFY_AUTH_TOKEN`, config `webhook-api-key`, or app webhook key) |
-| `apps list` | `--cursor <cursor>`, `--limit <n>`, `--all`, `--search <query>`, `--id <appId>` |
-| `apps create` | `--name <name>` (required), `--networks <networks>` (required), `--description <desc>`, `--products <products>`, `--dry-run` |
-| `apps update` | `--name <name>`, `--description <desc>`, `--dry-run` |
-| `apps delete` | `--dry-run` |
-| `apps networks` | `--networks <networks>` (required), `--dry-run` |
-| `apps address-allowlist` | `--addresses <addrs>` (required), `--dry-run` |
-| `apps origin-allowlist` | `--origins <origins>` (required), `--dry-run` |
-| `apps ip-allowlist` | `--ips <ips>` (required), `--dry-run` |
+| `evm send` | `--token <address>`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |
+| `evm contract call` | `--args <json>`, `--abi-file <path>`, `--abi <json>`, `--value <ether>`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |
+| `evm swap quote` | `--from <token_address>`, `--to <token_address>`, `--amount <number>`, `--slippage <percent>`, `--signer <session\|local>` |
+| `evm swap execute` | `--from <token_address>`, `--to <token_address>`, `--amount <number>`, `--slippage <percent>`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |
+| `evm approve` | `--token-address <token_address>`, `--amount <decimal_amount>`, `--unlimited`, `--revoke`, `--reset-first`, `-y, --yes`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |
+| `xchain bridge quote` | `--from <token_address>`, `--to <token_address>`, `--amount <number>`, `--to-network <network>`, `--slippage <percent>`, `--signer <session\|local>` |
+| `xchain bridge execute` | `--from <token_address>`, `--to <token_address>`, `--amount <number>`, `--to-network <network>`, `--slippage <percent>`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |
+| `wallet connect` | `--mode <session\|local>`, `--chain <evm\|solana\|both>`, `--import <path>`, `--instance-name <name>`, `--force` |
+| `wallet status` | `--verify` |
+| `wallet qr` | `--type <evm\|solana>`, `--solana` |
+| `solana send` | `--fee-sponsored`, `--fee-policy-id <id>`, `--signer <local>` (session signing is not yet supported for Solana) |
+| `solana program accounts` | `--filters <json>`, `--encoding <encoding>`, `--limit <n>` |
+| `solana delegate approve` | `--token-account <address>`, `--mint <address>`, `--delegate <address>`, `--amount <number>`, `--decimals <n>`, `--fee-sponsored`, `--fee-policy-id <id>` |
+| `solana delegate revoke` | `--token-account <address>`, `--fee-sponsored`, `--fee-policy-id <id>` |
+| `webhook *` | `--webhook-api-key <key>` (or `ALCHEMY_WEBHOOK_API_KEY`, `ALCHEMY_NOTIFY_AUTH_TOKEN`, config `webhook-api-key`, or app webhook key) |
+| `app list` | `--cursor <cursor>`, `--limit <n>`, `--all`, `--search <query>`, `--id <appId>` |
+| `app create` | `--name <name>` (required), `--networks <networks>` (required), `--description <desc>`, `--products <products>`, `--dry-run` |
+| `app update` | `--name <name>`, `--description <desc>`, `--dry-run` |
+| `app delete` | `--dry-run`, `-y, --yes` |
+| `app networks` | `--networks <networks>` (required), `--dry-run` |
+| `app address-allowlist` | `--addresses <addrs>` (required), `--dry-run` |
+| `app origin-allowlist` | `--origins <origins>` (required), `--dry-run` |
+| `app ip-allowlist` | `--ips <ips>` (required), `--dry-run` |
+| `app configured-networks` | `--app-id <id>` |
 | `install mcp` | `--client <claude,cursor,codex,other,all>`, `--dry-run` |
 | `install skills` | `--client <claude,cursor,codex,all>`, `--dry-run` |
 | `evm network list` | `--mainnet-only`, `--testnet-only`, `--search <term>` |
+| `config set` | `webhook-api-key`, `app`, `network`, `verbose`, `wallet-key-file`, `x402`, `evm-gas-sponsored`, `evm-gas-policy-id`, `solana-fee-sponsored`, `solana-fee-policy-id` |
 | `config reset` | `-y, --yes` |
 
 ## Authentication Reference

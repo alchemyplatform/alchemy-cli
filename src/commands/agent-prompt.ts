@@ -23,7 +23,7 @@ interface AgentPrompt {
   auth: Array<{
     method: string;
     envVar: string;
-    flag: string;
+    flag?: string;
     configKey?: string;
     setup?: string;
     commandFamilies: string[];
@@ -68,7 +68,7 @@ const ERROR_RECOVERY: Record<ErrorCodeType, string> = {
   PAYMENT_REQUIRED:
     "Fund your x402 wallet or switch to API key auth",
   SETUP_REQUIRED:
-    "Run preflight: alchemy --json config status, then follow nextCommands",
+    "Run preflight: alchemy --json --no-interactive config status, then follow nextCommands",
   INTERNAL_ERROR:
     "Unexpected error; retry or report a bug",
 };
@@ -136,7 +136,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       "Run alchemy --json --no-interactive update-check when you need to detect available CLI upgrades",
     ],
     preflight: {
-      command: "alchemy --json config status",
+      command: "alchemy --json --no-interactive config status",
       description:
         "Check auth readiness before first command. If complete is false, follow nextCommands in the response to configure auth.",
     },
@@ -164,9 +164,10 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       {
         method: "Access key",
         envVar: "ALCHEMY_ACCESS_KEY",
-        flag: "--access-key <key>",
         configKey: "access-key",
         commandFamilies: ["app", "evm network"],
+        notes:
+          "No command-line flag exists for access-key auth; use the env var or saved config.",
       },
       {
         method: "Webhook API key",
@@ -224,7 +225,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       "alchemy --json --no-interactive config status",
       "alchemy --json --no-interactive update-check",
       "alchemy --json --no-interactive evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
-      "alchemy --json --no-interactive app list --access-key $ALCHEMY_ACCESS_KEY",
+      "ALCHEMY_ACCESS_KEY=ak_xxx alchemy --json --no-interactive app list",
       "alchemy --json --no-interactive evm rpc eth_blockNumber --api-key $ALCHEMY_API_KEY",
       "alchemy --json --no-interactive evm network list",
       "alchemy --json --no-interactive evm send 0xRecipient 0.001 -n eth-sepolia",
@@ -258,7 +259,9 @@ function formatAsSystemPrompt(payload: AgentPrompt): string {
   for (const auth of payload.auth) {
     lines.push(`  ${auth.method}:`);
     lines.push(`    env:      ${auth.envVar}`);
-    lines.push(`    flag:     ${auth.flag}`);
+    if (auth.flag) {
+      lines.push(`    flag:     ${auth.flag}`);
+    }
     if (auth.configKey) {
       lines.push(`    config:   alchemy config set ${auth.configKey} <value>`);
     }
@@ -289,7 +292,7 @@ function formatAsSystemPrompt(payload: AgentPrompt): string {
   lines.push("  For RPC method signatures, parameters, and supported networks.");
   lines.push("");
   lines.push(
-    "For full command tree, run: alchemy --json agent-prompt",
+    "For full command tree, run: alchemy --json --no-interactive agent-prompt",
   );
   lines.push("");
 

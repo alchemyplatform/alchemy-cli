@@ -142,6 +142,8 @@ describe("agent-prompt command", () => {
       "Run alchemy --json --no-interactive update-check when you need to detect available CLI upgrades",
     );
     expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
+    expect(payload.examples).toContain("ALCHEMY_ACCESS_KEY=ak_xxx alchemy --json --no-interactive app list");
+    expect(payload.examples).not.toContain("ALCHEMY_ACCESS_KEY=$ALCHEMY_ACCESS_KEY alchemy --json --no-interactive app list");
   });
 
   it("includes auth entries for all method types", async () => {
@@ -172,6 +174,37 @@ describe("agent-prompt command", () => {
     expect(methods).toContain("x402 wallet");
     expect(methods).toContain("Wallet session signer (recommended)");
     expect(methods).toContain("Local wallet + API key");
+  });
+
+  it("describes access key auth without a fake command-line flag", async () => {
+    const printHuman = vi.fn();
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman,
+    }));
+
+    const { registerAgentPrompt } = await import(
+      "../../src/commands/agent-prompt.js"
+    );
+    const program = new Command();
+    registerAgentPrompt(program);
+
+    await program.parseAsync(["node", "test", "agent-prompt"], {
+      from: "node",
+    });
+
+    const formatted = printHuman.mock.calls[0][0] as string;
+    const payload = printHuman.mock.calls[0][1];
+    const accessKeyEntry = payload.auth.find(
+      (a: { method: string }) => a.method === "Access key",
+    );
+
+    expect(accessKeyEntry).not.toHaveProperty("flag");
+    expect(accessKeyEntry.configKey).toBe("access-key");
+    expect(accessKeyEntry.notes).toContain("No command-line flag exists");
+    expect(formatted).toContain("config:   alchemy config set access-key <value>");
+    expect(formatted).not.toContain("flag:     env only");
   });
 
   it("describes wallet signer setup without suggesting config set active-signer", async () => {

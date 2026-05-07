@@ -85,6 +85,13 @@ describe("CLIError", () => {
       expect(err.toJSON().error.retryable).toBe(false);
     }
   });
+
+  it("keeps access-key setup guidance aligned with supported config keys", () => {
+    const err = errAccessKeyRequired();
+
+    expect(err.message).toContain("ALCHEMY_ACCESS_KEY");
+    expect(err.message).toContain("alchemy config set access-key <key>");
+  });
 });
 
 describe("convenience constructors", () => {

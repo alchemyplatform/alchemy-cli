@@ -32,6 +32,8 @@ describe("onboarding setup predicates", () => {
     expect(status.complete).toBe(false);
     expect(status.satisfiedBy).toBeNull();
     expect(status.missing.length).toBeGreaterThan(0);
-    expect(status.nextCommands.length).toBeGreaterThan(0);
+    expect(status.nextCommands).toContain(
+      "alchemy config set access-key <key> && alchemy config set app <app-id>",
+    );
   });
 });
