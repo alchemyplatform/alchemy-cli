@@ -128,4 +128,39 @@ describe("wallet-session", () => {
       envelopeVersion: "v1",
     });
   });
+
+  it("persists session environment client instance ids", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "alchemy-wallet-session-client-"));
+    process.env.ALCHEMY_CONFIG = join(tempDir, "config.json");
+
+    const {
+      createMemoryWalletSessionStore,
+      createPendingSession,
+      loadStoredSession,
+      setWalletSessionStore,
+      updateSession,
+    } = await import("../../src/lib/wallet-session.js");
+
+    setWalletSessionStore(createMemoryWalletSessionStore());
+    createPendingSession();
+    updateSession({
+      environment: {
+        platform: "darwin",
+        arch: "arm64",
+        nodeVersion: "v22.0.0",
+        interactive: true,
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+        clientInstanceName: "Chris Laptop",
+      },
+    });
+
+    expect(loadStoredSession()?.environment).toStrictEqual({
+      platform: "darwin",
+      arch: "arm64",
+      nodeVersion: "v22.0.0",
+      interactive: true,
+      clientInstanceId: "11111111-1111-4111-8111-111111111111",
+      clientInstanceName: "Chris Laptop",
+    });
+  });
 });

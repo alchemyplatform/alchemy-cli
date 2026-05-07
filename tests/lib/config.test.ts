@@ -234,6 +234,43 @@ describe("config save/load", () => {
     expect(() => JSON.parse(data)).not.toThrow();
   });
 
+  it("creates and reuses a stable wallet client instance id", () => {
+    const firstId = config.getOrCreateWalletClientInstanceId();
+    const secondId = config.getOrCreateWalletClientInstanceId();
+    const loaded = config.load();
+
+    expect(firstId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(secondId).toBe(firstId);
+    expect(loaded.wallet_client_instance_id).toBe(firstId);
+  });
+
+  it("derives a stable wallet client instance id from the instance name", () => {
+    const first = config.getOrCreateWalletClientInstance({
+      instanceName: "Chris Laptop",
+    });
+    const second = config.getOrCreateWalletClientInstance();
+    const loaded = config.load();
+
+    expect(first).toStrictEqual({
+      id: config.deriveWalletClientInstanceIdFromName("chris laptop"),
+      name: "Chris Laptop",
+    });
+    expect(second).toStrictEqual(first);
+    expect(loaded.wallet_client_instance_id).toBe(first.id);
+    expect(loaded.wallet_client_instance_name).toBe("Chris Laptop");
+  });
+
+  it("rejects invalid wallet client instance names", () => {
+    expect(
+      config.normalizeWalletClientInstanceName(" ".repeat(65)),
+    ).toBeUndefined();
+    expect(() =>
+      config.getOrCreateWalletClientInstance({ instanceName: "\n" }),
+    ).toThrow("Invalid wallet client instance name.");
+  });
+
   it("returns empty config for missing file", () => {
     const loaded = config.load();
     expect(loaded).toEqual({});

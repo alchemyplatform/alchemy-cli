@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { z } from "zod";
@@ -33,6 +34,8 @@ export interface Config {
   solana_fee_policy_id?: string;
   delegated_wallet?: boolean;
   active_signer?: "session" | "local";
+  wallet_client_instance_id?: string;
+  wallet_client_instance_name?: string;
 }
 
 export const KEY_MAP: Record<string, keyof Config> = {
@@ -69,13 +72,18 @@ export const KEY_MAP: Record<string, keyof Config> = {
   delegated_wallet: "delegated_wallet",
   "active-signer": "active_signer",
   active_signer: "active_signer",
+  "wallet-client-instance-name": "wallet_client_instance_name",
+  wallet_client_instance_name: "wallet_client_instance_name",
 };
 
 const SAFE_ID_RE = /^[A-Za-z0-9:_-]{1,128}$/;
 const SAFE_NETWORK_RE = /^[A-Za-z0-9:_-]{1,128}$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_SECRET_LEN = 512;
 const MAX_APP_NAME_LEN = 128;
+const MAX_WALLET_CLIENT_INSTANCE_NAME_LEN = 64;
 const CONTROL_CHAR_RE = /[\u0000-\u001f\u007f]/;
+const WALLET_CLIENT_INSTANCE_ID_NAMESPACE = "alchemy-cli:wallet-client-instance-name:v1";
 
 const safeTextSchema = (maxLen: number) =>
   z
@@ -119,8 +127,19 @@ const configSchema = z
     solana_fee_policy_id: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     delegated_wallet: z.boolean().optional().catch(undefined),
     active_signer: z.enum(["session", "local"]).optional().catch(undefined),
+    wallet_client_instance_id: z.string().regex(UUID_RE).optional().catch(undefined),
+    wallet_client_instance_name: z
+      .string()
+      .transform(normalizeWhitespace)
+      .pipe(safeTextSchema(MAX_WALLET_CLIENT_INSTANCE_NAME_LEN))
+      .optional()
+      .catch(undefined),
   })
   .strip();
+
+function normalizeWhitespace(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
 
 function sanitizeConfig(input: unknown): Config {
   const parsed = configSchema.safeParse(input);
@@ -178,6 +197,82 @@ export function save(cfg: Config): void {
   writeFileSync(p, JSON.stringify(sanitized, null, 2) + "\n", {
     mode: 0o600,
   });
+}
+
+export function getOrCreateWalletClientInstanceId(): string {
+  return getOrCreateWalletClientInstance().id;
+}
+
+export interface WalletClientInstance {
+  id: string;
+  name?: string;
+}
+
+export function normalizeWalletClientInstanceName(value: string): string | undefined {
+  const normalized = normalizeWhitespace(value);
+  const parsed = safeTextSchema(MAX_WALLET_CLIENT_INSTANCE_NAME_LEN).safeParse(normalized);
+  return parsed.success ? parsed.data : undefined;
+}
+
+export function deriveWalletClientInstanceIdFromName(name: string): string {
+  const normalized = normalizeWalletClientInstanceName(name);
+  if (normalized === undefined) {
+    throw new Error("Invalid wallet client instance name.");
+  }
+  const digest = createHash("sha256")
+    .update(WALLET_CLIENT_INSTANCE_ID_NAMESPACE)
+    .update("\0")
+    .update(normalized.toLowerCase())
+    .digest();
+  const bytes = Buffer.from(digest.subarray(0, 16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20, 32),
+  ].join("-");
+}
+
+export function getOrCreateWalletClientInstance(input: {
+  instanceName?: string;
+} = {}): WalletClientInstance {
+  const cfg = load();
+  const instanceName =
+    input.instanceName === undefined
+      ? cfg.wallet_client_instance_name
+      : normalizeWalletClientInstanceName(input.instanceName);
+
+  if (input.instanceName !== undefined && instanceName === undefined) {
+    throw new Error("Invalid wallet client instance name.");
+  }
+
+  if (instanceName !== undefined) {
+    const walletClientInstanceId = deriveWalletClientInstanceIdFromName(instanceName);
+    save({
+      ...cfg,
+      wallet_client_instance_id: walletClientInstanceId,
+      wallet_client_instance_name: instanceName,
+    });
+    return {
+      id: walletClientInstanceId,
+      name: instanceName,
+    };
+  }
+
+  if (cfg.wallet_client_instance_id) {
+    return { id: cfg.wallet_client_instance_id };
+  }
+
+  const walletClientInstanceId = randomUUID();
+  save({
+    ...cfg,
+    wallet_client_instance_id: walletClientInstanceId,
+  });
+  return { id: walletClientInstanceId };
 }
 
 export function get(cfg: Config, key: string): string | undefined {

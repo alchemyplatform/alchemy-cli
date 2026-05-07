@@ -23,6 +23,8 @@ const walletSessionEnvironmentSchema = z
     arch: z.string().min(1),
     nodeVersion: z.string().min(1),
     interactive: z.boolean(),
+    clientInstanceId: z.string().uuid().optional(),
+    clientInstanceName: z.string().min(1).max(64).optional(),
   })
   .strict();
 
@@ -77,6 +79,8 @@ export interface WalletSession {
     arch: string;
     nodeVersion: string;
     interactive: boolean;
+    clientInstanceId?: string;
+    clientInstanceName?: string;
   };
 
   // Capability flags

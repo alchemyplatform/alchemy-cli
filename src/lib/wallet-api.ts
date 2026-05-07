@@ -136,6 +136,8 @@ export interface CreateWalletSessionInput {
     arch: string;
     nodeVersion: string;
     interactive: boolean;
+    clientInstanceId?: string;
+    clientInstanceName?: string;
   };
 }
 
@@ -349,13 +351,67 @@ export async function createRemoteWalletSession(
   token: string,
   input: CreateWalletSessionInput,
 ): Promise<CreateWalletSessionResponse> {
-  const data = await request<unknown>(
-    token,
-    "POST",
-    "/wallet/sessions",
-    input,
+  let data: unknown;
+  let requestInput = input;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      data = await request<unknown>(
+        token,
+        "POST",
+        "/wallet/sessions",
+        requestInput,
+      );
+      return unwrapAdminData(walletSessionCreateResponseSchema, data);
+    } catch (err) {
+      const retryInput = getClientInstanceCompatibilityRetryInput(requestInput, err);
+      if (retryInput === undefined) {
+        throw err;
+      }
+      requestInput = retryInput;
+    }
+  }
+  throw new CLIError(ErrorCode.NETWORK_ERROR, "Unable to create wallet session.");
+}
+
+function getClientInstanceCompatibilityRetryInput(
+  input: CreateWalletSessionInput,
+  err: unknown,
+): CreateWalletSessionInput | undefined {
+  if (
+    input.environment.clientInstanceName !== undefined &&
+    isUnsupportedClientInstanceMetadataError(err, "clientInstanceName")
+  ) {
+    const { clientInstanceName: _, ...environment } = input.environment;
+    return {
+      ...input,
+      environment,
+    };
+  }
+  if (
+    input.environment.clientInstanceId !== undefined &&
+    isUnsupportedClientInstanceMetadataError(err, "clientInstanceId")
+  ) {
+    const { clientInstanceId: _, clientInstanceName: __, ...environment } = input.environment;
+    return {
+      ...input,
+      environment,
+    };
+  }
+  return undefined;
+}
+
+function isUnsupportedClientInstanceMetadataError(
+  err: unknown,
+  fieldName: "clientInstanceId" | "clientInstanceName",
+): boolean {
+  if (!(err instanceof CLIError)) {
+    return false;
+  }
+  return (
+    err.code === ErrorCode.NETWORK_ERROR &&
+    err.message.includes("HTTP 400") &&
+    (err.details?.includes(fieldName) ?? true)
   );
-  return unwrapAdminData(walletSessionCreateResponseSchema, data);
 }
 
 export async function getRemoteWalletSession(

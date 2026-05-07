@@ -76,6 +76,8 @@ describe("wallet-api", () => {
         arch: "arm64",
         nodeVersion: "v22.0.0",
         interactive: true,
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+        clientInstanceName: "Chris Laptop",
       },
     });
 
@@ -86,12 +88,143 @@ describe("wallet-api", () => {
       requestSignerVersion: "v1",
       chainType: "evm",
       capabilities: { "evm.signMessage": true },
+      environment: expect.objectContaining({
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+        clientInstanceName: "Chris Laptop",
+      }),
     });
     expect(response).toEqual({
       sessionId: "session-123",
       approvalUrl: "https://dashboard.alchemy.com/approve/session-123",
       expiresAt: "2026-05-01T00:00:00.000Z",
     });
+  });
+
+  it("retries session creation without clientInstanceName for wallet APIs that only support clientInstanceId", async () => {
+    const requestBodies: unknown[] = [];
+    const baseUrl = await createTestServer((req, res) => {
+      req.setEncoding("utf8");
+      let requestBody = "";
+      req.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      req.on("end", () => {
+        requestBodies.push(JSON.parse(requestBody));
+        if (requestBodies.length === 1) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            error: {
+              message: "Unrecognized key: clientInstanceName",
+            },
+          }));
+          return;
+        }
+        res.writeHead(201, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          data: {
+            sessionId: "session-123",
+            approvalUrl: "https://dashboard.alchemy.com/approve/session-123",
+            expiresAt: "2026-05-01T00:00:00.000Z",
+          },
+        }));
+      });
+    });
+    process.env.ALCHEMY_ADMIN_API_BASE_URL = baseUrl;
+
+    const { createRemoteWalletSession } = await import("../../src/lib/wallet-api.js");
+    const response = await createRemoteWalletSession("auth-token", {
+      publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+      requestSignerVersion: "v1",
+      chainType: "evm",
+      capabilities: { "evm.signMessage": true },
+      environment: {
+        platform: "darwin",
+        arch: "arm64",
+        nodeVersion: "v22.0.0",
+        interactive: true,
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+        clientInstanceName: "Chris Laptop",
+      },
+    });
+
+    expect(response.sessionId).toBe("session-123");
+    expect(requestBodies).toHaveLength(2);
+    expect(requestBodies[0]).toMatchObject({
+      environment: {
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+        clientInstanceName: "Chris Laptop",
+      },
+    });
+    expect(requestBodies[1]).toMatchObject({
+      environment: {
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+      },
+    });
+    expect((requestBodies[1] as { environment: Record<string, unknown> }).environment.clientInstanceName).toBeUndefined();
+  });
+
+  it("retries session creation without clientInstanceId for older wallet APIs", async () => {
+    const requestBodies: unknown[] = [];
+    const baseUrl = await createTestServer((req, res) => {
+      req.setEncoding("utf8");
+      let requestBody = "";
+      req.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      req.on("end", () => {
+        requestBodies.push(JSON.parse(requestBody));
+        if (requestBodies.length === 1) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            error: {
+              message: "Unrecognized key: clientInstanceId",
+            },
+          }));
+          return;
+        }
+        res.writeHead(201, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          data: {
+            sessionId: "session-123",
+            approvalUrl: "https://dashboard.alchemy.com/approve/session-123",
+            expiresAt: "2026-05-01T00:00:00.000Z",
+          },
+        }));
+      });
+    });
+    process.env.ALCHEMY_ADMIN_API_BASE_URL = baseUrl;
+
+    const { createRemoteWalletSession } = await import("../../src/lib/wallet-api.js");
+    const response = await createRemoteWalletSession("auth-token", {
+      publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+      requestSignerVersion: "v1",
+      chainType: "evm",
+      capabilities: { "evm.signMessage": true },
+      environment: {
+        platform: "darwin",
+        arch: "arm64",
+        nodeVersion: "v22.0.0",
+        interactive: true,
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+      },
+    });
+
+    expect(response.sessionId).toBe("session-123");
+    expect(requestBodies).toHaveLength(2);
+    expect(requestBodies[0]).toMatchObject({
+      environment: {
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+      },
+    });
+    expect(requestBodies[1]).toMatchObject({
+      environment: {
+        platform: "darwin",
+        arch: "arm64",
+        nodeVersion: "v22.0.0",
+        interactive: true,
+      },
+    });
+    expect((requestBodies[1] as { environment: Record<string, unknown> }).environment.clientInstanceId).toBeUndefined();
   });
 
   it("allows the staging admin API override for wallet routes", async () => {

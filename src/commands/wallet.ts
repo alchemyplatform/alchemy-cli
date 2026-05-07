@@ -614,7 +614,11 @@ async function runLocalImportInteractive(opts: { path: string; program: Command;
   }
 }
 
-async function runSessionConnect(opts: { program: Command; force: boolean }): Promise<void> {
+async function runSessionConnect(opts: {
+  program: Command;
+  force: boolean;
+  instanceName?: string;
+}): Promise<void> {
   const authToken = resolveAuthToken();
   if (!authToken) throw errAuthRequired();
 
@@ -635,11 +639,23 @@ async function runSessionConnect(opts: { program: Command; force: boolean }): Pr
   }
 
   const session = createPendingSession();
+  let clientInstance: config.WalletClientInstance;
+  try {
+    clientInstance = config.getOrCreateWalletClientInstance({
+      instanceName: opts.instanceName,
+    });
+  } catch {
+    throw errInvalidArgs(
+      "`--instance-name` must be 1-64 characters and cannot contain control characters.",
+    );
+  }
   const sessionEnvironment = {
     platform: process.platform,
     arch: process.arch,
     nodeVersion: process.version,
     interactive: isInteractiveAllowed(opts.program),
+    clientInstanceId: clientInstance.id,
+    ...(clientInstance.name === undefined ? {} : { clientInstanceName: clientInstance.name }),
   };
   updateSession({
     chainType: "evm",
@@ -665,13 +681,17 @@ async function runSessionConnect(opts: { program: Command; force: boolean }): Pr
   });
 
   if (!isJSONMode()) {
-    printKeyValue([
+    const summaryPairs: Array<[string, string]> = [
       ["Session ID", remoteSession.sessionId],
       ["Status", "pending"],
       ["Approval URL", remoteSession.approvalUrl],
       ["Created", session.createdAt],
       ["Expires", remoteSession.expiresAt ?? session.expiresAt],
-    ]);
+    ];
+    if (clientInstance.name !== undefined) {
+      summaryPairs.splice(1, 0, ["Instance", clientInstance.name]);
+    }
+    printKeyValue(summaryPairs);
     console.log(`  ${green("✓")} Wallet session created`);
   }
 
@@ -837,7 +857,13 @@ function printCrossModeHintAfterLocal(chain: LocalChain): void {
 
 async function runConnectFlow(
   program: Command,
-  opts: { mode?: string; chain?: string; import?: string; force?: boolean },
+  opts: {
+    mode?: string;
+    chain?: string;
+    import?: string;
+    force?: boolean;
+    instanceName?: string;
+  },
 ): Promise<void> {
   // Validate flag coherence.
   const force = Boolean(opts.force);
@@ -848,6 +874,13 @@ async function runConnectFlow(
     mode = opts.mode;
   } else if (opts.mode !== undefined) {
     throw errInvalidArgs("`--mode` must be 'session' or 'local'.");
+  }
+
+  if (opts.instanceName !== undefined) {
+    if (mode === "local") {
+      throw errInvalidArgs("`--instance-name` is only valid with `--mode session`.");
+    }
+    mode = "session";
   }
 
   if (importPath) {
@@ -891,7 +924,7 @@ async function runConnectFlow(
   }
 
   if (mode === "session") {
-    await runSessionConnect({ program, force });
+    await runSessionConnect({ program, force, instanceName: opts.instanceName });
     printCrossModeHintAfterSessionConnect();
     return;
   }
@@ -988,8 +1021,15 @@ export function registerWallets(program: Command) {
     .option("--mode <mode>", "session | local")
     .option("--chain <chain>", "For --mode local: evm | solana | both (default: both)")
     .option("--import <path>", "For --mode local: import EVM key from file (implies --chain evm)")
+    .option("--instance-name <name>", "For --mode session: name this CLI instance")
     .option("--force", "Replace the existing signer")
-    .action(async (opts: { mode?: string; chain?: string; import?: string; force?: boolean }) => {
+    .action(async (opts: {
+      mode?: string;
+      chain?: string;
+      import?: string;
+      instanceName?: string;
+      force?: boolean;
+    }) => {
       try {
         await runConnectFlow(program, opts);
       } catch (err) {

@@ -889,6 +889,10 @@ describe("wallet command", () => {
       expiresAt: "2026-04-21T00:00:00.000Z",
     });
     const updateSession = vi.fn();
+    const getOrCreateWalletClientInstance = vi.fn(() => ({
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Office Mac",
+    }));
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveWalletKey: vi.fn(),
@@ -915,6 +919,13 @@ describe("wallet command", () => {
       disconnectRemoteWalletSession: vi.fn(),
       getRemoteWalletSession,
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      getOrCreateWalletClientInstance,
+      getOrCreateWalletClientInstanceId: () => "11111111-1111-4111-8111-111111111111",
+      load: () => ({}),
+      save: vi.fn(),
+      configDir: () => "/tmp/alchemy",
     }));
     vi.doMock("../../src/lib/wallet-session.js", () => ({
       createPendingSession: () => ({
@@ -945,10 +956,25 @@ describe("wallet command", () => {
     const program = new Command();
     registerWallet(program);
 
-    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "session"], {
-      from: "node",
-    });
+    await program.parseAsync(
+      [
+        "node",
+        "test",
+        "wallet",
+        "connect",
+        "--mode",
+        "session",
+        "--instance-name",
+        "Office Mac",
+      ],
+      {
+        from: "node",
+      },
+    );
 
+    expect(getOrCreateWalletClientInstance).toHaveBeenCalledWith({
+      instanceName: "Office Mac",
+    });
     expect(createRemoteWalletSession).toHaveBeenCalledWith("auth-token", expect.objectContaining({
       requestSignerVersion: "v1",
       chainType: "evm",
@@ -957,6 +983,10 @@ describe("wallet command", () => {
         "evm.signTypedData": true,
         "evm.signAuthorization": true,
       },
+      environment: expect.objectContaining({
+        clientInstanceId: "11111111-1111-4111-8111-111111111111",
+        clientInstanceName: "Office Mac",
+      }),
     }));
     expect(getRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
     expect(openBrowser).toHaveBeenCalledWith("https://dashboard.alchemy.com/approve");
@@ -1037,6 +1067,16 @@ describe("wallet command", () => {
       disconnectRemoteWalletSession: vi.fn(),
       getRemoteWalletSession,
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      getOrCreateWalletClientInstance: () => ({
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Chris Laptop",
+      }),
+      getOrCreateWalletClientInstanceId: () => "11111111-1111-4111-8111-111111111111",
+      load: () => ({}),
+      save: vi.fn(),
+      configDir: () => "/tmp/alchemy",
     }));
     vi.doMock("../../src/lib/wallet-session.js", () => ({
       createPendingSession: () => ({
@@ -1125,6 +1165,16 @@ describe("wallet command", () => {
       disconnectRemoteWalletSession,
       getRemoteWalletSession,
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      getOrCreateWalletClientInstance: () => ({
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Chris Laptop",
+      }),
+      getOrCreateWalletClientInstanceId: () => "11111111-1111-4111-8111-111111111111",
+      load: () => ({}),
+      save: vi.fn(),
+      configDir: () => "/tmp/alchemy",
     }));
     vi.doMock("../../src/lib/wallet-session.js", () => ({
       createPendingSession: () => ({
@@ -1224,6 +1274,16 @@ describe("wallet command", () => {
       getRemoteWalletSession,
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
     }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      getOrCreateWalletClientInstance: () => ({
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Chris Laptop",
+      }),
+      getOrCreateWalletClientInstanceId: () => "11111111-1111-4111-8111-111111111111",
+      load: () => ({}),
+      save: vi.fn(),
+      configDir: () => "/tmp/alchemy",
+    }));
     vi.doMock("../../src/lib/wallet-session.js", () => ({
       createPendingSession: () => ({
         sessionId: "local-session",
@@ -1307,6 +1367,16 @@ describe("wallet command", () => {
       getRemoteWalletSession: vi.fn(),
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
     }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      getOrCreateWalletClientInstance: () => ({
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Chris Laptop",
+      }),
+      getOrCreateWalletClientInstanceId: () => "11111111-1111-4111-8111-111111111111",
+      load: () => ({}),
+      save: vi.fn(),
+      configDir: () => "/tmp/alchemy",
+    }));
     vi.doMock("../../src/lib/wallet-session.js", () => ({
       createPendingSession: vi.fn(),
       loadSession: () => ({
@@ -1371,6 +1441,16 @@ describe("wallet command", () => {
       disconnectRemoteWalletSession: vi.fn(),
       getRemoteWalletSession: vi.fn(),
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      getOrCreateWalletClientInstance: () => ({
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Chris Laptop",
+      }),
+      getOrCreateWalletClientInstanceId: () => "11111111-1111-4111-8111-111111111111",
+      load: () => ({}),
+      save: vi.fn(),
+      configDir: () => "/tmp/alchemy",
     }));
     vi.doMock("../../src/lib/wallet-session.js", () => ({
       createPendingSession: () => ({
