@@ -384,6 +384,7 @@ describe("CLI mock E2E", () => {
     const payload = parseJSON(result.stdout) as Record<string, unknown>;
     expect(payload).toHaveProperty("executionPolicy");
     expect(payload).toHaveProperty("preflight");
+    expect(payload).toHaveProperty("runtimeDiscovery");
     expect(payload).toHaveProperty("auth");
     expect(payload).toHaveProperty("commands");
     expect(payload).toHaveProperty("errors");
@@ -395,6 +396,11 @@ describe("CLI mock E2E", () => {
     expect(commands.some((c) => c.name === "evm")).toBe(true);
     expect(commands.some((c) => c.name === "update-check")).toBe(true);
     expect(commands.some((c) => c.name === "agent-prompt")).toBe(false);
+    expect(payload.runtimeDiscovery).toMatchObject({
+      latest: {
+        command: "npx -y @alchemy/cli@latest --json --no-interactive agent-prompt",
+      },
+    });
     expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
     expect(payload.examples).toContain(
       "alchemy --json --no-interactive evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",

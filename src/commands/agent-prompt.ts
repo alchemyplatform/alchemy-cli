@@ -20,6 +20,17 @@ interface ErrorEntry {
 interface AgentPrompt {
   executionPolicy: string[];
   preflight: { command: string; description: string };
+  runtimeDiscovery: {
+    installed: { command: string; description: string };
+    latest: { command: string; description: string };
+    commandHelp: { commandTemplate: string; description: string };
+    versionCheck: {
+      installedCommand: string;
+      latestCommand: string;
+      description: string;
+    };
+    pathCheck: { command: string; description: string };
+  };
   auth: Array<{
     method: string;
     envVar: string;
@@ -133,12 +144,44 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       "Parse stdout as JSON on exit code 0",
       "Parse stderr as JSON on nonzero exit code",
       "Never run bare 'alchemy' without --json --no-interactive",
+      "Before answering Alchemy CLI capability or usage questions, inspect the live command contract from agent-prompt and trust it over model memory",
+      "For general capability and usage questions, prefer npx -y @alchemy/cli@latest --json --no-interactive agent-prompt so stale local installs or PATH shims do not hide new commands",
+      "Use the user's installed alchemy binary only when executing commands against their local config or diagnosing their installed version",
+      "If installed alchemy help contradicts latest npm help, compare alchemy --json --no-interactive version with npx -y @alchemy/cli@latest --json --no-interactive version and check command -v alchemy",
       "Run alchemy --json --no-interactive update-check when you need to detect available CLI upgrades",
     ],
     preflight: {
       command: "alchemy --json --no-interactive config status",
       description:
         "Check auth readiness before first command. If complete is false, follow nextCommands in the response to configure auth.",
+    },
+    runtimeDiscovery: {
+      installed: {
+        command: "alchemy --json --no-interactive agent-prompt",
+        description:
+          "Use for the user's currently installed CLI only when executing against local config or diagnosing local install behavior.",
+      },
+      latest: {
+        command: "npx -y @alchemy/cli@latest --json --no-interactive agent-prompt",
+        description:
+          "Default source of truth for general capability and usage questions; avoids stale local installs and PATH shims.",
+      },
+      commandHelp: {
+        commandTemplate: "npx -y @alchemy/cli@latest --no-interactive help <command...>",
+        description:
+          "Use for command-specific help from the latest published CLI when constructing an invocation.",
+      },
+      versionCheck: {
+        installedCommand: "alchemy --json --no-interactive version",
+        latestCommand: "npx -y @alchemy/cli@latest --json --no-interactive version",
+        description:
+          "Compare when local help or agent-prompt output appears stale after an install or update.",
+      },
+      pathCheck: {
+        command: "command -v alchemy && alchemy version",
+        description:
+          "Use when installed CLI behavior contradicts the latest contract or an update appears not to take effect.",
+      },
     },
     auth: [
       {
@@ -253,6 +296,20 @@ function formatAsSystemPrompt(payload: AgentPrompt): string {
   lines.push("Preflight:");
   lines.push(`  Command: ${payload.preflight.command}`);
   lines.push(`  ${payload.preflight.description}`);
+  lines.push("");
+
+  lines.push("Runtime discovery:");
+  lines.push(`  Installed CLI: ${payload.runtimeDiscovery.installed.command}`);
+  lines.push(`    ${payload.runtimeDiscovery.installed.description}`);
+  lines.push(`  Latest npm CLI: ${payload.runtimeDiscovery.latest.command}`);
+  lines.push(`    ${payload.runtimeDiscovery.latest.description}`);
+  lines.push(`  Command help: ${payload.runtimeDiscovery.commandHelp.commandTemplate}`);
+  lines.push(`    ${payload.runtimeDiscovery.commandHelp.description}`);
+  lines.push(`  Installed version: ${payload.runtimeDiscovery.versionCheck.installedCommand}`);
+  lines.push(`  Latest npm version: ${payload.runtimeDiscovery.versionCheck.latestCommand}`);
+  lines.push(`    ${payload.runtimeDiscovery.versionCheck.description}`);
+  lines.push(`  Path check: ${payload.runtimeDiscovery.pathCheck.command}`);
+  lines.push(`    ${payload.runtimeDiscovery.pathCheck.description}`);
   lines.push("");
 
   lines.push("Auth methods:");

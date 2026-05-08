@@ -82,7 +82,7 @@ Have your agent run `agent-prompt` as its first step to get a complete, machine-
 alchemy --json --no-interactive agent-prompt
 ```
 
-This returns a single JSON document with execution policy, preflight instructions, auth matrix, the full command tree with all arguments and options, error codes with recovery actions, and example invocations. No external docs required.
+This returns a single JSON document with execution policy, runtime discovery instructions, preflight instructions, auth matrix, the full command tree with all arguments and options, error codes with recovery actions, and example invocations. No external docs required.
 
 Agents can also call `alchemy --json --no-interactive update-check` to retrieve the current CLI version, latest known version, and install command for upgrades.
 

@@ -33,6 +33,7 @@ describe("agent-prompt command", () => {
 
     expect(payload).toHaveProperty("executionPolicy");
     expect(payload).toHaveProperty("preflight");
+    expect(payload).toHaveProperty("runtimeDiscovery");
     expect(payload).toHaveProperty("auth");
     expect(payload).toHaveProperty("commands");
     expect(payload).toHaveProperty("errors");
@@ -144,6 +145,50 @@ describe("agent-prompt command", () => {
     expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
     expect(payload.examples).toContain("ALCHEMY_ACCESS_KEY=ak_xxx alchemy --json --no-interactive app list");
     expect(payload.examples).not.toContain("ALCHEMY_ACCESS_KEY=$ALCHEMY_ACCESS_KEY alchemy --json --no-interactive app list");
+  });
+
+  it("includes runtime discovery guidance for latest published CLI help", async () => {
+    const printHuman = vi.fn();
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman,
+    }));
+
+    const { registerAgentPrompt } = await import(
+      "../../src/commands/agent-prompt.js"
+    );
+    const program = new Command();
+    registerAgentPrompt(program);
+
+    await program.parseAsync(["node", "test", "agent-prompt"], {
+      from: "node",
+    });
+
+    const formatted = printHuman.mock.calls[0][0] as string;
+    const payload = printHuman.mock.calls[0][1];
+
+    expect(payload.executionPolicy).toContain(
+      "Before answering Alchemy CLI capability or usage questions, inspect the live command contract from agent-prompt and trust it over model memory",
+    );
+    expect(payload.executionPolicy).toContain(
+      "For general capability and usage questions, prefer npx -y @alchemy/cli@latest --json --no-interactive agent-prompt so stale local installs or PATH shims do not hide new commands",
+    );
+    expect(payload.runtimeDiscovery.latest.command).toBe(
+      "npx -y @alchemy/cli@latest --json --no-interactive agent-prompt",
+    );
+    expect(payload.runtimeDiscovery.commandHelp.commandTemplate).toBe(
+      "npx -y @alchemy/cli@latest --no-interactive help <command...>",
+    );
+    expect(payload.runtimeDiscovery.versionCheck).toMatchObject({
+      installedCommand: "alchemy --json --no-interactive version",
+      latestCommand: "npx -y @alchemy/cli@latest --json --no-interactive version",
+    });
+    expect(payload.runtimeDiscovery.pathCheck.command).toBe(
+      "command -v alchemy && alchemy version",
+    );
+    expect(formatted).toContain("Runtime discovery:");
+    expect(formatted).toContain("Latest npm CLI: npx -y @alchemy/cli@latest --json --no-interactive agent-prompt");
   });
 
   it("includes auth entries for all method types", async () => {
