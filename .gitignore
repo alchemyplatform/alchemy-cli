@@ -36,3 +36,5 @@ docs/
 .codex/skills
 .cursor/skills
 .continue/
+
+.npmrc
