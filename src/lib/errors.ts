@@ -250,6 +250,10 @@ export function setReplMode(enabled: boolean): void {
   replMode = enabled;
 }
 
+export function isReplMode(): boolean {
+  return replMode;
+}
+
 export function exitWithError(err: unknown): never {
   const cliErr =
     err instanceof CLIError

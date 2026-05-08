@@ -4,6 +4,7 @@ import {
   errInvalidArgs,
   errSetupRequired,
   exitWithError,
+  isReplMode,
 } from "./lib/errors.js";
 import { setFlags, isJSONMode, quiet } from "./lib/output.js";
 import { formatCommanderError } from "./lib/error-format.js";
@@ -405,6 +406,14 @@ program
       }
     }
     resetUpdateNoticeState();
+    // Force-exit one-shot CLI invocations once the action and update notice
+    // have completed. Some interactive prompt flows (browser auth + app
+    // selection) leave the stdin TTY handle in a state where pause()/unref()
+    // do not release it on macOS, causing the event loop to never drain.
+    // Skip in REPL mode so the interactive shell stays alive.
+    if (!isReplMode()) {
+      process.exit(0);
+    }
   })
   .action(async (_opts: unknown, cmd: Command) => {
     // Commander routes here when no subcommand matches. If the user passed
