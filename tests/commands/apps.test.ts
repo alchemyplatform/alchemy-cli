@@ -161,4 +161,30 @@ describe("app command", () => {
     expect(printJSON).toHaveBeenCalledWith({ id: "app_123", status: "deleted" });
     expect(exitWithError).not.toHaveBeenCalled();
   });
+
+  it("uses searchable autocomplete for interactive app selection", async () => {
+    const { promptAutocomplete, exitWithError } = installBaseCommandMocks({ jsonMode: false });
+    promptAutocomplete.mockResolvedValue("app_2");
+    const listAllApps = vi.fn().mockResolvedValue({ apps: [APP_ONE, APP_TWO], pages: 1 });
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listAllApps }),
+    }));
+    const save = vi.fn();
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: vi.fn().mockReturnValue({}),
+      save,
+    }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    await runRegisteredCommand(registerApps, ["app", "select"]);
+
+    expect(promptAutocomplete).toHaveBeenCalledWith(expect.objectContaining({
+      message: "Select an app",
+      placeholder: "Type to search by name or id",
+    }));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({
+      app: expect.objectContaining({ id: "app_2", name: "Second App" }),
+    }));
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
 });

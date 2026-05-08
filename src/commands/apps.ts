@@ -4,7 +4,7 @@ import type { App } from "../lib/admin-client.js";
 import { errInvalidArgs, errAppRequired, exitWithError } from "../lib/errors.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import * as config from "../lib/config.js";
-import { promptSelect, promptConfirm } from "../lib/terminal-ui.js";
+import { promptAutocomplete, promptSelect, promptConfirm } from "../lib/terminal-ui.js";
 import {
   green,
   dim,
@@ -599,8 +599,9 @@ export function registerApps(program: Command) {
             return;
           }
 
-          const appId = await promptSelect({
+          const appId = await promptAutocomplete({
             message: "Select an app",
+            placeholder: "Type to search by name or id",
             options: result.apps.map((app) => ({
               value: app.id,
               label: app.name,

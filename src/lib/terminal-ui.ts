@@ -51,10 +51,63 @@ function suspendStdinKeypressListeners(): () => void {
   };
 }
 
+function resetStdinKeypressDecoder(): void {
+  const input = stdin as unknown as NodeJS.ReadStream & Record<symbol, unknown>;
+  for (const symbol of Object.getOwnPropertySymbols(input)) {
+    const name = String(symbol);
+    // readline keeps these private decoder symbols after an interface closes.
+    if (name === "Symbol(keypress-decoder)" || name === "Symbol(escape-decoder)") {
+      delete input[symbol];
+    }
+  }
+}
+
+function isReadlineKeypressDataListener(listener: unknown): boolean {
+  return typeof listener === "function" && listener.name === "onData";
+}
+
+function prepareStdinKeypressEvents(): () => void {
+  const dataListeners = stdin.listeners("data");
+  const keypressListeners = stdin.listeners("keypress");
+  for (const listener of dataListeners) {
+    stdin.removeListener("data", listener as (...args: unknown[]) => void);
+  }
+  for (const listener of keypressListeners) {
+    stdin.removeListener("keypress", listener as (...args: unknown[]) => void);
+  }
+  resetStdinKeypressDecoder();
+  readline.emitKeypressEvents(stdin);
+
+  return () => {
+    for (const listener of stdin.listeners("data")) {
+      stdin.removeListener("data", listener as (...args: unknown[]) => void);
+    }
+    resetStdinKeypressDecoder();
+    for (const listener of dataListeners) {
+      if (!isReadlineKeypressDataListener(listener)) {
+        stdin.on("data", listener as (...args: unknown[]) => void);
+      }
+    }
+    for (const listener of keypressListeners) {
+      stdin.on("keypress", listener as (...args: unknown[]) => void);
+    }
+    if (keypressListeners.length > 0) {
+      readline.emitKeypressEvents(stdin);
+    }
+  };
+}
+
 type RenderResult = {
   value: string | string[] | null;
   cancelled: boolean;
 };
+
+function requestPromptInterrupt(): void {
+  const handled = process.emit("SIGINT", "SIGINT");
+  if (!handled) {
+    process.exit(130);
+  }
+}
 
 async function runListPrompt<T extends string>(opts: {
   message: string;
@@ -75,8 +128,7 @@ async function runListPrompt<T extends string>(opts: {
     return { value: initial, cancelled: false };
   }
 
-  readline.emitKeypressEvents(stdin);
-  const restoreKeypressListeners = suspendStdinKeypressListeners();
+  const restoreKeypressEvents = prepareStdinKeypressEvents();
   const previousRawMode = stdin.isRaw;
   stdin.resume();
   stdin.setRawMode(true);
@@ -167,7 +219,7 @@ async function runListPrompt<T extends string>(opts: {
     if (renderedLines > 0) clearRenderedLines(renderedLines);
     stdin.setRawMode(previousRawMode);
     stdin.removeListener("keypress", onKeypress);
-    restoreKeypressListeners();
+    restoreKeypressEvents();
     // Pause stdin to stop raw-mode keypress processing, but do NOT unref —
     // the caller may invoke another prompt (e.g. pagination loops), and
     // unref lets Node exit prematurely. In REPL mode, skip pause entirely
@@ -186,7 +238,13 @@ async function runListPrompt<T extends string>(opts: {
   const onKeypress = (str: string, key: readline.Key): void => {
     const filtered = getFiltered();
     const current = filtered[cursor];
-    if (key.name === "escape" || (key.ctrl && key.name === "c")) {
+    if (key.ctrl && key.name === "c") {
+      cleanup();
+      requestPromptInterrupt();
+      resolver({ value: null, cancelled: true });
+      return;
+    }
+    if (key.name === "escape") {
       cleanup();
       resolver({ value: null, cancelled: true });
       return;
@@ -277,8 +335,10 @@ export async function promptText(opts: {
   const previousRawMode = stdin.isRaw;
   if (previousRawMode) stdin.setRawMode(false);
   const ABORTED = Symbol("aborted");
-  const value = await new Promise<string | typeof ABORTED | null>((resolve) => {
-    rl.on("SIGINT", () => resolve(null));
+  const INTERRUPTED = Symbol("interrupted");
+  let removeAbortListener: (() => void) | undefined;
+  const value = await new Promise<string | typeof ABORTED | typeof INTERRUPTED>((resolve) => {
+    rl.on("SIGINT", () => resolve(INTERRUPTED));
     rl.question(question, (answer) => resolve(answer));
     if (opts.abortSignal) {
       const onAbort = () => resolve(ABORTED);
@@ -286,20 +346,26 @@ export async function promptText(opts: {
         onAbort();
       } else {
         opts.abortSignal.addEventListener("abort", onAbort, { once: true });
+        removeAbortListener = () => opts.abortSignal?.removeEventListener("abort", onAbort);
       }
     }
   });
   rl.close();
+  removeAbortListener?.();
   restoreKeypressListeners();
-  if (previousRawMode) stdin.setRawMode(true);
+  if (previousRawMode) {
+    stdin.setRawMode(true);
+  } else {
+    stdin.pause();
+  }
   if (opts.clearAfterSubmit || value === ABORTED) {
     // Clear the prompt line and spacer line so sensitive/temporary
     // prompt input does not remain visible after submit.
     clearRenderedLines(2);
   }
   if (value === ABORTED) return "";
-  if (value === null) {
-    printCancel(opts.cancelMessage);
+  if (value === INTERRUPTED) {
+    requestPromptInterrupt();
     return null;
   }
   if (!value.trim() && opts.defaultValue !== undefined) return opts.defaultValue;

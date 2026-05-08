@@ -54,20 +54,21 @@ function mockConfigModule(deps: {
 function mockConfigDependencies(opts?: { interactive?: boolean; confirmResult?: boolean | null }) {
   const adminCtor = vi.fn();
   const promptConfirm = vi.fn().mockResolvedValue(opts?.confirmResult ?? false);
+  const promptAutocomplete = vi.fn();
 
   vi.doMock("../../src/lib/admin-client.js", () => ({ AdminClient: adminCtor }));
   vi.doMock("../../src/lib/interaction.js", () => ({
     isInteractiveAllowed: () => opts?.interactive ?? false,
   }));
   vi.doMock("../../src/lib/terminal-ui.js", () => ({
-    promptAutocomplete: vi.fn(),
+    promptAutocomplete,
     promptConfirm,
     promptMultiselect: vi.fn(),
     promptSelect: vi.fn(),
     promptText: vi.fn(),
   }));
 
-  return { adminCtor, promptConfirm };
+  return { adminCtor, promptConfirm, promptAutocomplete };
 }
 
 describe("config command", () => {
@@ -251,5 +252,34 @@ describe("config command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
     expect(printHuman).toHaveBeenCalledTimes(1);
     expect(printHuman.mock.calls[0][1]).toMatchObject({ key: "verbose", value: "false", default: true });
+  });
+
+  it("uses searchable autocomplete for interactive app selection", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
+    const save = vi.fn();
+    mockConfigModule({ load: vi.fn().mockReturnValue({}), save });
+    const { promptAutocomplete } = mockConfigDependencies({ interactive: true });
+    promptAutocomplete.mockResolvedValue("app_2");
+    const listAllApps = vi.fn().mockResolvedValue({
+      apps: [
+        { id: "app_1", name: "First App", apiKey: "api_1", webhookApiKey: "wh_1" },
+        { id: "app_2", name: "Second App", apiKey: "api_2", webhookApiKey: "wh_2" },
+      ],
+    });
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listAllApps }),
+    }));
+
+    const { registerConfig } = await import("../../src/commands/config.js");
+    await runRegisteredCommand(registerConfig, ["config", "set", "app"]);
+
+    expect(promptAutocomplete).toHaveBeenCalledWith(expect.objectContaining({
+      message: "Select default app",
+      placeholder: "Type app name or id",
+    }));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({
+      app: expect.objectContaining({ id: "app_2", name: "Second App" }),
+    }));
+    expect(exitWithError).not.toHaveBeenCalled();
   });
 });

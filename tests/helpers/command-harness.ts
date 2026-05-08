@@ -18,6 +18,8 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
   const printKeyValueBox = vi.fn();
   const emptyState = vi.fn();
   const exitWithError = vi.fn();
+  const promptAutocomplete = vi.fn().mockResolvedValue("stop");
+  const promptSelect = vi.fn().mockResolvedValue("stop");
 
   vi.doMock("../../src/lib/output.js", () => ({
     isJSONMode: () => jsonMode,
@@ -59,7 +61,8 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
   }));
 
   vi.doMock("../../src/lib/terminal-ui.js", () => ({
-    promptSelect: vi.fn().mockResolvedValue("stop"),
+    promptAutocomplete,
+    promptSelect,
   }));
 
   return {
@@ -71,6 +74,8 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
     printKeyValueBox,
     emptyState,
     exitWithError,
+    promptAutocomplete,
+    promptSelect,
   };
 }
 

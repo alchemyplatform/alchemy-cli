@@ -523,6 +523,9 @@ export async function startREPL(
 
   return new Promise<void>((resolve) => {
     rl.on("line", (line) => void onLine(line));
+    rl.on("SIGINT", () => {
+      rl.close();
+    });
     rl.on("close", () => {
       if (Array.isArray(rlWithHistory.history)) {
         saveReplHistory([...rlWithHistory.history].reverse());

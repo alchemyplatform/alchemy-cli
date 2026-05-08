@@ -11,14 +11,12 @@ import {
   promptAutocomplete,
   promptConfirm,
   promptMultiselect,
-  promptSelect,
   promptText,
 } from "../lib/terminal-ui.js";
 import { splitCommaList } from "../lib/validators.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 
 const RESET_KEY_MAP: Record<string, keyof config.Config> = { ...config.KEY_MAP, app: "app" };
-const APP_SEARCH_THRESHOLD = 15;
 
 export async function saveAppWithPrompt(app: App): Promise<boolean> {
   const cfg = config.load();
@@ -71,21 +69,13 @@ export async function selectOrCreateApp(admin: AdminClient): Promise<void> {
       })),
       { label: "Create a new app", value: CREATE_NEW },
     ];
-    const selected =
-      apps.length > APP_SEARCH_THRESHOLD
-        ? await promptAutocomplete({
-            message: "Select default app",
-            placeholder: "Type app name or id",
-            options,
-            cancelMessage: "Cancelled app selection.",
-            commitLabel: null,
-          })
-        : await promptSelect({
-            message: "Select default app",
-            options,
-            cancelMessage: "Cancelled app selection.",
-            commitLabel: null,
-          });
+    const selected = await promptAutocomplete({
+      message: "Select default app",
+      placeholder: "Type app name or id",
+      options,
+      cancelMessage: "Cancelled app selection.",
+      commitLabel: null,
+    });
     if (selected === null) {
       return;
     }
