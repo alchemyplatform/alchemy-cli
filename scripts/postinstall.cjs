@@ -97,5 +97,7 @@ if (isGlobalInstall() && !isCI()) {
   console.log("");
   console.log("◆ Alchemy CLI installed");
   console.log("  Run `alchemy` to get started.");
+  console.log("  Run `alchemy install mcp` to connect Alchemy MCP to an agent.");
+  console.log("  Run `alchemy install skills` to install Alchemy agent skills.");
   console.log("");
 }
