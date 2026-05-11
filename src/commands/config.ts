@@ -1,6 +1,10 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { getSetupStatus } from "../lib/onboarding.js";
+import {
+  SETUP_CAPABILITY_LABELS,
+  SETUP_CAPABILITY_ORDER,
+  getSetupStatus,
+} from "../lib/onboarding.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { adminClientFromFlags } from "../lib/resolve.js";
@@ -573,5 +577,17 @@ export function registerConfig(program: Command) {
           console.log(`  ${dim(`- ${command}`)}`);
         }
       }
+
+      console.log("");
+      console.log(`  ${dim("Capabilities:")}`);
+      printKeyValue(
+        SETUP_CAPABILITY_ORDER.map((capability) => {
+          const capabilityStatus = status.capabilities[capability];
+          const value = capabilityStatus.complete
+            ? `ready (${capabilityStatus.satisfiedBy})`
+            : `missing ${capabilityStatus.missing.join(", ")}`;
+          return [SETUP_CAPABILITY_LABELS[capability], value];
+        }),
+      );
     });
 }

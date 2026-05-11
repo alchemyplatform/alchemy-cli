@@ -5,6 +5,7 @@ const NATIVE_TOKEN = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const ZERO_DEC_TOKEN = "0x3333333333333333333333333333333333333333";
 const FROM = "0x1111111111111111111111111111111111111111";
+const QUOTE_FROM = "0x9999999999999999999999999999999999999999";
 const ROUTER = "0x2222222222222222222222222222222222222222";
 
 describe("swap command", () => {
@@ -93,6 +94,191 @@ describe("swap command", () => {
       network: "polygon-mainnet",
       quoteType: "user-operation-v070",
     }));
+  });
+
+  it("swap quote supports an explicit quote-only from address", async () => {
+    const printJSON = vi.fn();
+    const requestQuoteV0 = vi.fn().mockResolvedValue({
+      rawCalls: false,
+      type: "user-operation-v070",
+      quote: {
+        fromAmount: 1000000000000000000n,
+        minimumToAmount: 30000000n,
+        expiry: 123,
+      },
+      chainId: 1,
+      data: {},
+      feePayment: {
+        sponsored: false,
+        tokenAddress: USDC,
+        maxAmount: 0n,
+      },
+    });
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: {
+          extend: () => ({ requestQuoteV0 }),
+        },
+        network: "eth-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/wallet-quote-client.js", () => ({
+      buildWalletQuoteClient: () => ({
+        client: {
+          extend: () => ({ requestQuoteV0 }),
+        },
+        network: "eth-mainnet",
+        address: QUOTE_FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({
+        call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
+      }),
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", NATIVE_TOKEN,
+      "--to", USDC,
+      "--amount", "1.0",
+      "--from-address", QUOTE_FROM,
+    ], { from: "node" });
+
+    expect(requestQuoteV0).toHaveBeenCalledWith(expect.objectContaining({
+      account: QUOTE_FROM,
+    }));
+    expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
+      fromAddress: QUOTE_FROM,
+    }));
+  });
+
+  it("rejects a malformed --from-address with the real validator", async () => {
+    const exitWithError = vi.fn();
+    // Use the real validateAddress — no mock override
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: { extend: () => ({ requestQuoteV0: vi.fn() }) },
+        network: "eth-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      green: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", NATIVE_TOKEN,
+      "--to", USDC,
+      "--amount", "1.0",
+      "--from-address", "not-an-address",
+    ], { from: "node" });
+
+    expect(exitWithError).toHaveBeenCalled();
+    const err = exitWithError.mock.calls[0][0];
+    expect(err.code).toBe("INVALID_ARGS");
+  });
+
+  it("normalizes raw swap quote failures into typed actionable errors", async () => {
+    const exitWithError = vi.fn();
+    const requestQuoteV0 = vi
+      .fn()
+      .mockRejectedValue(new Error("execution reverted: ERC20 transfer amount exceeds balance"));
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: {
+          extend: () => ({ requestQuoteV0 }),
+        },
+        network: "eth-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+      dim: (s: string) => s,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerSwap } = await import("../../src/commands/swap.js");
+    const program = new Command();
+    registerSwap(program);
+
+    await program.parseAsync([
+      "node", "test", "swap", "quote",
+      "--from", NATIVE_TOKEN,
+      "--to", NATIVE_TOKEN,
+      "--amount", "1.0",
+    ], { from: "node" });
+
+    const err = exitWithError.mock.calls[0][0];
+    expect(err).toMatchObject({
+      code: "QUOTE_FAILED",
+      data: { cause: "INSUFFICIENT_BALANCE" },
+    });
+    expect(err.message).toContain("insufficient balance");
+    expect(err.details).toContain("execution reverted");
   });
 
   it("swap execute signs prepared calls before sending", async () => {

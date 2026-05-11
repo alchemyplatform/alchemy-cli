@@ -1,4 +1,4 @@
-import { createSmartWalletClient, alchemyWalletTransport } from "@alchemy/wallet-apis";
+import { createSmartWalletClient } from "@alchemy/wallet-apis";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Chain, Address } from "viem";
 import type { Command } from "commander";
@@ -24,6 +24,7 @@ import {
 import { createDelegatedAccount } from "./delegated-signer.js";
 import { loadStoredSession, type WalletSession } from "./wallet-session.js";
 import { dim } from "./ui.js";
+import { createAlchemyWalletTransport } from "./wallet-transport.js";
 
 function normalizeKey(key: string): `0x${string}` {
   const trimmed = key.trim();
@@ -170,7 +171,7 @@ export function buildWalletClient(
     : undefined;
 
   const client = createSmartWalletClient({
-    transport: alchemyWalletTransport({ apiKey }),
+    transport: createAlchemyWalletTransport(apiKey),
     chain,
     signer: signerConfig.signer,
     paymaster,

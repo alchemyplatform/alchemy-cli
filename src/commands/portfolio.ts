@@ -4,6 +4,12 @@ import { printJSON, isJSONMode } from "../lib/output.js";
 import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 import { callApiData } from "../lib/rest.js";
 import { resolveAPIKey, resolveX402Client } from "../lib/resolve.js";
+import { parseOptionalInt } from "../lib/params.js";
+
+interface PortfolioOpts {
+  body: string;
+  limit?: string;
+}
 
 async function runDataCall(
   program: Command,
@@ -19,6 +25,35 @@ async function runDataCall(
   );
 }
 
+function limitPayload(value: unknown, limit: number | undefined): unknown {
+  if (limit === undefined) return value;
+  if (Array.isArray(value)) {
+    return value.slice(0, limit);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [
+        key,
+        Array.isArray(nested) ? nested.slice(0, limit) : nested,
+      ]),
+    );
+  }
+  return value;
+}
+
+async function runPortfolioCommand(
+  program: Command,
+  title: string,
+  path: string,
+  opts: PortfolioOpts,
+): Promise<void> {
+  const limit = parseOptionalInt(opts.limit, "--limit");
+  const result = await runDataCall(program, title, path, JSON.parse(opts.body));
+  const output = limitPayload(result, limit);
+  if (isJSONMode()) printJSON(output);
+  else printSyntaxJSON(output);
+}
+
 export function registerPortfolio(program: Command) {
   const cmd = program.command("portfolio").description("Portfolio API wrappers");
 
@@ -26,16 +61,15 @@ export function registerPortfolio(program: Command) {
     .command("tokens")
     .description("Get token portfolio by address/network pairs")
     .requiredOption("--body <json>", "JSON body for /assets/tokens/by-address")
-    .action(async (opts: { body: string }) => {
+    .option("--limit <n>", "Limit arrays in output")
+    .action(async (opts: PortfolioOpts) => {
       try {
-        const result = await runDataCall(
+        await runPortfolioCommand(
           program,
           "token portfolio",
           "/assets/tokens/by-address",
-          JSON.parse(opts.body),
+          opts,
         );
-        if (isJSONMode()) printJSON(result);
-        else printSyntaxJSON(result);
       } catch (err) {
         exitWithError(err);
       }
@@ -45,16 +79,15 @@ export function registerPortfolio(program: Command) {
     .command("token-balances")
     .description("Get token balances by address/network pairs")
     .requiredOption("--body <json>", "JSON body for /assets/tokens/balances/by-address")
-    .action(async (opts: { body: string }) => {
+    .option("--limit <n>", "Limit arrays in output")
+    .action(async (opts: PortfolioOpts) => {
       try {
-        const result = await runDataCall(
+        await runPortfolioCommand(
           program,
           "token balances",
           "/assets/tokens/balances/by-address",
-          JSON.parse(opts.body),
+          opts,
         );
-        if (isJSONMode()) printJSON(result);
-        else printSyntaxJSON(result);
       } catch (err) {
         exitWithError(err);
       }
@@ -64,16 +97,15 @@ export function registerPortfolio(program: Command) {
     .command("nfts")
     .description("Get NFT portfolio by address/network pairs")
     .requiredOption("--body <json>", "JSON body for /assets/nfts/by-address")
-    .action(async (opts: { body: string }) => {
+    .option("--limit <n>", "Limit arrays in output")
+    .action(async (opts: PortfolioOpts) => {
       try {
-        const result = await runDataCall(
+        await runPortfolioCommand(
           program,
           "NFT portfolio",
           "/assets/nfts/by-address",
-          JSON.parse(opts.body),
+          opts,
         );
-        if (isJSONMode()) printJSON(result);
-        else printSyntaxJSON(result);
       } catch (err) {
         exitWithError(err);
       }
@@ -83,16 +115,15 @@ export function registerPortfolio(program: Command) {
     .command("nft-contracts")
     .description("Get NFT contracts by address/network pairs")
     .requiredOption("--body <json>", "JSON body for /assets/nfts/contracts/by-address")
-    .action(async (opts: { body: string }) => {
+    .option("--limit <n>", "Limit arrays in output")
+    .action(async (opts: PortfolioOpts) => {
       try {
-        const result = await runDataCall(
+        await runPortfolioCommand(
           program,
           "NFT contracts",
           "/assets/nfts/contracts/by-address",
-          JSON.parse(opts.body),
+          opts,
         );
-        if (isJSONMode()) printJSON(result);
-        else printSyntaxJSON(result);
       } catch (err) {
         exitWithError(err);
       }

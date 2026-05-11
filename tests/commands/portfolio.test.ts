@@ -35,6 +35,33 @@ describe("portfolio command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("limits portfolio arrays in JSON output", async () => {
+    const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
+    const callApiData = vi.fn().mockResolvedValue({
+      items: [{ symbol: "ETH" }, { symbol: "USDC" }],
+      owners: [{ address: "0x1" }, { address: "0x2" }],
+    });
+    vi.doMock("../../src/lib/rest.js", () => ({ callApiData }));
+    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key", resolveX402Client: () => null }));
+
+    const { registerData } = await import("../../src/commands/data.js");
+    await runRegisteredCommand(registerData, [
+      "data",
+      "portfolio",
+      "tokens",
+      "--body",
+      '{"addresses":[{"address":"0xabc","networks":["eth-mainnet"]}]}',
+      "--limit",
+      "1",
+    ]);
+
+    expect(printJSON).toHaveBeenCalledWith({
+      items: [{ symbol: "ETH" }],
+      owners: [{ address: "0x1" }],
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
   it("routes invalid JSON body errors to exitWithError", async () => {
     const { exitWithError } = installBaseCommandMocks({ jsonMode: true });
     const callApiData = vi.fn();

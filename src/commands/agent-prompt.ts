@@ -80,6 +80,8 @@ const ERROR_RECOVERY: Record<ErrorCodeType, string> = {
     "Fund your x402 wallet or switch to API key auth",
   SETUP_REQUIRED:
     "Run preflight: alchemy --json --no-interactive config status, then follow nextCommands",
+  QUOTE_FAILED:
+    "Quote unavailable; check data.cause for the specific reason (INSUFFICIENT_BALANCE, INSUFFICIENT_LIQUIDITY, UNSUPPORTED_ROUTE, QUOTE_REVERTED, QUOTE_FAILED) and follow the hint",
   INTERNAL_ERROR:
     "Unexpected error; retry or report a bug",
 };
@@ -149,11 +151,13 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       "Use the user's installed alchemy binary only when executing commands against their local config or diagnosing their installed version",
       "If installed alchemy help contradicts latest npm help, compare alchemy --json --no-interactive version with npx -y @alchemy/cli@latest --json --no-interactive version and check command -v alchemy",
       "Run alchemy --json --no-interactive update-check when you need to detect available CLI upgrades",
+      "For state-changing EVM commands, prefer preview flags such as --dry-run when available before asking the user to execute",
+      "For large data reads, use output-size controls such as --limit or --summary when available",
     ],
     preflight: {
       command: "alchemy --json --no-interactive config status",
       description:
-        "Check auth readiness before first command. If complete is false, follow nextCommands in the response to configure auth.",
+        "Check auth readiness before first command. Use capabilities.rpc_data/admin_api/notify_webhooks/wallet_signing/x402 to scope setup to the intended command family.",
     },
     runtimeDiscovery: {
       installed: {
@@ -271,9 +275,11 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       "ALCHEMY_ACCESS_KEY=ak_xxx alchemy --json --no-interactive app list",
       "alchemy --json --no-interactive evm rpc eth_blockNumber --api-key $ALCHEMY_API_KEY",
       "alchemy --json --no-interactive evm network list",
-      "alchemy --json --no-interactive evm send 0xRecipient 0.001 -n eth-sepolia",
+      "alchemy --json --no-interactive evm send 0xRecipient 0.001 --dry-run -n eth-sepolia",
       "alchemy --json --no-interactive evm contract read 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 \"balanceOf(address)(uint256)\" --args '[\"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045\"]' -n eth-mainnet",
-      "alchemy --json --no-interactive evm swap quote --from 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE --to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --amount 1.0 -n eth-mainnet",
+      "alchemy --json --no-interactive evm swap quote --from 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE --to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --amount 1.0 --from-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 -n eth-mainnet",
+      "alchemy --json --no-interactive evm logs --from-block latest --limit 25",
+      "alchemy --json --no-interactive evm block latest --summary",
       "alchemy --json --no-interactive evm status 0xCallId -n eth-mainnet",
     ],
     docs: "https://www.alchemy.com/docs",

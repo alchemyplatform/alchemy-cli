@@ -16,11 +16,26 @@ import {
   printSyntaxJSON,
 } from "../lib/ui.js";
 
+function summarizeBlock(block: Record<string, unknown>): Record<string, unknown> {
+  return {
+    number: block.number ?? null,
+    hash: block.hash ?? null,
+    timestamp: block.timestamp ?? null,
+    transactionCount: Array.isArray(block.transactions)
+      ? block.transactions.length
+      : null,
+    miner: block.miner ?? null,
+    gasUsed: block.gasUsed ?? null,
+    gasLimit: block.gasLimit ?? null,
+  };
+}
+
 export function registerBlock(program: Command) {
   program
     .command("block")
     .argument("<number>", "Block number, hex (0x...), or tag (latest, earliest, pending)")
     .description("Get block details by number")
+    .option("--summary", "Return compact block summary in JSON mode")
     .addHelpText(
       "after",
       `
@@ -29,7 +44,7 @@ Examples:
   alchemy evm block 17000000
   alchemy evm block 0x1`,
     )
-    .action(async (blockId: string) => {
+    .action(async (blockId: string, opts: { summary?: boolean }) => {
       try {
         let blockParam: string;
         if (["latest", "earliest", "pending"].includes(blockId)) {
@@ -57,7 +72,7 @@ Examples:
         if (!block) throw errNotFound(`block ${blockId}`);
 
         if (isJSONMode()) {
-          printJSON(block);
+          printJSON(opts.summary ? summarizeBlock(block) : block);
           return;
         }
 

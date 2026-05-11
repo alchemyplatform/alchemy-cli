@@ -6,6 +6,7 @@ import { dim, withSpinner, printTable } from "../lib/ui.js";
 import { formatHexQuantity } from "../lib/block-format.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { promptSelect } from "../lib/terminal-ui.js";
+import { parseOptionalInt } from "../lib/params.js";
 
 const PAGE_SIZE = 25;
 const LARGE_PAGE_SIZE = 100;
@@ -88,8 +89,10 @@ Examples:
     .option("--topic <topic...>", "Event topic(s) to filter (topic0, topic1, ...)")
     .option("--from-block <block>", "Start block (number, hex, or tag)", "latest")
     .option("--to-block <block>", "End block (number, hex, or tag)", "latest")
-    .action(async (opts: { address?: string; topic?: string[]; fromBlock: string; toBlock: string }) => {
+    .option("--limit <n>", "Limit returned logs in output")
+    .action(async (opts: { address?: string; topic?: string[]; fromBlock: string; toBlock: string; limit?: string }) => {
       try {
+        const outputLimit = parseOptionalInt(opts.limit, "--limit");
         const filter: Record<string, unknown> = {
           fromBlock: normalizeBlockParam(opts.fromBlock),
           toBlock: normalizeBlockParam(opts.toBlock),
@@ -109,9 +112,22 @@ Examples:
         ) as LogEntry[];
 
         const network = resolveNetwork(program);
+        const displayedLogs = outputLimit === undefined
+          ? logs
+          : logs.slice(0, outputLimit);
 
         if (isJSONMode()) {
-          printJSON({ logs, count: logs.length, network });
+          printJSON({
+            logs: displayedLogs,
+            count: displayedLogs.length,
+            network,
+            ...(outputLimit !== undefined
+              ? {
+                  totalCount: logs.length,
+                  truncated: displayedLogs.length < logs.length,
+                }
+              : {}),
+          });
           return;
         }
 
@@ -119,14 +135,27 @@ Examples:
           console.log(dim("No logs found for the given filter."));
           return;
         }
+        if (displayedLogs.length === 0) {
+          console.log(dim(`Found ${logs.length} log${logs.length === 1 ? "" : "s"}; --limit 0 hides output.`));
+          return;
+        }
 
         const total = logs.length;
         const interactive = isInteractiveAllowed(program);
+        const limitSummary = displayedLogs.length < total
+          ? `Showing ${displayedLogs.length} of ${total} logs on ${network}\n`
+          : `Found ${total} log${total === 1 ? "" : "s"} on ${network}\n`;
+
+        if (outputLimit !== undefined) {
+          console.log(limitSummary);
+          printTable(TABLE_HEADERS, formatLogRows(displayedLogs));
+          return;
+        }
 
         if (!interactive) {
           // Non-TTY: print everything
           console.log(`Found ${total} log${total === 1 ? "" : "s"} on ${network}\n`);
-          printTable(TABLE_HEADERS, formatLogRows(logs));
+          printTable(TABLE_HEADERS, formatLogRows(displayedLogs));
         } else {
           // TTY: paginate interactively
           let offset = 0;

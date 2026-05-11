@@ -9,6 +9,7 @@ import {
   errRateLimited,
 } from "./errors.js";
 import { parseBaseURLOverride, fetchWithTimeout, getBaseDomain } from "./client-utils.js";
+import { getRPCNetworkIds } from "./networks.js";
 import { verbose as isVerbose } from "./output.js";
 import { redactSensitiveText } from "./redact.js";
 
@@ -41,6 +42,12 @@ export class Client implements AlchemyClient {
   private validateNetwork(network: string): void {
     if (this.rpcBaseURLOverride()) {
       return;
+    }
+
+    if (!getRPCNetworkIds().includes(network)) {
+      throw errInvalidArgs(
+        `Unknown network '${network}'. Run 'alchemy evm network list' to see available networks.`,
+      );
     }
 
     // Ensure the network value cannot redirect requests to an arbitrary host.

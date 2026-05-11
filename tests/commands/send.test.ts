@@ -86,6 +86,15 @@ describe("parseAmount", () => {
 });
 
 describe("registerEvmSend", () => {
+  it("registers a dry-run preview option", async () => {
+    const { registerEvmSend } = await import("../../src/commands/send-evm.js");
+    const program = new Command();
+    registerEvmSend(program);
+    const sendCommand = program.commands.find((command) => command.name() === "send");
+
+    expect(sendCommand?.options.some((option) => option.flags.includes("--dry-run"))).toBe(true);
+  });
+
   it("rejects invalid --signer values", async () => {
     const { registerEvmSend } = await import("../../src/commands/send-evm.js");
     const program = new Command();
@@ -170,6 +179,68 @@ describe("performEvmSend", () => {
       txHash: "0xtxhash",
       callId: "call-123",
       status: "success",
+    });
+  });
+
+  it("previews a native EVM transfer without signing or sending", async () => {
+    vi.doUnmock("../../src/commands/send-evm.js");
+
+    const sendCalls = vi.fn();
+    const waitForCallsStatus = vi.fn();
+    const printJSON = vi.fn();
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: { sendCalls, waitForCallsStatus },
+        network: "eth-mainnet",
+        address: "0xfrom",
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ rpc: true }),
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      resolveAddress: async () => "0xto",
+      validateAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "ETH",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+    }));
+    vi.doMock("viem", () => ({
+      encodeFunctionData: vi.fn(),
+      erc20Abi: [],
+    }));
+
+    const { performEvmSend } = await import("../../src/commands/send-evm.js");
+    await performEvmSend({} as Command, "vitalik.eth", "1.5", undefined, {
+      dryRun: true,
+    });
+
+    expect(sendCalls).not.toHaveBeenCalled();
+    expect(waitForCallsStatus).not.toHaveBeenCalled();
+    expect(printJSON).toHaveBeenCalledWith({
+      dryRun: true,
+      action: "evm-send",
+      from: "0xfrom",
+      to: "0xto",
+      amount: "1.5",
+      token: "ETH",
+      tokenAddress: null,
+      network: "eth-mainnet",
+      sponsored: false,
+      calls: [{ to: "0xto", value: "1500000000000000000" }],
     });
   });
 

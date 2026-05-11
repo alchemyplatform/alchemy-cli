@@ -1,4 +1,4 @@
-import { CLIError, errInvalidArgs, errNetwork } from "./errors.js";
+import { errInvalidArgs, errNetwork } from "./errors.js";
 import { timeout as globalTimeout } from "./output.js";
 
 const DEFAULT_BASE_DOMAIN = "alchemy.com";
@@ -65,10 +65,6 @@ export function parseBaseURLOverride(
 
 const BREADCRUMB_HEADER = "alchemy-cli";
 
-function escapeRegExp(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 export async function fetchWithTimeout(
   url: string,
   init: RequestInit,
@@ -87,25 +83,6 @@ export async function fetchWithTimeout(
       throw errNetwork(`Request timed out after ${globalTimeout}ms`);
     }
     const message = (err as Error).message ?? String(err);
-    // Node's fetch wraps DNS errors in a TypeError with the detail in .cause
-    const causeMessage = (err as { cause?: { message?: string } }).cause?.message ?? "";
-    const causeCode = (err as { cause?: { code?: string } }).cause?.code ?? "";
-    const fullErrorText = `${message} ${causeMessage} ${causeCode}`;
-    // Detect DNS resolution failures — typically caused by an invalid network slug
-    if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(fullErrorText)) {
-      // Extract the hostname from the URL for a clearer error message
-      try {
-        const hostname = new URL(url).hostname;
-        const networkSlug = hostname.replace(new RegExp(`\\.g\\.${escapeRegExp(getBaseDomain())}$`), "");
-        if (networkSlug !== hostname) {
-          throw errInvalidArgs(
-            `Unknown network '${networkSlug}'. Run 'alchemy evm network list' to see available networks.`,
-          );
-        }
-      } catch (innerErr) {
-        if (innerErr instanceof CLIError) throw innerErr;
-      }
-    }
     throw errNetwork(message);
   }
 }

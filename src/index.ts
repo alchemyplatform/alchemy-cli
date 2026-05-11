@@ -140,6 +140,13 @@ function resetUpdateNoticeState(): void {
   updateShownDuringInteractiveStartup = false;
 }
 
+async function flushProcessOutput(): Promise<void> {
+  await Promise.all([
+    new Promise<void>((resolve) => process.stdout.write("", () => resolve())),
+    new Promise<void>((resolve) => process.stderr.write("", () => resolve())),
+  ]);
+}
+
 program
   .name("alchemy")
   .description(
@@ -397,7 +404,7 @@ program
       }
     }
   })
-  .hook("postAction", () => {
+  .hook("postAction", async () => {
     if (!isJSONMode() && !quiet) {
       console.log("");
       if (!updateShownDuringInteractiveStartup) {
@@ -412,6 +419,7 @@ program
     // do not release it on macOS, causing the event loop to never drain.
     // Skip in REPL mode so the interactive shell stays alive.
     if (!isReplMode()) {
+      await flushProcessOutput();
       process.exit(0);
     }
   })

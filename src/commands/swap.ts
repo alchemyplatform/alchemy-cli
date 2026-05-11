@@ -7,6 +7,7 @@ import {
 } from "@alchemy/wallet-apis/experimental";
 import { buildWalletClient } from "../lib/smart-wallet.js";
 import type { PaymasterConfig } from "../lib/smart-wallet.js";
+import { buildWalletQuoteClient } from "../lib/wallet-quote-client.js";
 import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
@@ -15,6 +16,7 @@ import { withSpinner, printKeyValue, green, successBadge } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { networkToChain } from "../lib/chains.js";
 import { resolveNetwork } from "../lib/resolve.js";
+import { normalizeQuoteError } from "../lib/quote-errors.js";
 import {
   parseAmount,
   fetchTokenDecimals,
@@ -61,6 +63,7 @@ interface SwapOpts {
   amount: string;
   slippage?: string;
   signer?: string;
+  fromAddress?: string;
 }
 
 type WalletClient = ReturnType<typeof buildWalletClient>["client"];
@@ -77,11 +80,13 @@ function createQuoteRequest(
   fromAmount: bigint,
   slippagePercent: number | undefined,
   paymaster?: PaymasterConfig,
+  account?: string,
 ): RequestQuoteV0Params {
   const request = {
     fromToken: fromToken as Address,
     toToken: toToken as Address,
     fromAmount,
+    ...(account ? { account: account as Address } : {}),
     ...(slippagePercent !== undefined
       ? { slippage: slippagePercentToBasisPoints(slippagePercent) }
       : {}),
@@ -156,6 +161,7 @@ export function registerSwap(program: Command) {
     .requiredOption("--from <token_address>", "Token address to swap from (use 0xEeee...EEeE for the native token)")
     .requiredOption("--to <token_address>", "Token address to swap to (use 0xEeee...EEeE for the native token)")
     .requiredOption("--amount <number>", "Amount to swap in decimal token units (for example, 1.5)")
+    .option("--from-address <address>", "Wallet/account address to quote from without changing signer selection")
     .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)");
   addSignerOption(quoteCmd);
   quoteCmd
@@ -211,9 +217,12 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
   validateSwapNetwork(resolveNetwork(program));
   validateAddress(opts.from);
   validateAddress(opts.to);
+  if (opts.fromAddress) validateAddress(opts.fromAddress);
 
   const signer = parseSignerOpt(opts.signer);
-  const { client, network, paymaster } = buildWalletClient(program, { signer });
+  const { client, network, address: fromAddress, paymaster } = opts.fromAddress
+    ? buildWalletQuoteClient(program, opts.fromAddress)
+    : buildWalletClient(program, { signer });
   const swapClient = client.extend(swapActions);
 
   // Resolve from-token decimals and parse amount
@@ -225,11 +234,16 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
     throw errInvalidArgs("Slippage must be a number between 0 and 100.");
   }
 
-  const quote = await withSpinner(
-    "Fetching quote…",
-    "Quote received",
-    () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
-  );
+  let quote: RequestQuoteV0Result;
+  try {
+    quote = await withSpinner(
+      "Fetching quote…",
+      "Quote received",
+      () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster, fromAddress)),
+    );
+  } catch (err) {
+    throw normalizeQuoteError(err, "swap");
+  }
 
   // Resolve to-token info for display
   const toInfo = await resolveTokenInfo(network, program, opts.to);
@@ -241,6 +255,7 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
     printJSON({
       fromToken: opts.from,
       toToken: opts.to,
+      fromAddress,
       fromAmount: opts.amount,
       fromSymbol: fromInfo.symbol,
       toSymbol: toInfo.symbol,
@@ -261,6 +276,7 @@ async function performSwapQuote(program: Command, opts: SwapOpts) {
     }
 
     pairs.push(
+      ["Wallet", fromAddress],
       ["Slippage", slippage === undefined ? "API default" : `${slippage}%`],
       ["Network", network],
     );
@@ -289,11 +305,16 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
   }
 
   // Get quote with prepared calls
-  const quote = await withSpinner(
-    "Fetching quote…",
-    "Quote received",
-    () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster)),
-  );
+  let quote: RequestQuoteV0Result;
+  try {
+    quote = await withSpinner(
+      "Fetching quote…",
+      "Quote received",
+      () => swapClient.requestQuoteV0(createQuoteRequest(opts.from, opts.to, rawAmount, slippage, paymaster, from)),
+    );
+  } catch (err) {
+    throw normalizeQuoteError(err, "swap");
+  }
 
   const preparedQuote = await prepareQuoteForExecution(client, quote);
 

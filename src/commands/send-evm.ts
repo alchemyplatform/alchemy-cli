@@ -11,13 +11,28 @@ import { fetchTokenDecimals, parseAmount } from "../lib/token-amounts.js";
 
 const NATIVE_EVM_DECIMALS = 18;
 
+interface EvmCallPreview {
+  to: EvmAddress;
+  data?: string;
+  value?: bigint;
+}
+
+function formatCallPreview(call: EvmCallPreview): Record<string, string> {
+  return {
+    to: call.to,
+    ...(call.value !== undefined ? { value: call.value.toString() } : {}),
+    ...(call.data ? { data: call.data } : {}),
+  };
+}
+
 export function registerEvmSend(program: Command) {
   const sendCmd = program
     .command("send")
     .description("Send native tokens or ERC-20 tokens to an address")
     .argument("<to>", "Recipient address (0x... or ENS name)")
     .argument("<amount>", "Amount to send (human-readable, e.g. 1.5)")
-    .option("--token <address>", "ERC-20 token contract address (omit for native token)");
+    .option("--token <address>", "ERC-20 token contract address (omit for native token)")
+    .option("--dry-run", "Preview transaction without signing or sending");
   addSignerOption(sendCmd);
   sendCmd
     .option("--gas-sponsored", "Enable gas sponsorship (env: ALCHEMY_EVM_GAS_SPONSORED)")
@@ -29,14 +44,16 @@ Examples:
   alchemy evm send 0xAbC...123 1.5                          Send 1.5 ETH
   alchemy evm send vitalik.eth 0.1 -n base-mainnet          Send 0.1 ETH on Base
   alchemy evm send 0xAbC...123 100 --token 0xA0b8...USDC    Send 100 USDC
+  alchemy evm send 0xAbC...123 1.5 --dry-run                Preview without signing or sending
   alchemy evm send 0xAbC...123 1 --gas-sponsored --gas-policy-id <id>
   alchemy evm send 0xAbC...123 1.5 --signer local           Force the local wallet`,
     )
     .action(async (toArg: string, amountArg: string, _opts: unknown, cmd: Command) => {
       try {
-        const opts = cmd.opts<{ token?: string; signer?: string }>();
+        const opts = cmd.opts<{ token?: string; signer?: string; dryRun?: boolean }>();
         await performEvmSend(cmd, toArg, amountArg, opts.token, {
           signer: parseSignerOpt(opts.signer),
+          dryRun: opts.dryRun,
         });
       } catch (err) {
         const { exitWithError } = await import("../lib/errors.js");
@@ -50,7 +67,7 @@ export async function performEvmSend(
   toArg: string,
   amountArg: string,
   tokenAddress?: string,
-  opts: { signer?: "session" | "local" } = {},
+  opts: { signer?: "session" | "local"; dryRun?: boolean } = {},
 ) {
   if (tokenAddress) {
     validateAddress(tokenAddress);
@@ -85,6 +102,38 @@ export async function performEvmSend(
         }),
       }]
     : [{ to, value: wei }];
+
+  if (opts.dryRun) {
+    const previewCalls = calls.map(formatCallPreview);
+    if (isJSONMode()) {
+      printJSON({
+        dryRun: true,
+        action: "evm-send",
+        from,
+        to,
+        amount: amountArg,
+        token: tokenAddress ?? symbol,
+        tokenAddress: tokenAddress ?? null,
+        network,
+        sponsored: !!paymaster,
+        calls: previewCalls,
+      });
+    } else {
+      const pairs: [string, string][] = [
+        ["Dry Run", "yes"],
+        ["From", from],
+        ["To", to],
+        ["Amount", green(`${amountArg} ${symbol}`)],
+        ["Network", network],
+        ["Calls", String(previewCalls.length)],
+      ];
+      if (paymaster) {
+        pairs.push(["Gas", green("Sponsored")]);
+      }
+      printKeyValue(pairs);
+    }
+    return;
+  }
 
   const { id } = await withSpinner(
     "Sending transaction…",

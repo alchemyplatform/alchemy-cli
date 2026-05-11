@@ -6,6 +6,7 @@ const ETH_USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const ROUTER = "0x2222222222222222222222222222222222222222";
 const FROM = "0x1111111111111111111111111111111111111111";
+const QUOTE_FROM = "0x9999999999999999999999999999999999999999";
 
 describe("bridge command", () => {
   beforeEach(() => {
@@ -41,6 +42,14 @@ describe("bridge command", () => {
         paymaster: undefined,
       }),
     }));
+    vi.doMock("../../src/lib/wallet-quote-client.js", () => ({
+      buildWalletQuoteClient: () => ({
+        client: { extend: () => ({ requestQuoteV0 }) },
+        network: "eth-mainnet",
+        address: QUOTE_FROM,
+        paymaster: undefined,
+      }),
+    }));
     vi.doMock("../../src/lib/resolve.js", () => ({
       clientFromFlags,
     }));
@@ -69,6 +78,7 @@ describe("bridge command", () => {
       "--to", BASE_USDC,
       "--amount", "0.1",
       "--to-network", "base-mainnet",
+      "--from-address", QUOTE_FROM,
     ], { from: "node" });
 
     expect(requestQuoteV0).toHaveBeenCalledWith(expect.objectContaining({
@@ -76,6 +86,7 @@ describe("bridge command", () => {
       toToken: BASE_USDC,
       fromAmount: 100000000000000000n,
       toChainId: 8453,
+      account: QUOTE_FROM,
     }));
     expect(clientFromFlags).toHaveBeenCalledWith(expect.any(Command), { forceNetwork: "base-mainnet" });
     expect(destinationCall).toHaveBeenCalledWith("alchemy_getTokenMetadata", [BASE_USDC]);
@@ -83,9 +94,69 @@ describe("bridge command", () => {
     expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
       fromNetwork: "eth-mainnet",
       toNetwork: "base-mainnet",
+      fromAddress: QUOTE_FROM,
       toSymbol: "USDbC",
       minimumOutput: "30",
     }));
+  });
+
+  it("normalizes raw bridge quote failures into typed actionable errors", async () => {
+    const exitWithError = vi.fn();
+    const requestQuoteV0 = vi
+      .fn()
+      .mockRejectedValue(new Error("no route found for token pair"));
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      buildWalletClient: () => ({
+        client: { extend: () => ({ requestQuoteV0 }) },
+        network: "eth-mainnet",
+        address: FROM,
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: vi.fn(() => ({
+        call: vi.fn().mockResolvedValue({ decimals: 18, symbol: "ETH" }),
+      })),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _done: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerBridge } = await import("../../src/commands/bridge.js");
+    const program = new Command();
+    registerBridge(program);
+
+    await program.parseAsync([
+      "node", "test", "bridge", "quote",
+      "--from", NATIVE_TOKEN,
+      "--to", NATIVE_TOKEN,
+      "--amount", "0.1",
+      "--to-network", "base-mainnet",
+    ], { from: "node" });
+
+    const err = exitWithError.mock.calls[0][0];
+    expect(err).toMatchObject({
+      code: "QUOTE_FAILED",
+      data: { cause: "INSUFFICIENT_LIQUIDITY" },
+    });
+    expect(err.message).toContain("no route or insufficient liquidity");
+    expect(err.details).toContain("no route found");
   });
 
   it("bridge quote includes both networks in human output", async () => {

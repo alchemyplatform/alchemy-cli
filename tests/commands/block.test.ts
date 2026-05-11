@@ -145,4 +145,62 @@ describe("block command", () => {
     expect(printJSON).toHaveBeenCalledWith({ number: "0x10", hash: "0xhash" });
     expect(exitWithError).not.toHaveBeenCalled();
   });
+
+  it("block latest can print compact JSON summary", async () => {
+    const call = vi.fn().mockResolvedValue({
+      number: "0x10",
+      hash: "0xhash",
+      timestamp: "0x1",
+      transactions: ["0xtx1", "0xtx2"],
+      miner: "0xmined",
+      gasUsed: "0x100",
+      gasLimit: "0x200",
+      extraData: "0xlarge",
+    });
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      verbose: false,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      bold: (s: string) => s,
+      dim: (s: string) => s,
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      printSyntaxJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/block-format.js", () => ({
+      formatBlockTimestamp: vi.fn(),
+      formatHexQuantity: vi.fn(),
+      formatGasSummary: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerBlock } = await import("../../src/commands/block.js");
+    const program = new Command();
+    registerBlock(program);
+
+    await program.parseAsync(["node", "test", "block", "latest", "--summary"], { from: "node" });
+
+    expect(printJSON).toHaveBeenCalledWith({
+      number: "0x10",
+      hash: "0xhash",
+      timestamp: "0x1",
+      transactionCount: 2,
+      miner: "0xmined",
+      gasUsed: "0x100",
+      gasLimit: "0x200",
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
 });

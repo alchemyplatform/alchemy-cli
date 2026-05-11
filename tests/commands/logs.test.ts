@@ -78,6 +78,65 @@ describe("logs command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("limits JSON output while preserving total count metadata", async () => {
+    const logs = [
+      SAMPLE_LOG,
+      { ...SAMPLE_LOG, logIndex: "0x1" },
+    ];
+    const call = vi.fn().mockResolvedValue(logs);
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+      resolveNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      dim: (s: string) => s,
+      printTable: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/block-format.js", () => ({
+      formatHexQuantity: (v: string) => v,
+    }));
+    vi.doMock("../../src/lib/interaction.js", () => ({
+      isInteractiveAllowed: () => false,
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerLogs } = await import("../../src/commands/logs.js");
+    const program = new Command();
+    registerLogs(program);
+
+    await program.parseAsync(
+      ["node", "test", "logs", "--from-block", "latest", "--limit", "1"],
+      { from: "node" },
+    );
+
+    expect(printJSON).toHaveBeenCalledWith({
+      logs: [SAMPLE_LOG],
+      count: 1,
+      network: "eth-mainnet",
+      totalCount: 2,
+      truncated: true,
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
   it("passes address and topic filters", async () => {
     const call = vi.fn().mockResolvedValue([]);
     const printJSON = vi.fn();

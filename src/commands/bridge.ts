@@ -7,6 +7,7 @@ import {
 } from "@alchemy/wallet-apis/experimental";
 import { buildWalletClient } from "../lib/smart-wallet.js";
 import type { PaymasterConfig } from "../lib/smart-wallet.js";
+import { buildWalletQuoteClient } from "../lib/wallet-quote-client.js";
 import { validateAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, exitWithError, errInvalidArgs } from "../lib/errors.js";
@@ -14,6 +15,7 @@ import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { withSpinner, printKeyValue, green, successBadge } from "../lib/ui.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { networkToChain } from "../lib/chains.js";
+import { normalizeQuoteError } from "../lib/quote-errors.js";
 import {
   parseAmount,
   fetchTokenDecimals,
@@ -58,6 +60,7 @@ interface BridgeOpts {
   toNetwork: string;
   slippage?: string;
   signer?: string;
+  fromAddress?: string;
 }
 
 type WalletClient = ReturnType<typeof buildWalletClient>["client"];
@@ -75,12 +78,14 @@ function createBridgeQuoteRequest(
   toChainId: number,
   slippagePercent: number | undefined,
   paymaster?: PaymasterConfig,
+  account?: string,
 ): RequestQuoteV0Params {
   const request = {
     fromToken: fromToken as Address,
     toToken: toToken as Address,
     fromAmount,
     toChainId,
+    ...(account ? { account: account as Address } : {}),
     ...(slippagePercent !== undefined
       ? { slippage: slippagePercentToBasisPoints(slippagePercent) }
       : {}),
@@ -183,6 +188,7 @@ export function registerBridge(program: Command) {
     .requiredOption("--to <token_address>", `Destination token address (use ${NATIVE_TOKEN_ADDRESS} for the native token)`)
     .requiredOption("--amount <number>", "Amount to bridge in decimal token units (for example, 1.5)")
     .requiredOption("--to-network <network>", "Destination network (e.g. base-mainnet)")
+    .option("--from-address <address>", "Wallet/account address to quote from without changing signer selection")
     .option("--slippage <percent>", "Max slippage percentage (omit to use the API default)");
   addSignerOption(quoteCmd);
   quoteCmd
@@ -245,9 +251,12 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
 
   const toChainId = bridgeDestinationChainId(opts.toNetwork);
   validateAddress(opts.to);
+  if (opts.fromAddress) validateAddress(opts.fromAddress);
 
   const signer = parseSignerOpt(opts.signer);
-  const { client, network, paymaster } = buildWalletClient(program, { signer });
+  const { client, network, address: fromAddress, paymaster } = opts.fromAddress
+    ? buildWalletQuoteClient(program, opts.fromAddress)
+    : buildWalletClient(program, { signer });
   validateBridgeNetworks(network, opts.toNetwork);
   const swapClient = client.extend(swapActions);
 
@@ -259,11 +268,16 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
     throw errInvalidArgs("Slippage must be a number between 0 and 100.");
   }
 
-  const quote = await withSpinner(
-    "Fetching bridge quote…",
-    "Quote received",
-    () => swapClient.requestQuoteV0(createBridgeQuoteRequest(opts.from, opts.to, rawAmount, toChainId, slippage, paymaster)),
-  );
+  let quote: RequestQuoteV0Result;
+  try {
+    quote = await withSpinner(
+      "Fetching bridge quote…",
+      "Quote received",
+      () => swapClient.requestQuoteV0(createBridgeQuoteRequest(opts.from, opts.to, rawAmount, toChainId, slippage, paymaster, fromAddress)),
+    );
+  } catch (err) {
+    throw normalizeQuoteError(err, "bridge");
+  }
 
   const toInfo = await resolveTokenInfo(opts.toNetwork, program, opts.to);
   const quoteData = extractQuoteData(quote);
@@ -272,6 +286,7 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
     printJSON({
       fromToken: opts.from,
       toToken: opts.to,
+      fromAddress,
       fromAmount: opts.amount,
       fromSymbol: fromInfo.symbol,
       toSymbol: toInfo.symbol,
@@ -293,6 +308,7 @@ async function performBridgeQuote(program: Command, opts: BridgeOpts) {
     }
 
     pairs.push(
+      ["Wallet", fromAddress],
       ["Slippage", slippage === undefined ? "API default" : `${slippage}%`],
       ["From Network", network],
       ["To Network", opts.toNetwork],
@@ -323,11 +339,16 @@ async function performBridgeExecute(program: Command, opts: BridgeOpts) {
     throw errInvalidArgs("Slippage must be a number between 0 and 100.");
   }
 
-  const quote = await withSpinner(
-    "Fetching bridge quote…",
-    "Quote received",
-    () => swapClient.requestQuoteV0(createBridgeQuoteRequest(opts.from, opts.to, rawAmount, toChainId, slippage, paymaster)),
-  );
+  let quote: RequestQuoteV0Result;
+  try {
+    quote = await withSpinner(
+      "Fetching bridge quote…",
+      "Quote received",
+      () => swapClient.requestQuoteV0(createBridgeQuoteRequest(opts.from, opts.to, rawAmount, toChainId, slippage, paymaster, from)),
+    );
+  } catch (err) {
+    throw normalizeQuoteError(err, "bridge");
+  }
 
   const preparedQuote = await prepareQuoteForExecution(client, quote);
 

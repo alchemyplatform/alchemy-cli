@@ -44,6 +44,12 @@ describe("config status command", () => {
     vi.doMock("../../src/lib/interaction.js", () => ({
       isInteractiveAllowed: () => false,
     }));
+    vi.doMock("../../src/lib/resolve.js", async () => ({
+      ...(await vi.importActual("../../src/lib/resolve.js")),
+      resolveAuthToken: () => undefined,
+      resolveWalletSession: () => null,
+      adminClientFromFlags: vi.fn(),
+    }));
     vi.doMock("../../src/lib/admin-client.js", () => ({
       AdminClient: vi.fn(),
     }));
@@ -59,11 +65,17 @@ describe("config status command", () => {
     registerConfig(program);
 
     await program.parseAsync(["node", "test", "config", "status"], { from: "node" });
-    expect(printJSON).toHaveBeenCalledWith({
+    expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
       complete: true,
       satisfiedBy: "api_key",
       missing: [],
       nextCommands: [],
-    });
+      capabilities: expect.objectContaining({
+        rpc_data: expect.objectContaining({
+          complete: true,
+          satisfiedBy: "api_key",
+        }),
+      }),
+    }));
   });
 });

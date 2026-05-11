@@ -7,6 +7,11 @@ describe("onboarding setup predicates", () => {
     expect(isSetupComplete({ api_key: "api_test" })).toBe(true);
     expect(status.complete).toBe(true);
     expect(status.satisfiedBy).toBe("api_key");
+    expect(status.capabilities.rpc_data).toMatchObject({
+      complete: true,
+      satisfiedBy: "api_key",
+    });
+    expect(status.capabilities.admin_api.complete).toBe(false);
   });
 
   it("is complete with access key and app", () => {
@@ -32,6 +37,10 @@ describe("onboarding setup predicates", () => {
     expect(status.complete).toBe(false);
     expect(status.satisfiedBy).toBeNull();
     expect(status.missing.length).toBeGreaterThan(0);
+    expect(status.capabilities.notify_webhooks).toMatchObject({
+      complete: false,
+      missing: ["webhook API key"],
+    });
     expect(status.nextCommands).toContain(
       "alchemy config set access-key <key> && alchemy config set app <app-id>",
     );

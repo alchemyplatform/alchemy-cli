@@ -36,7 +36,7 @@ class TestClient extends Client {
   private testURL: string;
 
   constructor(url: string) {
-    super("test", "test");
+    super("test", "eth-mainnet");
     this.testURL = url;
   }
 
@@ -56,6 +56,14 @@ describe("Client URL construction", () => {
     expect(c.enhancedURL()).toBe(
       "https://eth-mainnet.g.alchemy.com/nft/v3/mykey",
     );
+  });
+
+  it("rejects unknown network slugs before making requests", () => {
+    expect(() => new Client("mykey", "unknown-network")).toThrow(CLIError);
+  });
+
+  it("rejects a fabricated slug not in the RPC network list", () => {
+    expect(() => new Client("mykey", "foo-bar-baz")).toThrow(CLIError);
   });
 });
 

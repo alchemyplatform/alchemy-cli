@@ -1,4 +1,8 @@
-import { fetchWithTimeout, getBaseDomain } from "./client-utils.js";
+import {
+  fetchWithTimeout,
+  getBaseDomain,
+  parseBaseURLOverride,
+} from "./client-utils.js";
 import {
   errAuthRequired,
   errInvalidAPIKey,
@@ -8,6 +12,9 @@ import {
 } from "./errors.js";
 
 type RestMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+const DATA_API_BASE_URL_ENV = "ALCHEMY_DATA_API_BASE_URL";
+const PRICES_API_BASE_URL_ENV = "ALCHEMY_PRICES_API_BASE_URL";
 
 export interface RestRequestOptions {
   method?: RestMethod;
@@ -60,7 +67,10 @@ export async function callApiData<T>(
   options: Omit<RestRequestOptions, "path"> = {},
 ): Promise<T> {
   if (!apiKey) throw errAuthRequired();
-  const base = new URL(`https://api.g.${getBaseDomain()}/data/v1/${apiKey}/`);
+  const override = parseBaseURLOverride(DATA_API_BASE_URL_ENV);
+  const base = override
+    ? new URL(`/data/v1/${apiKey}/`, override)
+    : new URL(`https://api.g.${getBaseDomain()}/data/v1/${apiKey}/`);
   const url = withQuery(new URL(path.replace(/^\//, ""), base), options.query);
   return requestJSON<T>(url, { ...options, path });
 }
@@ -71,7 +81,10 @@ export async function callApiPrices<T>(
   options: Omit<RestRequestOptions, "path"> = {},
 ): Promise<T> {
   if (!apiKey) throw errAuthRequired();
-  const base = new URL(`https://api.g.${getBaseDomain()}/prices/v1/${apiKey}/`);
+  const override = parseBaseURLOverride(PRICES_API_BASE_URL_ENV);
+  const base = override
+    ? new URL(`/prices/v1/${apiKey}/`, override)
+    : new URL(`https://api.g.${getBaseDomain()}/prices/v1/${apiKey}/`);
   const url = withQuery(new URL(path.replace(/^\//, ""), base), options.query);
   return requestJSON<T>(url, { ...options, path });
 }
