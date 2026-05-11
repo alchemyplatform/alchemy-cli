@@ -82,8 +82,10 @@ const COMMAND_NAMES = [
   "config reset",
   "help",
   "update-check",
-  "network",
-  "network list",
+  "evm network",
+  "evm network list",
+  "solana network",
+  "solana network list",
   "rpc",
   "tx",
   "receipt",
@@ -264,7 +266,8 @@ export async function startREPL(
     console.log(`  ${brand("◆")} ${bold("Quick commands")}`);
     console.log(`  ${dim("- rpc eth_chainId")}`);
     console.log(`  ${dim("- config list")}`);
-    console.log(`  ${dim("- network list")}`);
+    console.log(`  ${dim("- evm network list")}`);
+    console.log(`  ${dim("- solana network list")}`);
     console.log(`  ${dim("- help")}`);
     console.log("");
     console.log(`  ${dim("Press TAB for autocomplete. Type 'exit' or 'quit' to leave.")}`);

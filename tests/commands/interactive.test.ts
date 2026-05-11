@@ -84,5 +84,8 @@ describe("interactive mode", () => {
 
     await expect(repl).resolves.toBeUndefined();
     expect(rl.close).toHaveBeenCalledTimes(1);
+    expect(console.log).toHaveBeenCalledWith("  - evm network list");
+    expect(console.log).toHaveBeenCalledWith("  - solana network list");
+    expect(console.log).not.toHaveBeenCalledWith("  - network list");
   });
 });
