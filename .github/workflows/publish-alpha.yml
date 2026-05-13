@@ -137,6 +137,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
+          sleep 15
           gh pr checks "${{ steps.release-pr.outputs.pr_url }}" \
             --required \
             --watch \
