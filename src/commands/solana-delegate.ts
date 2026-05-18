@@ -133,7 +133,7 @@ export async function performSolanaDelegateApprove(
   const rawAmount = parseAmount(opts.amount, decimals);
   const { keyBytes, signer } = await resolveLocalSolanaDelegateSigner(program, opts.signer);
   const network = resolveSolanaNetwork(program);
-  const { sponsored, feePolicyId } = resolveSolanaFeeSponsorship(program);
+  const { sponsored, feePolicyId } = await resolveSolanaFeeSponsorship(program);
   const client = clientFromFlags(program, { forceNetwork: network });
 
   const instruction = buildSplTokenApproveCheckedInstruction({
@@ -207,7 +207,7 @@ export async function performSolanaDelegateRevoke(
 
   const { keyBytes, signer } = await resolveLocalSolanaDelegateSigner(program, opts.signer);
   const network = resolveSolanaNetwork(program);
-  const { sponsored, feePolicyId } = resolveSolanaFeeSponsorship(program);
+  const { sponsored, feePolicyId } = await resolveSolanaFeeSponsorship(program);
   const client = clientFromFlags(program, { forceNetwork: network });
 
   const instruction = buildSplTokenRevokeInstruction({

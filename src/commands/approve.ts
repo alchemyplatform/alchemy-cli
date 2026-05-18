@@ -6,7 +6,7 @@ import {
   maxUint256,
   type Address,
 } from "viem";
-import { buildWalletClient } from "../lib/smart-wallet.js";
+import { buildWalletClient, ensureGasPolicyResolved } from "../lib/smart-wallet.js";
 import { clientFromFlags } from "../lib/resolve.js";
 import type { AlchemyClient } from "../lib/client-interface.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
@@ -248,7 +248,11 @@ async function performApprove(
   validateApprovalMode(opts);
 
   const signer = parseSignerOpt(opts.signer);
-  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
+  const gasPolicyIdOverride = await ensureGasPolicyResolved(program);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, {
+    signer,
+    ...(gasPolicyIdOverride && { gasPolicyIdOverride }),
+  });
   const rpcClient = clientFromFlags(program);
   const tokenMeta = await fetchTokenDecimals(program, opts.tokenAddress);
   const approval = buildApprovalRequest(opts, tokenMeta);

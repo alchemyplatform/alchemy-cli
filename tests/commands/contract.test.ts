@@ -213,6 +213,7 @@ describe("registerContract", () => {
 
     vi.doMock("node:fs", () => ({ readFileSync }));
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "base-mainnet",
@@ -276,6 +277,7 @@ describe("performContractCall", () => {
     const encodeFunctionData = vi.fn().mockReturnValue("0xencoded");
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -321,6 +323,7 @@ describe("performContractCall", () => {
     const encodeFunctionData = vi.fn().mockReturnValue("0xencoded");
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",

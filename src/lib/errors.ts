@@ -102,6 +102,19 @@ export function errAccessKeyRequired(): CLIError {
   );
 }
 
+/**
+ * Reserved for surfaces that require an interactive `alchemy auth login`
+ * session — Gas Manager being the first. Distinct from `errAccessKeyRequired`
+ * because those flows intentionally do NOT accept access keys.
+ */
+export function errLoginRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "Sign in to Alchemy to continue. Run 'alchemy auth login', then retry.",
+    "alchemy auth login",
+  );
+}
+
 export function errInvalidAPIKey(details?: string): CLIError {
   return new CLIError(
     ErrorCode.INVALID_API_KEY,

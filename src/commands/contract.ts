@@ -7,7 +7,7 @@ import {
   type Abi,
   type Address,
 } from "viem";
-import { buildWalletClient } from "../lib/smart-wallet.js";
+import { buildWalletClient, ensureGasPolicyResolved } from "../lib/smart-wallet.js";
 import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { resolveAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
@@ -401,7 +401,11 @@ export async function performContractCall(
   const args = parseArgs(opts.args);
 
   const signer = parseSignerOpt(opts.signer);
-  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
+  const gasPolicyIdOverride = await ensureGasPolicyResolved(program);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, {
+    signer,
+    ...(gasPolicyIdOverride && { gasPolicyIdOverride }),
+  });
 
   const rpcClient = clientFromFlags(program);
   const contractAddress = await resolveAddress(addressArg, rpcClient) as Address;

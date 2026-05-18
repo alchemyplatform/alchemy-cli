@@ -329,13 +329,40 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
-    .command("evm-gas-policy-id <id>")
-    .description("Set the EVM gas policy ID for sponsored transactions")
-    .action((id: string) => {
+    .command("evm-gas-policy-id [id]")
+    .description("Set the EVM gas policy ID for sponsored transactions (omit ID for interactive)")
+    .action(async (id: string | undefined) => {
       try {
-        const cfg = config.load();
-        config.save({ ...cfg, evm_gas_policy_id: id });
-        printHuman(`${green("✓")} Set evm-gas-policy-id\n`, { key: "evm-gas-policy-id", status: "set" });
+        if (id) {
+          const cfg = config.load();
+          config.save({ ...cfg, evm_gas_policy_id: id });
+          printHuman(`${green("✓")} Set evm-gas-policy-id\n`, { key: "evm-gas-policy-id", status: "set" });
+          return;
+        }
+
+        if (!isInteractiveAllowed(program)) {
+          throw errInvalidArgs(
+            "Interactive policy selection requires an interactive terminal. Pass an ID: `alchemy config set evm-gas-policy-id <id>`.",
+          );
+        }
+        const { selectOrCreatePolicy } = await import("../lib/policy-prompt.js");
+        const { resolveNetwork } = await import("../lib/resolve.js");
+        const network = resolveNetwork(program);
+        await selectOrCreatePolicy({
+          flavor: "sponsorship",
+          network,
+          program,
+          skipPersistPrompt: true,
+        }).then((policyId) => {
+          if (!policyId) return;
+          const cfg = config.load();
+          config.save({ ...cfg, evm_gas_policy_id: policyId });
+          printHuman(`${green("✓")} Set evm-gas-policy-id\n`, {
+            key: "evm-gas-policy-id",
+            value: policyId,
+            status: "set",
+          });
+        });
       } catch (err) {
         exitWithError(err);
       }
@@ -363,13 +390,40 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
-    .command("solana-fee-policy-id <id>")
-    .description("Set the Solana fee policy ID for sponsored transactions")
-    .action((id: string) => {
+    .command("solana-fee-policy-id [id]")
+    .description("Set the Solana fee policy ID for sponsored transactions (omit ID for interactive)")
+    .action(async (id: string | undefined) => {
       try {
-        const cfg = config.load();
-        config.save({ ...cfg, solana_fee_policy_id: id });
-        printHuman(`${green("✓")} Set solana-fee-policy-id\n`, { key: "solana-fee-policy-id", status: "set" });
+        if (id) {
+          const cfg = config.load();
+          config.save({ ...cfg, solana_fee_policy_id: id });
+          printHuman(`${green("✓")} Set solana-fee-policy-id\n`, { key: "solana-fee-policy-id", status: "set" });
+          return;
+        }
+
+        if (!isInteractiveAllowed(program)) {
+          throw errInvalidArgs(
+            "Interactive policy selection requires an interactive terminal. Pass an ID: `alchemy config set solana-fee-policy-id <id>`.",
+          );
+        }
+        const { selectOrCreatePolicy } = await import("../lib/policy-prompt.js");
+        const { resolveSolanaNetwork } = await import("../lib/resolve.js");
+        const network = resolveSolanaNetwork(program);
+        await selectOrCreatePolicy({
+          flavor: "solana",
+          network,
+          program,
+          skipPersistPrompt: true,
+        }).then((policyId) => {
+          if (!policyId) return;
+          const cfg = config.load();
+          config.save({ ...cfg, solana_fee_policy_id: policyId });
+          printHuman(`${green("✓")} Set solana-fee-policy-id\n`, {
+            key: "solana-fee-policy-id",
+            value: policyId,
+            status: "set",
+          });
+        });
       } catch (err) {
         exitWithError(err);
       }

@@ -35,6 +35,7 @@ describe("bridge command", () => {
     }));
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({ requestQuoteV0 }) },
         network: "eth-mainnet",
@@ -107,6 +108,7 @@ describe("bridge command", () => {
       .mockRejectedValue(new Error("no route found for token pair"));
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({ requestQuoteV0 }) },
         network: "eth-mainnet",
@@ -182,6 +184,7 @@ describe("bridge command", () => {
     }));
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({ requestQuoteV0 }) },
         network: "eth-mainnet",
@@ -257,6 +260,7 @@ describe("bridge command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -337,6 +341,7 @@ describe("bridge command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -482,6 +487,7 @@ describe("bridge command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -550,6 +556,7 @@ describe("bridge command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({}) },
         network: "eth-mainnet",
@@ -611,6 +618,7 @@ describe("bridge command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({ requestQuoteV0 }) },
         network: "eth-mainnet",
@@ -672,6 +680,7 @@ describe("bridge command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({}) },
         network: "eth-mainnet",
@@ -721,6 +730,7 @@ describe("bridge command", () => {
     const validateAddress = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({}) },
         network: "eth-mainnet",
@@ -775,6 +785,7 @@ describe("bridge command", () => {
     const requestQuoteV0 = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({ requestQuoteV0 }) },
         network: "eth-sepolia",
@@ -827,6 +838,7 @@ describe("bridge command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({}) },
         network: "eth-mainnet",

@@ -7,7 +7,8 @@ import { getBaseDomain } from "./client-utils.js";
 import { Client } from "./client.js";
 import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
-import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errWalletKeyRequired } from "./errors.js";
+import { GasManagerClient } from "./gas-manager-client.js";
+import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errLoginRequired, errWalletKeyRequired } from "./errors.js";
 import { isSolanaNetwork } from "./networks.js";
 import { debug } from "./output.js";
 import { loadSession, isSessionValid, type WalletSession } from "./wallet-session.js";
@@ -119,6 +120,23 @@ export function adminClientFromFlags(program: Command): AdminClient {
   if (authToken) return new AdminClient({ type: "auth_token", token: authToken });
 
   throw errAccessKeyRequired();
+}
+
+/**
+ * True when the user has an active `alchemy auth login` session.
+ * Gas Manager flows intentionally do NOT accept access keys — only the
+ * login auth token is honoured. This is narrower than `adminClientFromFlags`
+ * by design (per product direction).
+ */
+export function hasAuthLoginToken(cfg?: Config): boolean {
+  return Boolean(resolveAuthToken(cfg));
+}
+
+export function gasManagerClientFromFlags(_program: Command): GasManagerClient {
+  const cfg = load();
+  const authToken = resolveAuthToken(cfg);
+  if (!authToken) throw errLoginRequired();
+  return new GasManagerClient({ type: "auth_token", token: authToken });
 }
 
 export function resolveX402(program: Command, cfg?: Config): boolean {

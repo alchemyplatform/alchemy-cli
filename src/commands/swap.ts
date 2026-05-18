@@ -5,7 +5,7 @@ import {
   type RequestQuoteV0Params,
   type RequestQuoteV0Result,
 } from "@alchemy/wallet-apis/experimental";
-import { buildWalletClient } from "../lib/smart-wallet.js";
+import { buildWalletClient, ensureGasPolicyResolved } from "../lib/smart-wallet.js";
 import type { PaymasterConfig } from "../lib/smart-wallet.js";
 import { buildWalletQuoteClient } from "../lib/wallet-quote-client.js";
 import { validateAddress } from "../lib/validators.js";
@@ -293,7 +293,11 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
   validateAddress(opts.to);
 
   const signer = parseSignerOpt(opts.signer);
-  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer });
+  const gasPolicyIdOverride = await ensureGasPolicyResolved(program);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, {
+    signer,
+    ...(gasPolicyIdOverride && { gasPolicyIdOverride }),
+  });
   const swapClient = client.extend(swapActions);
 
   const fromInfo = await resolveTokenInfo(network, program, opts.from);

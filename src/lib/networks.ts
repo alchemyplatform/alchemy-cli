@@ -283,6 +283,22 @@ export function isSolanaNetwork(networkId: string): boolean {
   return networkId.startsWith("solana-");
 }
 
+/**
+ * Convert a CLI network slug (`eth-mainnet`) to the Admin API network ID
+ * (`ETH_MAINNET`). The admin API uses uppercase + underscores.
+ */
+export function toAdminNetworkId(slug: string): string {
+  return slug.trim().toUpperCase().replace(/-/g, "_");
+}
+
+/**
+ * Convert an Admin API network ID (`ETH_MAINNET`) back to a CLI network slug
+ * (`eth-mainnet`).
+ */
+export function fromAdminNetworkId(id: string): string {
+  return id.trim().toLowerCase().replace(/_/g, "-");
+}
+
 export function nativeTokenSymbol(networkId: string): string {
   // Extract the chain family prefix from the network slug (e.g. "polygon-mainnet" → "polygon")
   const prefix = networkId.replace(/-(mainnet|testnet|sepolia|holesky|hoodi|devnet|amoy|fuji|cardona|saigon|chiado|signet|mocha|blaze|curtis|bepolia).*$/, "");

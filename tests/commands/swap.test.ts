@@ -34,6 +34,7 @@ describe("swap command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -116,6 +117,7 @@ describe("swap command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -181,6 +183,7 @@ describe("swap command", () => {
     const exitWithError = vi.fn();
     // Use the real validateAddress — no mock override
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({ requestQuoteV0: vi.fn() }) },
         network: "eth-mainnet",
@@ -229,6 +232,7 @@ describe("swap command", () => {
       .mockRejectedValue(new Error("execution reverted: ERC20 transfer amount exceeds balance"));
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -321,6 +325,7 @@ describe("swap command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -422,6 +427,7 @@ describe("swap command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -570,6 +576,7 @@ describe("swap command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -630,6 +637,7 @@ describe("swap command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({}) },
         network: "eth-mainnet",
@@ -682,6 +690,7 @@ describe("swap command", () => {
     const tokenMetadataCall = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({ requestQuoteV0 }) },
         network: "eth-sepolia",
@@ -803,6 +812,7 @@ describe("swap command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -887,6 +897,7 @@ describe("swap command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -953,6 +964,7 @@ describe("swap command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {
           extend: () => ({ requestQuoteV0 }),
@@ -1007,6 +1019,7 @@ describe("swap command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { extend: () => ({ requestQuoteV0: vi.fn() }) },
         network: "eth-mainnet",

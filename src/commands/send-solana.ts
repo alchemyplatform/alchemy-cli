@@ -85,7 +85,7 @@ export async function performSolanaSend(
   const signer = await createSolanaSignerFromKeyBytes(keyBytes);
   const instruction = buildSolTransferInstruction(signer, to, lamports);
 
-  const { sponsored, feePolicyId } = resolveSolanaFeeSponsorship(program);
+  const { sponsored, feePolicyId } = await resolveSolanaFeeSponsorship(program);
 
   const client = clientFromFlags(program, { forceNetwork: network });
 

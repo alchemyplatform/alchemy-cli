@@ -41,6 +41,7 @@ describe("approve command", () => {
     const rpcClient = mockRpcClient(0n);
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -101,6 +102,7 @@ describe("approve command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {},
         network: "eth-mainnet",
@@ -151,6 +153,7 @@ describe("approve command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {},
         network: "eth-mainnet",
@@ -207,6 +210,7 @@ describe("approve command", () => {
     const rpcClient = mockRpcClient(0n);
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -266,6 +270,7 @@ describe("approve command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -328,6 +333,7 @@ describe("approve command", () => {
     const sendCalls = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus: vi.fn() },
         network: "eth-mainnet",
@@ -387,6 +393,7 @@ describe("approve command", () => {
     const rpcClient = mockRpcClient(50000000n);
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -450,6 +457,7 @@ describe("approve command", () => {
     const rpcClient = mockRpcClient(25000000n);
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -507,6 +515,7 @@ describe("approve command", () => {
     });
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -562,6 +571,7 @@ describe("approve command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {},
         network: "eth-mainnet",
@@ -611,6 +621,7 @@ describe("approve command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {},
         network: "eth-mainnet",
@@ -662,6 +673,7 @@ describe("approve command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {},
         network: "eth-mainnet",
@@ -713,6 +725,7 @@ describe("approve command", () => {
     const exitWithError = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: {},
         network: "eth-mainnet",

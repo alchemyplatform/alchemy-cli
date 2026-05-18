@@ -129,6 +129,7 @@ describe("performEvmSend", () => {
     const printJSON = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -190,6 +191,7 @@ describe("performEvmSend", () => {
     const printJSON = vi.fn();
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "eth-mainnet",
@@ -256,6 +258,7 @@ describe("performEvmSend", () => {
     const encodeFunctionData = vi.fn().mockReturnValue("0xencoded");
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
       buildWalletClient: () => ({
         client: { sendCalls, waitForCallsStatus },
         network: "base-mainnet",
@@ -658,7 +661,7 @@ describe("performSolanaSend", () => {
     const { performSolanaSend } = await import("../../src/commands/send-solana.js");
     await expect(performSolanaSend({} as Command, "SoRecipientAddr", "0.5")).rejects.toMatchObject({
       code: ErrorCode.INVALID_ARGS,
-      message: expect.stringContaining("Fee sponsorship requires a fee policy ID"),
+      message: expect.stringContaining("Fee sponsorship requires a policy ID"),
     });
   });
 });

@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { encodeFunctionData, type Address as EvmAddress, erc20Abi } from "viem";
-import { buildWalletClient } from "../lib/smart-wallet.js";
+import { buildWalletClient, ensureGasPolicyResolved } from "../lib/smart-wallet.js";
 import { clientFromFlags } from "../lib/resolve.js";
 import { resolveAddress, validateAddress } from "../lib/validators.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
@@ -73,7 +73,11 @@ export async function performEvmSend(
     validateAddress(tokenAddress);
   }
 
-  const { client, network, address: from, paymaster } = buildWalletClient(program, { signer: opts.signer });
+  const gasPolicyIdOverride = await ensureGasPolicyResolved(program);
+  const { client, network, address: from, paymaster } = buildWalletClient(program, {
+    signer: opts.signer,
+    ...(gasPolicyIdOverride && { gasPolicyIdOverride }),
+  });
 
   const rpcClient = clientFromFlags(program);
   const to = await resolveAddress(toArg, rpcClient) as EvmAddress;

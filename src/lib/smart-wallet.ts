@@ -11,7 +11,10 @@ import {
   resolveNetwork,
   resolveGasSponsored,
   resolveGasPolicyId,
+  hasAuthLoginToken,
 } from "./resolve.js";
+import { isInteractiveAllowed } from "./interaction.js";
+import { selectOrCreatePolicy, errSponsorshipNeedsPolicy, errNotLoggedInForPolicyLookup } from "./policy-prompt.js";
 import { load as loadConfig, type Config } from "./config.js";
 import { networkToChain } from "./chains.js";
 import {
@@ -25,6 +28,47 @@ import { createDelegatedAccount } from "./delegated-signer.js";
 import { loadStoredSession, type WalletSession } from "./wallet-session.js";
 import { dim } from "./ui.js";
 import { createAlchemyWalletTransport } from "./wallet-transport.js";
+
+/**
+ * If gas sponsorship is requested but no policy ID is resolved, prompt the
+ * user to select or create one (when interactive + logged in). Returns the
+ * resolved policy ID — pass it to `buildWalletClient` as
+ * `gasPolicyIdOverride` so the subsequent build picks it up.
+ *
+ * Returns `undefined` when sponsorship is not requested. Throws a typed
+ * error when sponsorship is requested but cannot be satisfied (no policy ID,
+ * non-interactive, or not logged in).
+ *
+ * Call this at the top of any async command action that may use
+ * `--gas-sponsored`, before `buildWalletClient(...)`.
+ */
+export async function ensureGasPolicyResolved(
+  program: Command,
+): Promise<string | undefined> {
+  const cfg = loadConfig();
+  if (!resolveGasSponsored(program, cfg)) return undefined;
+
+  const existing = resolveGasPolicyId(program, cfg);
+  if (existing) return existing;
+
+  if (!isInteractiveAllowed(program)) {
+    throw errSponsorshipNeedsPolicy("sponsorship");
+  }
+  if (!hasAuthLoginToken(cfg)) {
+    throw errNotLoggedInForPolicyLookup();
+  }
+
+  const network = resolveNetwork(program, cfg);
+  const policyId = await selectOrCreatePolicy({
+    flavor: "sponsorship",
+    network,
+    program,
+  });
+  if (!policyId) {
+    throw errSponsorshipNeedsPolicy("sponsorship");
+  }
+  return policyId;
+}
 
 function normalizeKey(key: string): `0x${string}` {
   const trimmed = key.trim();
@@ -45,6 +89,12 @@ export interface WalletContext {
 
 export interface BuildWalletClientOptions {
   signer?: "session" | "local";
+  /**
+   * If provided, takes precedence over `resolveGasPolicyId` for this build.
+   * Used by `ensureGasPolicyResolved` to thread the prompted policy ID into
+   * the client without mutating environment variables.
+   */
+  gasPolicyIdOverride?: string;
 }
 
 // Process-lifetime flag: the dual-signer-configured notice should fire at most
@@ -104,7 +154,7 @@ export function buildWalletClient(
   const network = resolveNetwork(program, cfg);
   const chain = networkToChain(network);
   const gasSponsored = resolveGasSponsored(program, cfg);
-  const gasPolicyId = resolveGasPolicyId(program, cfg);
+  const gasPolicyId = options.gasPolicyIdOverride ?? resolveGasPolicyId(program, cfg);
 
   if (gasSponsored && !gasPolicyId) {
     throw errInvalidArgs(

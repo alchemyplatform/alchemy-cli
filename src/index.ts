@@ -22,6 +22,7 @@ import { registerCompletions } from "./commands/completions.js";
 import { registerAgentPrompt } from "./commands/agent-prompt.js";
 import { registerUpdateCheck } from "./commands/update-check.js";
 import { registerEvm } from "./commands/evm.js";
+import { registerGasManager } from "./commands/gas-manager.js";
 import { registerXchain } from "./commands/xchain.js";
 import { registerInstall } from "./commands/install/index.js";
 import { registerDoctor } from "./commands/doctor.js";
@@ -476,6 +477,7 @@ registerEvm(program);
 registerSolana(program);
 registerXchain(program);
 registerWallets(program);
+registerGasManager(program);
 
 // Platform Configuration
 registerApps(program);
