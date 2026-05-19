@@ -2,8 +2,11 @@ import { Command } from "commander";
 import { address as solAddress } from "@solana/kit";
 import {
   clientFromFlags,
+  resolveActiveSigner,
+  resolveAuthToken,
   resolveSolanaNetwork,
   resolveSolanaWalletKey,
+  resolveWalletSession,
 } from "../lib/resolve.js";
 import { errInvalidArgs, errSolanaWalletKeyRequired, exitWithError } from "../lib/errors.js";
 import { addSignerOption, parseOptionalInt, parseSignerOpt } from "../lib/params.js";
@@ -13,6 +16,7 @@ import { green, printKeyValue, successBadge, withSpinner } from "../lib/ui.js";
 import { formatTokenAmount, parseAmount } from "../lib/token-amounts.js";
 import {
   buildAndSendSolanaTransaction,
+  buildAndSendSolanaTransactionWithSession,
   buildSplTokenApproveCheckedInstruction,
   buildSplTokenRevokeInstruction,
   createSolanaSignerFromKeyBytes,
@@ -20,6 +24,7 @@ import {
   waitForSolanaConfirmation,
 } from "../lib/solana-tx.js";
 import { resolveSolanaFeeSponsorship } from "../lib/solana-fees.js";
+import { getWalletSessionByChain } from "../lib/wallet-session.js";
 
 interface DelegateApproveOpts {
   tokenAccount: string;
@@ -40,8 +45,16 @@ interface DelegateRevokeOpts {
 }
 
 interface SolanaDelegateSigner {
+  type: "local";
   keyBytes: Uint8Array;
   signer: Awaited<ReturnType<typeof createSolanaSignerFromKeyBytes>>;
+}
+
+interface SolanaDelegateSessionSigner {
+  type: "session";
+  address: string;
+  session: NonNullable<ReturnType<typeof resolveWalletSession>>;
+  authToken: string;
 }
 
 function parseDecimals(value: string): number {
@@ -52,26 +65,61 @@ function parseDecimals(value: string): number {
   return decimals;
 }
 
-async function resolveLocalSolanaDelegateSigner(
+async function resolveSolanaDelegateSigner(
   program: Command,
   signerOpt: string | undefined,
-): Promise<SolanaDelegateSigner> {
+): Promise<SolanaDelegateSigner | SolanaDelegateSessionSigner> {
   const signer = parseSignerOpt(signerOpt);
   if (signer === "session") {
-    throw errInvalidArgs(
-      "The session wallet does not yet support Solana. Use `--signer local` or configure a local Solana wallet with `alchemy wallet connect --mode local --chain solana`.",
-    );
+    return resolveSessionSolanaDelegateSigner();
+  }
+  if (signer === undefined && resolveActiveSigner(program) === "session") {
+    return resolveSessionSolanaDelegateSigner();
   }
 
   const solanaKey = resolveSolanaWalletKey(program);
   if (!solanaKey) {
+    if (signer === undefined) {
+      const sessionSigner = tryResolveSessionSolanaDelegateSigner();
+      if (sessionSigner) {
+        return sessionSigner;
+      }
+    }
     throw errSolanaWalletKeyRequired();
   }
 
   const keyBytes = parseSolanaKeyBytes(solanaKey);
   return {
+    type: "local",
     keyBytes,
     signer: await createSolanaSignerFromKeyBytes(keyBytes),
+  };
+}
+
+function resolveSessionSolanaDelegateSigner(): SolanaDelegateSessionSigner {
+  const sessionSigner = tryResolveSessionSolanaDelegateSigner();
+  if (!sessionSigner) {
+    throw errInvalidArgs(
+      "No active Solana wallet session. Run `alchemy wallet connect --mode session` first.",
+    );
+  }
+  return sessionSigner;
+}
+
+function tryResolveSessionSolanaDelegateSigner(): SolanaDelegateSessionSigner | undefined {
+  const authToken = resolveAuthToken();
+  const session = resolveWalletSession();
+  const solanaSession = session
+    ? getWalletSessionByChain(session, "solana")
+    : null;
+  if (!authToken || !solanaSession?.solanaAddress) {
+    return undefined;
+  }
+  return {
+    type: "session",
+    address: solanaSession.solanaAddress,
+    session: solanaSession,
+    authToken,
   };
 }
 
@@ -131,7 +179,7 @@ export async function performSolanaDelegateApprove(
 
   const decimals = parseDecimals(opts.decimals);
   const rawAmount = parseAmount(opts.amount, decimals);
-  const { keyBytes, signer } = await resolveLocalSolanaDelegateSigner(program, opts.signer);
+  const signer = await resolveSolanaDelegateSigner(program, opts.signer);
   const network = resolveSolanaNetwork(program);
   const { sponsored, feePolicyId } = await resolveSolanaFeeSponsorship(program);
   const client = clientFromFlags(program, { forceNetwork: network });
@@ -140,7 +188,7 @@ export async function performSolanaDelegateApprove(
     tokenAccount: solAddress(opts.tokenAccount),
     mint: solAddress(opts.mint),
     delegate: solAddress(opts.delegate),
-    owner: signer,
+    owner: { address: solAddress(signer.type === "session" ? signer.address : signer.signer.address) },
     amount: rawAmount,
     decimals,
   });
@@ -148,13 +196,25 @@ export async function performSolanaDelegateApprove(
   const result = await withSpinner(
     "Approving delegate...",
     "Delegate approved",
-    () => buildAndSendSolanaTransaction({
-      client,
-      instructions: [instruction],
-      senderKeyBytes: keyBytes,
-      sponsored,
-      gasPolicyId: feePolicyId,
-    }),
+    async () => {
+      if (signer.type === "session") {
+        return await buildAndSendSolanaTransactionWithSession({
+          client,
+          instructions: [instruction],
+          session: signer.session,
+          authToken: signer.authToken,
+          sponsored,
+          gasPolicyId: feePolicyId,
+        });
+      }
+      return await buildAndSendSolanaTransaction({
+        client,
+        instructions: [instruction],
+        senderKeyBytes: signer.keyBytes,
+        sponsored,
+        gasPolicyId: feePolicyId,
+      });
+    },
   );
 
   const confirmed = await withSpinner(
@@ -205,26 +265,38 @@ export async function performSolanaDelegateRevoke(
 ): Promise<void> {
   validateSolanaAddress(opts.tokenAccount);
 
-  const { keyBytes, signer } = await resolveLocalSolanaDelegateSigner(program, opts.signer);
+  const signer = await resolveSolanaDelegateSigner(program, opts.signer);
   const network = resolveSolanaNetwork(program);
   const { sponsored, feePolicyId } = await resolveSolanaFeeSponsorship(program);
   const client = clientFromFlags(program, { forceNetwork: network });
 
   const instruction = buildSplTokenRevokeInstruction({
     tokenAccount: solAddress(opts.tokenAccount),
-    owner: signer,
+    owner: { address: solAddress(signer.type === "session" ? signer.address : signer.signer.address) },
   });
 
   const result = await withSpinner(
     "Revoking delegate...",
     "Delegate revoked",
-    () => buildAndSendSolanaTransaction({
-      client,
-      instructions: [instruction],
-      senderKeyBytes: keyBytes,
-      sponsored,
-      gasPolicyId: feePolicyId,
-    }),
+    async () => {
+      if (signer.type === "session") {
+        return await buildAndSendSolanaTransactionWithSession({
+          client,
+          instructions: [instruction],
+          session: signer.session,
+          authToken: signer.authToken,
+          sponsored,
+          gasPolicyId: feePolicyId,
+        });
+      }
+      return await buildAndSendSolanaTransaction({
+        client,
+        instructions: [instruction],
+        senderKeyBytes: signer.keyBytes,
+        sponsored,
+        gasPolicyId: feePolicyId,
+      });
+    },
   );
 
   const confirmed = await withSpinner(

@@ -25,7 +25,11 @@ import {
   errNoActiveSession,
 } from "./errors.js";
 import { createDelegatedAccount } from "./delegated-signer.js";
-import { loadStoredSession, type WalletSession } from "./wallet-session.js";
+import {
+  getWalletSessionByChain,
+  loadStoredSession,
+  type WalletSession,
+} from "./wallet-session.js";
 import { dim } from "./ui.js";
 import { createAlchemyWalletTransport } from "./wallet-transport.js";
 
@@ -183,12 +187,13 @@ export function buildWalletClient(
         }
         throw errNoActiveSession();
       }
-      assertSessionMetadata(validSession);
-      if (validSession.chainType && validSession.chainType !== "evm") {
+      const evmSession = getWalletSessionByChain(validSession, "evm");
+      if (!evmSession) {
         throw errInvalidArgs(
-          `Wallet session is configured for '${validSession.chainType}', not EVM. Run 'alchemy wallet connect --force'.`,
+          "Wallet session is missing EVM metadata. Run 'alchemy wallet connect --mode session --force'.",
         );
       }
+      assertSessionMetadata(evmSession);
       const authToken = resolveAuthToken(cfg);
       if (!authToken) {
         throw errAuthRequired();
@@ -196,9 +201,9 @@ export function buildWalletClient(
       return {
         signer: createDelegatedAccount({
           authToken,
-          session: validSession,
+          session: evmSession,
         }) as Parameters<typeof createSmartWalletClient>[0]["signer"],
-        address: validSession.evmAddress as Address,
+        address: evmSession.evmAddress as Address,
       };
     }
 

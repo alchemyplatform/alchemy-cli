@@ -101,6 +101,95 @@ describe("wallet-session", () => {
     ).toBe(false);
   });
 
+  it("loads multichain sessions when any chain session remains usable", async () => {
+    const {
+      createMemoryWalletSessionStore,
+      loadSession,
+      setWalletSessionStore,
+    } = await import("../../src/lib/wallet-session.js");
+    const evmSessionId = crypto.randomUUID();
+    const solanaSessionId = crypto.randomUUID();
+
+    setWalletSessionStore(createMemoryWalletSessionStore({
+      sessionId: evmSessionId,
+      status: "revoked",
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      envelopeVersion: "v1",
+      publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+      privateKeyPem: "pem",
+      chainType: "both",
+      sessionsByChain: {
+        evm: {
+          sessionId: evmSessionId,
+          status: "revoked",
+          expiresAt: new Date(Date.now() - 60_000).toISOString(),
+          chainType: "evm",
+          walletId: "evm-wallet",
+          walletAddress: "0xabc123",
+        },
+        solana: {
+          sessionId: solanaSessionId,
+          status: "approved",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          chainType: "solana",
+          walletId: "solana-wallet",
+          walletAddress: "SoLaNaSessionAddress",
+        },
+      },
+    }));
+
+    expect(loadSession()).toMatchObject({
+      sessionsByChain: {
+        solana: {
+          sessionId: solanaSessionId,
+          status: "approved",
+        },
+      },
+    });
+  });
+
+  it("only returns approved, non-expired chain sessions by chain", async () => {
+    const { getWalletSessionByChain } = await import("../../src/lib/wallet-session.js");
+    const evmSessionId = crypto.randomUUID();
+    const solanaSessionId = crypto.randomUUID();
+    const session = {
+      sessionId: evmSessionId,
+      status: "approved" as const,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      envelopeVersion: "v1",
+      publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+      privateKeyPem: "pem",
+      chainType: "both",
+      sessionsByChain: {
+        evm: {
+          sessionId: evmSessionId,
+          status: "expired" as const,
+          expiresAt: new Date(Date.now() - 60_000).toISOString(),
+          chainType: "evm" as const,
+          walletId: "evm-wallet",
+          walletAddress: "0xabc123",
+        },
+        solana: {
+          sessionId: solanaSessionId,
+          status: "approved" as const,
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          chainType: "solana" as const,
+          walletId: "solana-wallet",
+          walletAddress: "SoLaNaSessionAddress",
+        },
+      },
+    };
+
+    expect(getWalletSessionByChain(session, "evm")).toBeNull();
+    expect(getWalletSessionByChain(session, "solana")).toMatchObject({
+      sessionId: solanaSessionId,
+      solanaWalletId: "solana-wallet",
+      solanaAddress: "SoLaNaSessionAddress",
+    });
+  });
+
   it("can load raw stored session data even when expired", async () => {
     const tempDir = mkdtempSync(join(tmpdir(), "alchemy-wallet-session-expired-"));
     process.env.ALCHEMY_CONFIG = join(tempDir, "config.json");

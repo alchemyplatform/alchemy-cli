@@ -126,7 +126,7 @@ export function getSetupCapabilities(cfg: Config): SetupCapabilities {
         ? []
         : [
             "alchemy wallet connect",
-            "alchemy wallet connect --mode local --chain evm",
+            "alchemy wallet connect --mode local",
           ],
     }),
     x402: capabilityStatus({
@@ -135,7 +135,7 @@ export function getSetupCapabilities(cfg: Config): SetupCapabilities {
       missing: x402Ready ? [] : ["x402 enabled with wallet key file"],
       nextCommands: x402Ready
         ? []
-        : ["alchemy wallet connect --mode local --chain evm && alchemy config set x402 true"],
+        : ["alchemy wallet connect --mode local && alchemy config set x402 true"],
     }),
   };
 }
@@ -173,7 +173,7 @@ export function getSetupStatus(cfg: Config): SetupStatus {
       "alchemy auth",
       "alchemy config set app",
       "alchemy config set access-key <key> && alchemy config set app <app-id>",
-      "alchemy wallet connect --mode local --chain evm && alchemy config set x402 true",
+      "alchemy wallet connect --mode local && alchemy config set x402 true",
     ],
     capabilities,
   };

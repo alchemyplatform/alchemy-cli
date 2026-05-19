@@ -25,6 +25,7 @@ describe("solana delegate command", () => {
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => JSON.stringify(Array.from(KEY_BYTES)),
+      resolveActiveSigner: vi.fn(),
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
@@ -113,6 +114,7 @@ describe("solana delegate command", () => {
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => JSON.stringify(Array.from(KEY_BYTES)),
+      resolveActiveSigner: vi.fn(),
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => true,
       resolveGasPolicyId: () => "policy-id",
@@ -175,9 +177,12 @@ describe("solana delegate command", () => {
     });
   });
 
-  it("rejects session signing until Solana sessions are supported", async () => {
+  it("rejects session signing when no Solana session is active", async () => {
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => JSON.stringify(Array.from(KEY_BYTES)),
+      resolveActiveSigner: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
       resolveGasPolicyId: () => undefined,
@@ -223,7 +228,7 @@ describe("solana delegate command", () => {
       }),
     ).rejects.toMatchObject({
       code: "INVALID_ARGS",
-      message: expect.stringContaining("session wallet does not yet support Solana"),
+      message: expect.stringContaining("No active Solana wallet session"),
     });
   });
 });

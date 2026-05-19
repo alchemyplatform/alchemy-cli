@@ -255,7 +255,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
         method: "Local wallet + API key",
         envVar: "ALCHEMY_WALLET_KEY",
         flag: "--wallet-key-file <path> | --signer local",
-        setup: "alchemy wallet connect --mode local --chain evm",
+        setup: "alchemy wallet connect --mode local",
         commandFamilies: [
           "evm send",
           "evm contract call",

@@ -44,7 +44,21 @@ const walletSessionCreateResponseSchema = z.object({
   expiresAt: z.string().datetime().optional(),
 }).passthrough();
 
+const walletSessionRequestSessionCreateResponseSchema = z.object({
+  walletSessionId: z.string().min(1),
+  chainType: z.string().min(1),
+  status: rawWalletSessionStateSchema.transform(normalizeWalletSessionState),
+}).passthrough();
+
+const walletSessionRequestCreateResponseSchema = z.object({
+  sessionId: z.string().min(1),
+  approvalUrl: z.string().url(),
+  expiresAt: z.string().datetime().optional(),
+  sessions: z.array(walletSessionRequestSessionCreateResponseSchema).min(1),
+}).passthrough();
+
 const rawWalletSessionStatusResponseSchema = z.object({
+  type: z.literal("session").optional(),
   sessionId: z.string().min(1).optional(),
   status: rawWalletSessionStateSchema,
   expiresAt: z.string().datetime().optional(),
@@ -59,6 +73,16 @@ const rawWalletSessionStatusResponseSchema = z.object({
   providerSignerId: z.string().min(1).optional(),
   chainType: z.string().min(1).optional(),
   capabilities: z.record(z.string(), z.boolean()).optional(),
+}).passthrough();
+
+const walletSessionRequestStatusResponseSchema = z.object({
+  type: z.literal("sessionRequest"),
+  sessionId: z.string().min(1),
+  sessions: z.array(
+    rawWalletSessionStatusResponseSchema.extend({
+      walletSessionId: z.string().min(1),
+    }),
+  ).min(1),
 }).passthrough();
 
 const walletSessionDisconnectResponseSchema = z.object({
@@ -93,9 +117,25 @@ const rawEvmSigningChallengeResponseSchema = z.object({
   challenge: z.string().min(1),
   expiresAt: z.string().datetime(),
   requestExpiry: z.string().min(1),
-  method: z.enum(["personal_sign", "eth_signTypedData_v4", "eth_sign7702Authorization"]),
+  method: z.enum([
+    "personal_sign",
+    "eth_signTypedData_v4",
+    "eth_sign7702Authorization",
+  ]),
   walletId: z.string().min(1),
   walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  providerKeyQuorumId: z.string().min(1).optional(),
+  providerSignerId: z.string().min(1).optional(),
+}).strict();
+
+const rawSolanaSigningChallengeResponseSchema = z.object({
+  challengeId: z.string().uuid(),
+  challenge: z.string().min(1),
+  expiresAt: z.string().datetime(),
+  requestExpiry: z.string().min(1),
+  method: z.literal("signTransaction"),
+  walletId: z.string().min(1),
+  walletAddress: z.string().min(1),
   providerKeyQuorumId: z.string().min(1).optional(),
   providerSignerId: z.string().min(1).optional(),
 }).strict();
@@ -126,6 +166,11 @@ const signAuthorizationCompleteResponseSchema = z.object({
   }).strict(),
 }).strict();
 
+const solanaSignTransactionCompleteResponseSchema = z.object({
+  signedTransaction: z.string().min(1),
+  encoding: z.literal("base64"),
+}).strict();
+
 export interface CreateWalletSessionInput {
   publicKeyJwk: JsonWebKey;
   requestSignerVersion: string;
@@ -142,6 +187,14 @@ export interface CreateWalletSessionInput {
 }
 
 export type CreateWalletSessionResponse = z.infer<typeof walletSessionCreateResponseSchema>;
+export interface CreateWalletSessionRequestInput {
+  publicKeyJwk: JsonWebKey;
+  requestSignerVersion: string;
+  chains: string[];
+  capabilities: Record<string, Record<string, boolean>>;
+  environment: CreateWalletSessionInput["environment"];
+}
+export type CreateWalletSessionRequestResponse = z.infer<typeof walletSessionRequestCreateResponseSchema>;
 export interface WalletSessionStatusResponse {
   sessionId?: string;
   status: z.infer<typeof walletSessionStateSchema>;
@@ -161,6 +214,10 @@ export interface WalletSessionStatusResponse {
   privyKeyQuorumId?: string;
   privySignerId?: string;
 }
+export interface WalletSessionRequestStatusResponse {
+  sessionId: string;
+  sessions: WalletSessionStatusResponse[];
+}
 export type WalletSessionDisconnectResponse = {
   alreadyDisconnected: boolean;
   status: WalletSessionStatusResponse["status"] | null;
@@ -169,11 +226,24 @@ export type EvmSigningChallengeResponse = z.infer<typeof rawEvmSigningChallengeR
   privyKeyQuorumId?: string;
   privySignerId?: string;
 };
+export type SolanaSigningChallengeResponse = z.infer<typeof rawSolanaSigningChallengeResponseSchema> & {
+  privyKeyQuorumId?: string;
+  privySignerId?: string;
+};
 export type SignMessageCompleteResponse = z.infer<typeof signMessageCompleteResponseSchema>;
 export type SignTypedDataCompleteResponse = z.infer<typeof signTypedDataCompleteResponseSchema>;
 export type SignAuthorizationCompleteResponse = z.infer<typeof signAuthorizationCompleteResponseSchema>;
+export type SolanaSignTransactionCompleteResponse = z.infer<typeof solanaSignTransactionCompleteResponseSchema>;
 
 export interface EvmSigningSessionBindingInput {
+  sessionId: string;
+  walletId: string;
+  walletAddress: string;
+  privyKeyQuorumId?: string;
+  privySignerId?: string;
+}
+
+export interface SolanaSigningSessionBindingInput {
   sessionId: string;
   walletId: string;
   walletAddress: string;
@@ -197,6 +267,11 @@ export interface SignAuthorizationChallengeInput extends EvmSigningSessionBindin
     nonce?: number | string;
     executor?: "self";
   };
+}
+
+export interface SolanaSignTransactionChallengeInput extends SolanaSigningSessionBindingInput {
+  transaction: string;
+  encoding: "base64";
 }
 
 export interface CompleteEvmSigningChallengeInput {
@@ -323,6 +398,20 @@ function normalizeWalletSessionStatus(
   };
 }
 
+function normalizeWalletSessionRequestStatus(
+  request: z.infer<typeof walletSessionRequestStatusResponseSchema>,
+): WalletSessionRequestStatusResponse {
+  return {
+    sessionId: request.sessionId,
+    sessions: request.sessions.map(({ walletSessionId, ...session }) => {
+      return normalizeWalletSessionStatus({
+        ...session,
+        sessionId: walletSessionId,
+      });
+    }),
+  };
+}
+
 function normalizeEvmSigningChallengeResponse(
   response: z.infer<typeof rawEvmSigningChallengeResponseSchema>,
 ): EvmSigningChallengeResponse {
@@ -333,7 +422,31 @@ function normalizeEvmSigningChallengeResponse(
   };
 }
 
+function normalizeSolanaSigningChallengeResponse(
+  response: z.infer<typeof rawSolanaSigningChallengeResponseSchema>,
+): SolanaSigningChallengeResponse {
+  return {
+    ...response,
+    privyKeyQuorumId: response.providerKeyQuorumId,
+    privySignerId: response.providerSignerId,
+  };
+}
+
 function toProviderSigningBindingInput<T extends EvmSigningSessionBindingInput>(
+  input: T,
+): Omit<T, "privyKeyQuorumId" | "privySignerId"> & {
+  providerKeyQuorumId?: string;
+  providerSignerId?: string;
+} {
+  const { privyKeyQuorumId, privySignerId, ...rest } = input;
+  return {
+    ...rest,
+    ...(privyKeyQuorumId ? { providerKeyQuorumId: privyKeyQuorumId } : {}),
+    ...(privySignerId ? { providerSignerId: privySignerId } : {}),
+  };
+}
+
+function toProviderSolanaSigningBindingInput<T extends SolanaSigningSessionBindingInput>(
   input: T,
 ): Omit<T, "privyKeyQuorumId" | "privySignerId"> & {
   providerKeyQuorumId?: string;
@@ -363,7 +476,10 @@ export async function createRemoteWalletSession(
       );
       return unwrapAdminData(walletSessionCreateResponseSchema, data);
     } catch (err) {
-      const retryInput = getClientInstanceCompatibilityRetryInput(requestInput, err);
+      const retryInput = getClientInstanceCompatibilityRetryInput(
+        requestInput,
+        err,
+      ) as CreateWalletSessionInput | undefined;
       if (retryInput === undefined) {
         throw err;
       }
@@ -373,10 +489,39 @@ export async function createRemoteWalletSession(
   throw new CLIError(ErrorCode.NETWORK_ERROR, "Unable to create wallet session.");
 }
 
+export async function createRemoteWalletSessionRequest(
+  token: string,
+  input: CreateWalletSessionRequestInput,
+): Promise<CreateWalletSessionRequestResponse> {
+  let data: unknown;
+  let requestInput = input;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      data = await request<unknown>(
+        token,
+        "POST",
+        "/wallet/sessions",
+        requestInput,
+      );
+      return unwrapAdminData(walletSessionRequestCreateResponseSchema, data);
+    } catch (err) {
+      const retryInput = getClientInstanceCompatibilityRetryInput(
+        requestInput,
+        err,
+      ) as CreateWalletSessionRequestInput | undefined;
+      if (retryInput === undefined) {
+        throw err;
+      }
+      requestInput = retryInput;
+    }
+  }
+  throw new CLIError(ErrorCode.NETWORK_ERROR, "Unable to create wallet session request.");
+}
+
 function getClientInstanceCompatibilityRetryInput(
-  input: CreateWalletSessionInput,
+  input: CreateWalletSessionInput | CreateWalletSessionRequestInput,
   err: unknown,
-): CreateWalletSessionInput | undefined {
+): CreateWalletSessionInput | CreateWalletSessionRequestInput | undefined {
   if (
     input.environment.clientInstanceName !== undefined &&
     isUnsupportedClientInstanceMetadataError(err, "clientInstanceName")
@@ -425,6 +570,20 @@ export async function getRemoteWalletSession(
   );
   return normalizeWalletSessionStatus(
     unwrapAdminData(rawWalletSessionStatusResponseSchema, data),
+  );
+}
+
+export async function getRemoteWalletSessionRequest(
+  token: string,
+  sessionId: string,
+): Promise<WalletSessionRequestStatusResponse> {
+  const data = await request<unknown>(
+    token,
+    "GET",
+    `/wallet/sessions/${encodeURIComponent(sessionId)}`,
+  );
+  return normalizeWalletSessionRequestStatus(
+    unwrapAdminData(walletSessionRequestStatusResponseSchema, data),
   );
 }
 
@@ -534,6 +693,27 @@ const signAuthorizationChallengeInputSchema = evmSigningSessionBindingBaseSchema
   }).strict(),
 }).strict().superRefine(ensureSessionSignerBinding);
 
+const solanaSigningSessionBindingBaseSchema = z.object({
+  sessionId: z.string().uuid(),
+  walletId: z.string().min(1),
+  walletAddress: z.string().min(1),
+  privyKeyQuorumId: z.string().min(1).optional(),
+  privySignerId: z.string().min(1).optional(),
+});
+
+const solanaSignTransactionChallengeInputSchema =
+  solanaSigningSessionBindingBaseSchema.extend({
+    transaction: z.string().min(1),
+    encoding: z.literal("base64"),
+  }).strict().superRefine((input, ctx) => {
+    if (!input.privyKeyQuorumId && !input.privySignerId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide privyKeyQuorumId or privySignerId.",
+      });
+    }
+  });
+
 export async function createRemoteSignTypedDataChallenge(
   token: string,
   input: SignTypedDataChallengeInput,
@@ -585,5 +765,32 @@ export async function completeRemoteSignAuthorizationChallenge(
     "/wallet/evm/sign-7702-authorization/complete",
     input,
     adminApiResponseSchema(signAuthorizationCompleteResponseSchema).transform((resp) => resp.data),
+  );
+}
+
+export async function createRemoteSolanaSignTransactionChallenge(
+  token: string,
+  input: SolanaSignTransactionChallengeInput,
+): Promise<SolanaSigningChallengeResponse> {
+  const parsedInput = solanaSignTransactionChallengeInputSchema.parse(input);
+  return createEvmSigningChallenge(
+    token,
+    "/wallet/solana/sign-transaction/challenge",
+    toProviderSolanaSigningBindingInput(parsedInput),
+    adminApiResponseSchema(rawSolanaSigningChallengeResponseSchema).transform((resp) =>
+      normalizeSolanaSigningChallengeResponse(resp.data)
+    ),
+  );
+}
+
+export async function completeRemoteSolanaSignTransactionChallenge(
+  token: string,
+  input: CompleteEvmSigningChallengeInput,
+): Promise<SolanaSignTransactionCompleteResponse> {
+  return completeEvmSigningChallenge(
+    token,
+    "/wallet/solana/sign-transaction/complete",
+    input,
+    adminApiResponseSchema(solanaSignTransactionCompleteResponseSchema).transform((resp) => resp.data),
   );
 }

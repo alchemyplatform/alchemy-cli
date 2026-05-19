@@ -11,10 +11,12 @@ import * as config from "../lib/config.js";
 import { openBrowser } from "../lib/auth.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import {
-  createRemoteWalletSession,
+  createRemoteWalletSessionRequest,
   disconnectRemoteWalletSession,
   getRemoteWalletSession,
+  getRemoteWalletSessionRequest,
   getWalletApiBaseUrl,
+  type WalletSessionStatusResponse,
 } from "../lib/wallet-api.js";
 import {
   resolveWalletKey,
@@ -37,7 +39,13 @@ import {
   exitWithError,
 } from "../lib/errors.js";
 import { green, dim, printKeyValue } from "../lib/ui.js";
-import { createPendingSession, loadSession, clearSession, isSessionValid, updateSession } from "../lib/wallet-session.js";
+import {
+  createPendingSession,
+  loadSession,
+  clearSession,
+  isSessionValid,
+  updateSession,
+} from "../lib/wallet-session.js";
 import * as walletSession from "../lib/wallet-session.js";
 
 type WalletType = "evm" | "solana";
@@ -48,6 +56,9 @@ const DEFAULT_WALLET_CAPABILITIES = {
   "evm.signMessage": true,
   "evm.signTypedData": true,
   "evm.signAuthorization": true,
+} as const;
+const DEFAULT_SOLANA_SESSION_CAPABILITIES = {
+  "solana.signTransaction": true,
 } as const;
 
 function createEvmWallet(): { privateKey: `0x${string}`; address: `0x${string}` } {
@@ -178,7 +189,7 @@ async function waitForInterruptible<T>(promise: Promise<T>, signal: AbortSignal)
 
 async function withApprovalInterruptHandler<T>(args: {
   authToken: string;
-  sessionId: string;
+  sessionIds: string[];
   run: (signal: AbortSignal) => Promise<T>;
 }): Promise<T> {
   const controller = new AbortController();
@@ -207,7 +218,13 @@ async function withApprovalInterruptHandler<T>(args: {
     return await args.run(controller.signal);
   } catch (err) {
     if (isWalletConnectInterruptedError(err)) {
-      await disconnectRemoteWalletSession(args.authToken, args.sessionId).catch(() => undefined);
+      await Promise.all(
+        args.sessionIds.map((sessionId) =>
+          disconnectRemoteWalletSession(args.authToken, sessionId).catch(
+            () => undefined,
+          ),
+        ),
+      );
       clearSession();
     }
     throw err;
@@ -219,31 +236,11 @@ async function withApprovalInterruptHandler<T>(args: {
   }
 }
 
-function isFutureIsoDate(value: string): boolean {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
-  return date > new Date();
-}
-
-function isActiveWalletSession(
-  session: walletSession.WalletSession | null,
-  remoteStatus?: RemoteWalletStatus,
-): boolean {
-  if (!session) return false;
-  if (session.status !== "approved") return false;
-  if (!isFutureIsoDate(session.expiresAt)) return false;
-  if (remoteStatus && remoteStatus !== "approved") return false;
-  return true;
-}
-
 function deriveWalletStatus(
   session: walletSession.WalletSession | null,
-  remoteStatus?: RemoteWalletStatus,
 ): WalletStatus {
   if (!session) return "none";
-  if (isActiveWalletSession(session, remoteStatus)) return "active";
+  if (isSessionValid(session)) return "active";
   if (session.status === "pending") return "none";
   return "expired";
 }
@@ -399,7 +396,7 @@ function missingQrWalletError(type: WalletType, source: WalletSource | null): Er
   if (source === "session") {
     return type === "solana"
       ? errInvalidArgs(
-          "The session wallet does not yet support Solana QR selection. Use `alchemy wallet use local` or configure a local Solana wallet with `alchemy wallet connect --mode local --chain solana`.",
+          "No Solana session wallet is configured. Run `alchemy wallet connect --mode session --force`.",
         )
       : errNoActiveSession();
   }
@@ -486,7 +483,7 @@ export function importAndPersistWallet(path: string): { address: string; keyFile
   return { address, keyFile: keyPath };
 }
 
-type LocalChain = "evm" | "solana" | "both";
+type LocalChain = "evm" | "both";
 
 function hasValidSessionWithEvm(): boolean {
   const session = resolveWalletSession();
@@ -537,21 +534,18 @@ function getEffectiveLocalWalletState(
 }
 
 async function runLocalCreate(opts: {
-  chain: LocalChain;
   force: boolean;
   program: Command;
-}): Promise<{ evm?: { address: string; keyFile: string }; solana?: { address: string; keyFile: string } }> {
+}): Promise<{ evm: { address: string; keyFile: string }; solana: { address: string; keyFile: string } }> {
   const cfg = config.load();
-  const wantsEvm = opts.chain === "evm" || opts.chain === "both";
-  const wantsSolana = opts.chain === "solana" || opts.chain === "both";
 
-  const evmConflict = wantsEvm && Boolean(cfg.wallet_key_file);
-  const solanaConflict = wantsSolana && Boolean(cfg.solana_wallet_key_file);
+  const evmConflict = Boolean(cfg.wallet_key_file);
+  const solanaConflict = Boolean(cfg.solana_wallet_key_file);
 
   if ((evmConflict || solanaConflict) && !opts.force) {
     if (!isInteractiveAllowed(opts.program)) {
       throw errInvalidArgs(
-        "A local key is already configured for the selected chain. Re-run with --force to replace it.",
+        "A local key is already configured. Re-run with --force to replace it.",
       );
     }
     const kinds = [evmConflict ? "EVM" : null, solanaConflict ? "Solana" : null].filter(Boolean).join(" and ");
@@ -565,16 +559,7 @@ async function runLocalCreate(opts: {
     }
   }
 
-  if (opts.chain === "both") {
-    const { evm, solana } = await createAndPersistWallets();
-    return { evm, solana };
-  }
-  if (opts.chain === "evm") {
-    const evm = generateAndPersistWallet();
-    return { evm };
-  }
-  const solana = await generateAndPersistSolanaWallet();
-  return { solana };
+  return await createAndPersistWallets();
 }
 
 function runLocalImport(opts: { path: string; program: Command; force: boolean }): { evm: { address: string; keyFile: string } } {
@@ -614,11 +599,46 @@ async function runLocalImportInteractive(opts: { path: string; program: Command;
   }
 }
 
+function capabilitiesForChain(chain: "evm" | "solana"): Record<string, boolean> {
+  return chain === "evm"
+    ? { ...DEFAULT_WALLET_CAPABILITIES }
+    : { ...DEFAULT_SOLANA_SESSION_CAPABILITIES };
+}
+
+function capabilitiesForChains(
+  chains: Array<"evm" | "solana">,
+): Record<string, Record<string, boolean>> {
+  return Object.fromEntries(
+    chains.map((chain) => [chain, capabilitiesForChain(chain)]),
+  );
+}
+
+function getApprovedSessionWalletMetadata(
+  chain: "evm" | "solana",
+  session: WalletSessionStatusResponse,
+): { walletId: string; walletAddress: string } {
+  const walletId = chain === "evm"
+    ? session.walletId ?? session.evmWalletId
+    : session.solanaWalletId ?? session.walletId;
+  const walletAddress = chain === "evm"
+    ? session.evmAddress ?? session.address
+    : session.solanaAddress ?? session.address;
+
+  if (!walletId || !walletAddress) {
+    throw new CLIError(
+      ErrorCode.INTERNAL_ERROR,
+      "Approved wallet session response missing required metadata.",
+    );
+  }
+  return { walletId, walletAddress };
+}
+
 async function runSessionConnect(opts: {
   program: Command;
   force: boolean;
   instanceName?: string;
 }): Promise<void> {
+  const requestedChains: Array<"evm" | "solana"> = ["evm", "solana"];
   const authToken = resolveAuthToken();
   if (!authToken) throw errAuthRequired();
 
@@ -658,35 +678,55 @@ async function runSessionConnect(opts: {
     ...(clientInstance.name === undefined ? {} : { clientInstanceName: clientInstance.name }),
   };
   updateSession({
-    chainType: "evm",
-    capabilities: { ...DEFAULT_WALLET_CAPABILITIES },
+    chainType: "both",
+    capabilities: Object.assign(
+      {},
+      ...requestedChains.map((chain) => capabilitiesForChain(chain)),
+    ),
     backendBaseUrl: getWalletApiBaseUrl(),
     environment: sessionEnvironment,
   });
 
-  const remoteSession = await createRemoteWalletSession(authToken, {
-    publicKeyJwk: session.publicKeyJwk,
-    requestSignerVersion: session.envelopeVersion,
-    chainType: "evm",
-    capabilities: { ...DEFAULT_WALLET_CAPABILITIES },
-    environment: sessionEnvironment,
-  }).catch((err) => {
-    clearSession();
-    throw err;
-  });
+  const remoteRequest = await createRemoteWalletSessionRequest(authToken, {
+        publicKeyJwk: session.publicKeyJwk,
+        requestSignerVersion: session.envelopeVersion,
+        chains: requestedChains,
+        capabilities: capabilitiesForChains(requestedChains),
+        environment: sessionEnvironment,
+      }).catch((err) => {
+        clearSession();
+        throw err;
+      });
+
+  const pendingSessionsByChain = Object.fromEntries(
+    remoteRequest.sessions.map((remoteSession) => [
+      remoteSession.chainType,
+      {
+        sessionId: remoteSession.walletSessionId,
+        status: "pending" as const,
+        expiresAt: remoteRequest.expiresAt ?? session.expiresAt,
+        chainType: remoteSession.chainType as "evm" | "solana",
+        capabilities: capabilitiesForChain(
+          remoteSession.chainType as "evm" | "solana",
+        ),
+      },
+    ]),
+  ) as Partial<Record<"evm" | "solana", walletSession.ChainWalletSession>>;
 
   updateSession({
-    sessionId: remoteSession.sessionId,
-    expiresAt: remoteSession.expiresAt ?? session.expiresAt,
+    connectionRequestId: remoteRequest.sessionId,
+    sessionId: remoteRequest.sessions[0].walletSessionId,
+    expiresAt: remoteRequest.expiresAt ?? session.expiresAt,
+    sessionsByChain: pendingSessionsByChain,
   });
 
   if (!isJSONMode()) {
     const summaryPairs: Array<[string, string]> = [
-      ["Session ID", remoteSession.sessionId],
+      ["Connection Request ID", remoteRequest.sessionId],
       ["Status", "pending"],
-      ["Approval URL", remoteSession.approvalUrl],
+      ["Approval URL", remoteRequest.approvalUrl],
       ["Created", session.createdAt],
-      ["Expires", remoteSession.expiresAt ?? session.expiresAt],
+      ["Expires", remoteRequest.expiresAt ?? session.expiresAt],
     ];
     if (clientInstance.name !== undefined) {
       summaryPairs.splice(1, 0, ["Instance", clientInstance.name]);
@@ -702,7 +742,14 @@ async function runSessionConnect(opts: {
     });
     if (answer === null) {
       clearSession();
-      await disconnectRemoteWalletSession(authToken, remoteSession.sessionId).catch(() => undefined);
+      await Promise.all(
+        remoteRequest.sessions.map((remoteSession) =>
+          disconnectRemoteWalletSession(
+            authToken,
+            remoteSession.walletSessionId,
+          ).catch(() => undefined),
+        ),
+      );
       throw new WalletConnectInterruptedError();
     }
   }
@@ -712,26 +759,48 @@ async function runSessionConnect(opts: {
     console.log(`  ${dim("Waiting for dashboard approval to complete connection.")}`);
   }
 
-  openBrowser(remoteSession.approvalUrl);
+  openBrowser(remoteRequest.approvalUrl);
 
-  const approvedSession = await withApprovalInterruptHandler({
+  const approvedSessions = await withApprovalInterruptHandler({
     authToken,
-    sessionId: remoteSession.sessionId,
+    sessionIds: remoteRequest.sessions.map(
+      (remoteSession) => remoteSession.walletSessionId,
+    ),
     run: async (signal) => {
       const startedAt = Date.now();
       while (Date.now() - startedAt < CONNECT_TIMEOUT_MS) {
-        const current = await waitForInterruptible(
-          getRemoteWalletSession(authToken, remoteSession.sessionId),
+        const currentSessions = await waitForInterruptible(
+          remoteRequest.sessionId
+            ? getRemoteWalletSessionRequest(
+                authToken,
+                remoteRequest.sessionId,
+              ).then((request) => request.sessions)
+            : Promise.all(
+                remoteRequest.sessions.map((remoteSession) =>
+                  getRemoteWalletSession(authToken, remoteSession.walletSessionId),
+                ),
+              ),
           signal,
         );
-        if (current.status === "approved") {
-          return current;
+        if (
+          requestedChains.every((chain) =>
+            currentSessions.some((current) => {
+              return current.chainType === chain && current.status === "approved";
+            }),
+          )
+        ) {
+          return currentSessions;
         }
-        if (current.status === "denied" || current.status === "revoked" || current.status === "expired") {
+        const terminalSession = currentSessions.find((current) => {
+          return current.status === "denied" ||
+            current.status === "revoked" ||
+            current.status === "expired";
+        });
+        if (terminalSession) {
           clearSession();
           throw new CLIError(
             ErrorCode.INTERNAL_ERROR,
-            `Wallet session ${current.status}.`,
+            `Wallet session ${terminalSession.status}.`,
             "Run 'alchemy wallet connect' to start a new approval flow.",
           );
         }
@@ -742,7 +811,7 @@ async function runSessionConnect(opts: {
     },
   });
 
-  if (!approvedSession) {
+  if (!approvedSessions) {
     throw new CLIError(
       ErrorCode.NETWORK_ERROR,
       "Timed out waiting for wallet approval.",
@@ -750,54 +819,129 @@ async function runSessionConnect(opts: {
     );
   }
 
-  const walletId = approvedSession.walletId ?? approvedSession.evmWalletId;
-  const evmAddress = approvedSession.evmAddress ?? approvedSession.address;
-
-  if (!approvedSession.privyAppId || !walletId || !evmAddress) {
+  const missingProviderAppId = approvedSessions.find((approvedSession) => {
+    return !approvedSession.privyAppId;
+  });
+  if (missingProviderAppId) {
     throw new CLIError(
       ErrorCode.INTERNAL_ERROR,
       "Approved wallet session response missing required metadata.",
     );
   }
 
+  const approvedSessionsByChain = Object.fromEntries(
+    requestedChains.map((chain) => {
+      const approvedSession = approvedSessions.find((current) => {
+        return current.chainType === chain;
+      });
+      if (!approvedSession) {
+        throw new CLIError(
+          ErrorCode.INTERNAL_ERROR,
+          "Approved wallet session response missing requested chain.",
+        );
+      }
+      const { walletId, walletAddress } = getApprovedSessionWalletMetadata(
+        chain,
+        approvedSession,
+      );
+      return [
+        chain,
+        {
+          sessionId: approvedSession.sessionId ??
+            remoteRequest.sessions.find((remoteSession) => remoteSession.chainType === chain)?.walletSessionId ??
+            session.sessionId,
+          status: "approved" as const,
+          expiresAt: approvedSession.expiresAt ?? remoteRequest.expiresAt ?? session.expiresAt,
+          chainType: chain,
+          walletId,
+          walletAddress,
+          providerKeyQuorumId: approvedSession.privyKeyQuorumId,
+          providerSignerId: approvedSession.privySignerId,
+          capabilities: approvedSession.capabilities ?? capabilitiesForChain(chain),
+        },
+      ];
+    }),
+  ) as Partial<Record<"evm" | "solana", walletSession.ChainWalletSession>>;
+  const firstApprovedSession = approvedSessions.find((approvedSession) => {
+    return approvedSession.chainType === requestedChains[0];
+  }) ?? approvedSessions[0];
+  const evmSession = approvedSessionsByChain.evm;
+  const solanaSession = approvedSessionsByChain.solana;
+
   updateSession({
-    sessionId: approvedSession.sessionId ?? remoteSession.sessionId,
+    connectionRequestId: remoteRequest.sessionId,
+    sessionId: firstApprovedSession.sessionId ?? remoteRequest.sessions[0].walletSessionId,
     status: "approved",
-    expiresAt: approvedSession.expiresAt ?? remoteSession.expiresAt ?? session.expiresAt,
-    privyAppId: approvedSession.privyAppId,
-    walletId,
-    evmWalletId: approvedSession.evmWalletId ?? walletId,
-    evmAddress,
-    solanaWalletId: approvedSession.solanaWalletId,
-    solanaAddress: approvedSession.solanaAddress,
-    privyKeyQuorumId: approvedSession.privyKeyQuorumId,
-    privySignerId: approvedSession.privySignerId,
-    chainType: approvedSession.chainType ?? "evm",
-    capabilities: approvedSession.capabilities ?? { ...DEFAULT_WALLET_CAPABILITIES },
+    expiresAt: firstApprovedSession.expiresAt ?? remoteRequest.expiresAt ?? session.expiresAt,
+    privyAppId: firstApprovedSession.privyAppId,
+    walletId: evmSession?.walletId ?? solanaSession?.walletId,
+    evmWalletId: evmSession?.walletId,
+    evmAddress: evmSession?.walletAddress,
+    solanaWalletId: solanaSession?.walletId,
+    solanaAddress: solanaSession?.walletAddress,
+    privyKeyQuorumId:
+      evmSession?.providerKeyQuorumId ?? solanaSession?.providerKeyQuorumId,
+    privySignerId:
+      evmSession?.providerSignerId ?? solanaSession?.providerSignerId,
+    chainType: "both",
+    capabilities: Object.assign(
+      {},
+      ...requestedChains.map((chain) => capabilitiesForChain(chain)),
+      ...approvedSessions.map((approvedSession) => approvedSession.capabilities ?? {}),
+    ),
+    sessionsByChain: approvedSessionsByChain,
     backendBaseUrl: getWalletApiBaseUrl(),
     environment: sessionEnvironment,
   });
 
   if (isJSONMode()) {
     printJSON({
-      sessionId: approvedSession.sessionId ?? remoteSession.sessionId,
+      connectionRequestId: remoteRequest.sessionId,
+      sessionId:
+        firstApprovedSession.sessionId ?? remoteRequest.sessions[0].walletSessionId,
+      walletSessionId:
+        firstApprovedSession.sessionId ?? remoteRequest.sessions[0].walletSessionId,
       status: "approved",
-      privyAppId: approvedSession.privyAppId,
-      walletId,
-      evmAddress,
-      evmWalletId: approvedSession.evmWalletId ?? walletId,
-      chainType: approvedSession.chainType ?? "evm",
-      capabilities: approvedSession.capabilities ?? { ...DEFAULT_WALLET_CAPABILITIES },
-      expiresAt: approvedSession.expiresAt ?? remoteSession.expiresAt ?? session.expiresAt,
+      privyAppId: firstApprovedSession.privyAppId,
+      walletId: evmSession?.walletId ?? solanaSession?.walletId,
+      ...(evmSession
+        ? {
+            evmAddress: evmSession.walletAddress,
+            evmWalletId: evmSession.walletId,
+          }
+        : {}),
+      ...(solanaSession
+        ? {
+            solanaAddress: solanaSession.walletAddress,
+            solanaWalletId: solanaSession.walletId,
+          }
+        : {}),
+      chainType: "both",
+      capabilities: Object.assign(
+        {},
+        ...requestedChains.map((chain) => capabilitiesForChain(chain)),
+      ),
+      expiresAt: firstApprovedSession.expiresAt ?? remoteRequest.expiresAt ?? session.expiresAt,
+      sessionsByChain: approvedSessionsByChain,
     });
   } else {
-    printKeyValue([
-      ["Session ID", approvedSession.sessionId ?? remoteSession.sessionId],
+    const pairs: [string, string][] = [
+      ["Connection Request ID", remoteRequest.sessionId],
       ["Status", green("approved")],
-      ["Wallet ID", walletId],
-      ["EVM Address", green(evmAddress)],
-      ["Expires", approvedSession.expiresAt ?? remoteSession.expiresAt ?? session.expiresAt],
+    ];
+    for (const chain of requestedChains) {
+      const chainSession = approvedSessionsByChain[chain];
+      if (!chainSession) continue;
+      pairs.push(
+        [`${chain.toUpperCase()} Wallet ID`, chainSession.walletId ?? ""],
+        [`${chain.toUpperCase()} Address`, green(chainSession.walletAddress ?? "")],
+      );
+    }
+    pairs.push([
+      "Expires",
+      firstApprovedSession.expiresAt ?? remoteRequest.expiresAt ?? session.expiresAt,
     ]);
+    printKeyValue(pairs);
     console.log(`  ${green("✓")} Wallet connected`);
   }
 }
@@ -859,7 +1003,6 @@ async function runConnectFlow(
   program: Command,
   opts: {
     mode?: string;
-    chain?: string;
     import?: string;
     force?: boolean;
     instanceName?: string;
@@ -890,19 +1033,6 @@ async function runConnectFlow(
     mode = "local";
   }
 
-  let chain: LocalChain = "both";
-  if (opts.chain !== undefined) {
-    if (opts.chain !== "evm" && opts.chain !== "solana" && opts.chain !== "both") {
-      throw errInvalidArgs("`--chain` must be 'evm', 'solana', or 'both'.");
-    }
-    chain = opts.chain;
-  }
-
-  if (importPath && chain !== "evm" && opts.chain !== undefined) {
-    throw errInvalidArgs("`--import` implies `--chain evm`; omit `--chain` or set it to 'evm'.");
-  }
-  if (importPath) chain = "evm";
-
   // Prompt for mode if unset and interactive.
   if (!mode) {
     if (!isInteractiveAllowed(program)) {
@@ -913,7 +1043,7 @@ async function runConnectFlow(
     const choice = await promptSelect<"session" | "local">({
       message: "Choose a wallet to connect",
       options: [
-        { value: "session", label: "Session wallet", hint: "Recommended — Alchemy/Privy-managed, more secure" },
+        { value: "session", label: "Session wallet", hint: "Recommended — Alchemy-managed, more secure" },
         { value: "local", label: "Local wallet", hint: "Private key stored on this machine" },
       ],
       initialValue: "session",
@@ -924,7 +1054,11 @@ async function runConnectFlow(
   }
 
   if (mode === "session") {
-    await runSessionConnect({ program, force, instanceName: opts.instanceName });
+    await runSessionConnect({
+      program,
+      force,
+      instanceName: opts.instanceName,
+    });
     printCrossModeHintAfterSessionConnect();
     return;
   }
@@ -937,9 +1071,9 @@ async function runConnectFlow(
     return;
   }
 
-  const result = await runLocalCreate({ chain, force, program });
+  const result = await runLocalCreate({ force, program });
   printPostLocalCreateSummary(result);
-  printCrossModeHintAfterLocal(chain);
+  printCrossModeHintAfterLocal("both");
 }
 
 interface SessionSnapshot {
@@ -952,9 +1086,77 @@ interface SessionSnapshot {
   walletId: string | null;
   expiresAt: string | null;
   sessionId: string | null;
+  connectionRequestId: string | null;
   sessionState: walletSession.WalletSession["status"] | null;
   chainType: string | null;
+  sessionsByChain: walletSession.WalletSession["sessionsByChain"] | null;
   valid: boolean;
+}
+
+function uniqueSessionIds(session: walletSession.WalletSession): string[] {
+  const ids = Object.values(session.sessionsByChain ?? {})
+    .map((chainSession) => chainSession?.sessionId)
+    .filter((sessionId): sessionId is string => Boolean(sessionId));
+
+  if (ids.length === 0) {
+    ids.push(session.sessionId);
+  }
+
+  return Array.from(new Set(ids));
+}
+
+function selectRemoteSessionForStatus(
+  session: walletSession.WalletSession,
+  remoteSessions: WalletSessionStatusResponse[],
+): WalletSessionStatusResponse {
+  return remoteSessions.find((remoteSession) => {
+    return remoteSession.status !== "approved";
+  }) ?? remoteSessions.find((remoteSession) => {
+    return remoteSession.sessionId === session.sessionId;
+  }) ?? remoteSessions[0];
+}
+
+function mergeRemoteCapabilities(
+  session: walletSession.WalletSession,
+  remoteSessions: WalletSessionStatusResponse[],
+): walletSession.WalletSession["capabilities"] {
+  return Object.assign(
+    {},
+    session.capabilities ?? {},
+    ...remoteSessions.map((remoteSession) => remoteSession.capabilities ?? {}),
+  );
+}
+
+async function getRemoteSessionsForStatus(
+  authToken: string,
+  session: walletSession.WalletSession,
+): Promise<WalletSessionStatusResponse[]> {
+  const sessionIds = uniqueSessionIds(session);
+  if (session.connectionRequestId) {
+    try {
+      return await getRemoteWalletSessionRequest(
+        authToken,
+        session.connectionRequestId,
+      ).then((request) => request.sessions);
+    } catch {
+      // Fall back to the stored child IDs when the grouped request lookup is
+      // unavailable; status should be best-effort across independent chains.
+    }
+  }
+
+  const results = await Promise.allSettled(
+    sessionIds.map((sessionId) => getRemoteWalletSession(authToken, sessionId)),
+  );
+  const remoteSessions = results.flatMap((result) => {
+    return result.status === "fulfilled" ? [result.value] : [];
+  });
+  if (remoteSessions.length === 0) {
+    const firstRejection = results.find((result) => {
+      return result.status === "rejected";
+    });
+    throw firstRejection?.reason ?? new Error("Unable to verify wallet session.");
+  }
+  return remoteSessions;
 }
 
 async function buildSessionSnapshot(
@@ -968,27 +1170,73 @@ async function buildSessionSnapshot(
     const authToken = resolveAuthToken();
     if (!authToken) throw errAuthRequired();
 
-    const remote = await getRemoteWalletSession(authToken, session.sessionId);
+    const remoteSessions = await getRemoteSessionsForStatus(authToken, session);
+    const remote = selectRemoteSessionForStatus(session, remoteSessions);
     remoteStatus = remote.status;
-    const walletId = remote.walletId ?? remote.evmWalletId;
+    const nextSessionsByChain = { ...(session.sessionsByChain ?? {}) };
+    for (const remoteSession of remoteSessions) {
+      const chain = remoteSession.chainType === "solana" ? "solana" : "evm";
+      const walletIdForChain = chain === "solana"
+        ? remoteSession.solanaWalletId ?? remoteSession.walletId
+        : remoteSession.evmWalletId ?? remoteSession.walletId;
+      const walletAddressForChain = chain === "solana"
+        ? remoteSession.solanaAddress ?? remoteSession.address
+        : remoteSession.evmAddress ?? remoteSession.address;
+      nextSessionsByChain[chain] = {
+        ...(nextSessionsByChain[chain] ?? {}),
+        sessionId: remoteSession.sessionId ?? nextSessionsByChain[chain]?.sessionId ?? session.sessionId,
+        status: normalizeRemoteStatusForStorage(remoteSession.status),
+        expiresAt: remoteSession.expiresAt ?? nextSessionsByChain[chain]?.expiresAt ?? session.expiresAt,
+        chainType: chain,
+        ...(walletIdForChain ? { walletId: walletIdForChain } : {}),
+        ...(walletAddressForChain ? { walletAddress: walletAddressForChain } : {}),
+        ...(remoteSession.privyKeyQuorumId
+          ? { providerKeyQuorumId: remoteSession.privyKeyQuorumId }
+          : {}),
+        ...(remoteSession.privySignerId
+          ? { providerSignerId: remoteSession.privySignerId }
+          : {}),
+        ...(remoteSession.capabilities ? { capabilities: remoteSession.capabilities } : {}),
+      };
+    }
+    const remoteChain = remote.chainType === "solana" ? "solana" : "evm";
+    const remoteWalletId = remoteChain === "solana"
+      ? remote.solanaWalletId ?? remote.walletId
+      : remote.evmWalletId ?? remote.walletId;
+    const evmWalletId = remoteChain === "evm"
+      ? remoteWalletId ?? session.evmWalletId
+      : session.evmWalletId;
+    const evmAddress = remoteChain === "evm"
+      ? remote.evmAddress ?? remote.address ?? session.evmAddress
+      : session.evmAddress;
+    const solanaWalletId = remoteChain === "solana"
+      ? remoteWalletId ?? session.solanaWalletId
+      : session.solanaWalletId;
+    const solanaAddress = remoteChain === "solana"
+      ? remote.solanaAddress ?? remote.address ?? session.solanaAddress
+      : session.solanaAddress;
+    const chainType = nextSessionsByChain.evm && nextSessionsByChain.solana
+      ? "both"
+      : remote.chainType ?? session.chainType;
 
     session = {
       ...session,
       status: normalizeRemoteStatusForStorage(remote.status),
       expiresAt: remote.expiresAt ?? session.expiresAt,
       privyAppId: remote.privyAppId ?? session.privyAppId,
-      walletId: walletId ?? session.walletId,
-      evmWalletId: remote.evmWalletId ?? walletId ?? session.evmWalletId,
-      evmAddress: remote.evmAddress ?? remote.address ?? session.evmAddress,
-      solanaWalletId: remote.solanaWalletId ?? session.solanaWalletId,
-      solanaAddress: remote.solanaAddress ?? session.solanaAddress,
-      chainType: remote.chainType ?? session.chainType,
-      capabilities: remote.capabilities ?? session.capabilities,
+      walletId: evmWalletId ?? solanaWalletId ?? session.walletId,
+      evmWalletId,
+      evmAddress,
+      solanaWalletId,
+      solanaAddress,
+      chainType,
+      capabilities: mergeRemoteCapabilities(session, remoteSessions),
+      sessionsByChain: nextSessionsByChain,
     };
     walletSession.saveSession(session);
   }
 
-  const status = deriveWalletStatus(session, remoteStatus ?? undefined);
+  const status = deriveWalletStatus(session);
   const walletAddress = resolveSessionAddress(session);
   const environment = resolveSessionEnvironment(session);
   const signerCapabilities = resolveEnabledCapabilities(session);
@@ -1005,8 +1253,10 @@ async function buildSessionSnapshot(
     walletId,
     expiresAt,
     sessionId: session?.sessionId ?? null,
+    connectionRequestId: session?.connectionRequestId ?? null,
     sessionState: session?.status ?? null,
     chainType: session?.chainType ?? null,
+    sessionsByChain: session?.sessionsByChain ?? null,
     valid: session ? isSessionValid(session) : false,
   };
 }
@@ -1019,13 +1269,11 @@ export function registerWallets(program: Command) {
     .command("connect")
     .description("Connect a wallet for onchain actions (session or local)")
     .option("--mode <mode>", "session | local")
-    .option("--chain <chain>", "For --mode local: evm | solana | both (default: both)")
-    .option("--import <path>", "For --mode local: import EVM key from file (implies --chain evm)")
+    .option("--import <path>", "For --mode local: import an EVM key from file instead of creating both wallets")
     .option("--instance-name <name>", "For --mode session: name this CLI instance")
     .option("--force", "Replace the existing signer")
     .action(async (opts: {
       mode?: string;
-      chain?: string;
       import?: string;
       instanceName?: string;
       force?: boolean;
@@ -1067,10 +1315,12 @@ export function registerWallets(program: Command) {
             expiresAt: snap.expiresAt,
             environment: snap.environment,
             signerCapabilities: snap.signerCapabilities,
+            connectionRequestId: snap.connectionRequestId,
             sessionId: snap.sessionId,
             sessionState: snap.sessionState,
             walletId: snap.walletId,
             chainType: snap.chainType,
+            sessionsByChain: snap.sessionsByChain,
             verified: Boolean(opts.verify),
             remoteStatus: snap.remoteStatus,
             valid: snap.valid,
@@ -1081,10 +1331,12 @@ export function registerWallets(program: Command) {
               expiresAt: snap.expiresAt,
               environment: snap.environment,
               signerCapabilities: snap.signerCapabilities,
+              connectionRequestId: snap.connectionRequestId,
               sessionId: snap.sessionId,
               sessionState: snap.sessionState,
               walletId: snap.walletId,
               chainType: snap.chainType,
+              sessionsByChain: snap.sessionsByChain,
               valid: snap.valid,
             },
             localEvm: localState.evmAddress
@@ -1109,7 +1361,11 @@ export function registerWallets(program: Command) {
           ["Environment", snap.environment ?? dim("none")],
           ["Signer Capabilities", snap.signerCapabilities.length > 0 ? snap.signerCapabilities.join(", ") : dim("none")],
         ];
-        if (snap.sessionId) pairs.push(["Session ID", snap.sessionId]);
+        if (snap.connectionRequestId) {
+          pairs.push(["Connection Request ID", snap.connectionRequestId]);
+        } else if (snap.sessionId) {
+          pairs.push(["Session ID", snap.sessionId]);
+        }
         if (snap.walletId) pairs.push(["Wallet ID", snap.walletId]);
         if (opts.verify) {
           pairs.push(["Backend Status", snap.remoteStatus ?? dim("not checked")]);
@@ -1303,7 +1559,7 @@ export function registerWallets(program: Command) {
         }
         if (target === "local" && !hasLocalEvmKey()) {
           throw errInvalidArgs(
-            "No local EVM key configured. Run `alchemy wallet connect --mode local --chain evm` first.",
+            "No local EVM key configured. Run `alchemy wallet connect --mode local` first.",
           );
         }
         const cfg = config.load();
@@ -1342,12 +1598,26 @@ export function registerWallets(program: Command) {
         let revoked = false;
         let alreadyDisconnected = false;
         let remoteStatus: RemoteWalletStatus | null = null;
+        let backendRevokeFailed = false;
+        const sessionIdsToDisconnect = uniqueSessionIds(session);
 
         if (authToken) {
-          const remote = await disconnectRemoteWalletSession(authToken, session.sessionId);
-          revoked = !remote.alreadyDisconnected;
-          alreadyDisconnected = remote.alreadyDisconnected;
-          remoteStatus = remote.status;
+          const results = await Promise.allSettled(
+            sessionIdsToDisconnect.map((sessionId) =>
+              disconnectRemoteWalletSession(authToken, sessionId),
+            ),
+          );
+          const successfulResults = results.flatMap((result) => {
+            return result.status === "fulfilled" ? [result.value] : [];
+          });
+          backendRevokeFailed = results.some((result) => {
+            return result.status === "rejected";
+          });
+          revoked = successfulResults.some((remote) => !remote.alreadyDisconnected);
+          alreadyDisconnected =
+            successfulResults.length > 0 &&
+            successfulResults.every((remote) => remote.alreadyDisconnected);
+          remoteStatus = successfulResults[0]?.status ?? null;
         }
 
         const removed = clearSession();
@@ -1367,7 +1637,10 @@ export function registerWallets(program: Command) {
             alreadyDisconnected,
             remoteStatus,
             backendRevokeAttempted: Boolean(authToken),
+            backendRevokeFailed,
           });
+        } else if (removed && authToken && backendRevokeFailed) {
+          console.log(`  ${green("✓")} Wallet session disconnected (${dim("backend revoke partially failed")})`);
         } else if (removed && authToken && alreadyDisconnected) {
           console.log(`  ${green("✓")} Wallet session disconnected (${dim("already revoked or expired")})`);
         } else if (removed && authToken) {

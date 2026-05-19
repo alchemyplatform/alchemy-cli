@@ -28,8 +28,24 @@ const walletSessionEnvironmentSchema = z
   })
   .strict();
 
+const chainWalletSessionSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    status: z.enum(["pending", "approved", "revoked", "expired"]),
+    expiresAt: z.string().datetime(),
+    chainType: z.enum(["evm", "solana"]),
+    walletId: z.string().min(1).optional(),
+    walletAddress: z.string().min(1).optional(),
+    providerKeyQuorumId: z.string().min(1).optional(),
+    providerSignerId: z.string().min(1).optional(),
+    capabilities: walletSessionCapabilitiesSchema.optional(),
+  })
+  .strict();
+
 const walletSessionSchema = z
   .object({
+    version: z.number().int().positive().optional(),
+    connectionRequestId: z.string().min(1).optional(),
     sessionId: z.string().uuid(),
     status: z.enum(["pending", "approved", "revoked", "expired"]),
     createdAt: z.string().datetime(),
@@ -49,10 +65,33 @@ const walletSessionSchema = z
     backendBaseUrl: z.string().min(1).optional(),
     environment: walletSessionEnvironmentSchema.optional(),
     capabilities: walletSessionCapabilitiesSchema.optional(),
+    sessionsByChain: z
+      .object({
+        evm: chainWalletSessionSchema.optional(),
+        solana: chainWalletSessionSchema.optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
+export type WalletChainType = "evm" | "solana";
+
+export interface ChainWalletSession {
+  sessionId: string;
+  status: "pending" | "approved" | "revoked" | "expired";
+  expiresAt: string;
+  chainType: WalletChainType;
+  walletId?: string;
+  walletAddress?: string;
+  providerKeyQuorumId?: string;
+  providerSignerId?: string;
+  capabilities?: WalletSession["capabilities"];
+}
+
 export interface WalletSession {
+  version?: number;
+  connectionRequestId?: string;
   sessionId: string;
   status: "pending" | "approved" | "revoked" | "expired";
   createdAt: string;
@@ -90,6 +129,7 @@ export interface WalletSession {
     "evm.signAuthorization"?: boolean;
     "solana.signTransaction"?: boolean;
   };
+  sessionsByChain?: Partial<Record<WalletChainType, ChainWalletSession>>;
 }
 
 interface P256Keypair {
@@ -111,7 +151,78 @@ function sessionPath(): string {
 function parseStoredSession(value: unknown): WalletSession | null {
   const parsed = walletSessionSchema.safeParse(value);
   if (!parsed.success) return null;
-  return parsed.data as WalletSession;
+  return withLegacyChainSessions(parsed.data as WalletSession);
+}
+
+function withLegacyChainSessions(session: WalletSession): WalletSession {
+  if (session.sessionsByChain) {
+    return withCompatibilityAliases(session);
+  }
+
+  const chainType = session.chainType === "solana" ? "solana" : "evm";
+  const walletId = chainType === "solana"
+    ? session.solanaWalletId ?? session.walletId
+    : session.evmWalletId ?? session.walletId;
+  const walletAddress = chainType === "solana"
+    ? session.solanaAddress
+    : session.evmAddress;
+
+  return withCompatibilityAliases({
+    ...session,
+    version: session.version ?? 1,
+    sessionsByChain: {
+      [chainType]: {
+        sessionId: session.sessionId,
+        status: session.status,
+        expiresAt: session.expiresAt,
+        chainType,
+        ...(walletId ? { walletId } : {}),
+        ...(walletAddress ? { walletAddress } : {}),
+        ...(session.privyKeyQuorumId
+          ? { providerKeyQuorumId: session.privyKeyQuorumId }
+          : {}),
+        ...(session.privySignerId
+          ? { providerSignerId: session.privySignerId }
+          : {}),
+        ...(session.capabilities ? { capabilities: session.capabilities } : {}),
+      },
+    },
+  });
+}
+
+function withCompatibilityAliases(session: WalletSession): WalletSession {
+  const evm = session.sessionsByChain?.evm;
+  const solana = session.sessionsByChain?.solana;
+  const preferred = evm ?? solana;
+  if (!preferred) {
+    return session;
+  }
+
+  return {
+    ...session,
+    sessionId: preferred.sessionId,
+    status: preferred.status,
+    expiresAt: preferred.expiresAt,
+    walletId: evm?.walletId ?? solana?.walletId ?? session.walletId,
+    evmWalletId: evm?.walletId ?? session.evmWalletId,
+    evmAddress: evm?.walletAddress ?? session.evmAddress,
+    solanaWalletId: solana?.walletId ?? session.solanaWalletId,
+    solanaAddress: solana?.walletAddress ?? session.solanaAddress,
+    privyKeyQuorumId:
+      evm?.providerKeyQuorumId ??
+      solana?.providerKeyQuorumId ??
+      session.privyKeyQuorumId,
+    privySignerId:
+      evm?.providerSignerId ??
+      solana?.providerSignerId ??
+      session.privySignerId,
+    chainType: evm && solana ? "both" : preferred.chainType,
+    capabilities: {
+      ...(evm?.capabilities ?? {}),
+      ...(solana?.capabilities ?? {}),
+      ...(session.capabilities ?? {}),
+    },
+  };
 }
 
 function loadStoredSessionFromPath(path: string): WalletSession | null {
@@ -123,9 +234,23 @@ function loadStoredSessionFromPath(path: string): WalletSession | null {
   }
 }
 
-function isExpired(session: Pick<WalletSession, "expiresAt">): boolean {
+function isExpired(session: { expiresAt: string }): boolean {
   const expiresAt = new Date(session.expiresAt);
   return !Number.isNaN(expiresAt.getTime()) && expiresAt <= new Date();
+}
+
+function isSessionLoadable(session: WalletSession): boolean {
+  if (session.sessionsByChain) {
+    return Object.values(session.sessionsByChain).some((chainSession) => {
+      return Boolean(
+        chainSession &&
+          chainSession.status !== "revoked" &&
+          !isExpired(chainSession),
+      );
+    });
+  }
+  if (session.status === "revoked") return false;
+  return !isExpired(session);
 }
 
 export function createFileWalletSessionStore(path = sessionPath()): WalletSessionStore {
@@ -133,8 +258,7 @@ export function createFileWalletSessionStore(path = sessionPath()): WalletSessio
     load() {
       const session = loadStoredSessionFromPath(path);
       if (!session) return null;
-      if (session.status === "revoked") return null;
-      if (isExpired(session)) return null;
+      if (!isSessionLoadable(session)) return null;
       return session;
     },
     loadRaw() {
@@ -161,8 +285,7 @@ export function createMemoryWalletSessionStore(initialSession: WalletSession | n
   return {
     load() {
       if (!session) return null;
-      if (session.status === "revoked") return null;
-      if (isExpired(session)) return null;
+      if (!isSessionLoadable(session)) return null;
       return session;
     },
     save(nextSession) {
@@ -216,6 +339,7 @@ export function createPendingSession(): WalletSession {
   const expiresAt = new Date(now.getTime() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
 
   const session: WalletSession = {
+    version: 2,
     sessionId: randomUUID(),
     status: "pending",
     createdAt: now.toISOString(),
@@ -242,14 +366,14 @@ export function loadStoredSession(): WalletSession | null {
 }
 
 export function saveSession(session: WalletSession): void {
-  getWalletSessionStore().save(session);
+  getWalletSessionStore().save(withCompatibilityAliases(session));
 }
 
 export function updateSession(updates: Partial<WalletSession>): WalletSession | null {
   const session = loadSession();
   if (!session) return null;
 
-  const updated = { ...session, ...updates };
+  const updated = withCompatibilityAliases({ ...session, ...updates });
   saveSession(updated);
   return updated;
 }
@@ -259,8 +383,59 @@ export function clearSession(): boolean {
 }
 
 export function isSessionValid(session: WalletSession): boolean {
+  if (session.sessionsByChain) {
+    return Object.values(session.sessionsByChain).some((chainSession) => {
+      return Boolean(chainSession && isChainSessionValid(chainSession));
+    });
+  }
   if (session.status !== "approved") return false;
   const expiresAt = new Date(session.expiresAt);
   if (Number.isNaN(expiresAt.getTime())) return false;
   return expiresAt > new Date();
+}
+
+function isChainSessionValid(session: ChainWalletSession): boolean {
+  if (session.status !== "approved") return false;
+  const expiresAt = new Date(session.expiresAt);
+  if (Number.isNaN(expiresAt.getTime())) return false;
+  return expiresAt > new Date();
+}
+
+export function getWalletSessionByChain(
+  session: WalletSession,
+  chainType: WalletChainType,
+): WalletSession | null {
+  const chainSession = session.sessionsByChain?.[chainType];
+  if (!chainSession) {
+    if (!isSessionValid(session)) return null;
+    const legacyChainType = session.chainType === "solana" ? "solana" : "evm";
+    if (chainType !== legacyChainType) return null;
+    if (legacyChainType === "evm" && session.evmAddress) return session;
+    if (legacyChainType === "solana" && session.solanaAddress) return session;
+    return null;
+  }
+  if (!isChainSessionValid(chainSession)) {
+    return null;
+  }
+
+  return withCompatibilityAliases({
+    ...session,
+    sessionId: chainSession.sessionId,
+    status: chainSession.status,
+    expiresAt: chainSession.expiresAt,
+    walletId: chainSession.walletId,
+    evmWalletId: chainType === "evm" ? chainSession.walletId : session.evmWalletId,
+    evmAddress: chainType === "evm" ? chainSession.walletAddress : session.evmAddress,
+    solanaWalletId:
+      chainType === "solana" ? chainSession.walletId : session.solanaWalletId,
+    solanaAddress:
+      chainType === "solana" ? chainSession.walletAddress : session.solanaAddress,
+    privyKeyQuorumId: chainSession.providerKeyQuorumId,
+    privySignerId: chainSession.providerSignerId,
+    chainType,
+    capabilities: chainSession.capabilities ?? session.capabilities,
+    sessionsByChain: {
+      [chainType]: chainSession,
+    },
+  });
 }

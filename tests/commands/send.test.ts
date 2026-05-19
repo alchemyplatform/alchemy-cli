@@ -323,6 +323,7 @@ describe("performSolanaSend", () => {
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveActiveSigner: vi.fn(),
       resolveNetwork: () => "solana-devnet",
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
@@ -397,6 +398,7 @@ describe("performSolanaSend", () => {
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveActiveSigner: vi.fn(),
       resolveNetwork: () => "solana-devnet",
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
@@ -466,11 +468,91 @@ describe("performSolanaSend", () => {
     });
   });
 
+  it("honors active session signer for Solana sends when a local key also exists", async () => {
+    vi.doUnmock("../../src/commands/send-solana.js");
+
+    const printJSON = vi.fn();
+    const buildSolTransferInstruction = vi.fn().mockReturnValue({ kind: "transfer-ix" });
+    const buildAndSendSolanaTransaction = vi.fn();
+    const buildAndSendSolanaTransactionWithSession = vi.fn().mockResolvedValue({
+      signature: "session-sol-sig",
+      fromAddress: "SoSessionAddr",
+    });
+    const session = {
+      sessionId: "session-123",
+      status: "approved",
+      createdAt: "2026-04-14T00:00:00.000Z",
+      expiresAt: "2099-04-21T00:00:00.000Z",
+      envelopeVersion: "v1",
+      publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+      privateKeyPem: "pem",
+      solanaAddress: "SoSessionAddr",
+    };
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveActiveSigner: () => "session",
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => session,
+      resolveNetwork: () => "solana-devnet",
+      resolveSolanaNetwork: () => "solana-devnet",
+      resolveGasSponsored: () => false,
+      resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
+      clientFromFlags: vi.fn((_program, opts) => ({
+        network: opts?.forceNetwork ?? "unexpected-network",
+      })),
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateSolanaAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "SOL",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      getWalletSessionByChain: () => session,
+    }));
+    vi.doMock("../../src/lib/solana-tx.js", () => ({
+      parseSolanaKeyBytes: vi.fn(),
+      createSolanaSignerFromKeyBytes: vi.fn(),
+      buildSolTransferInstruction,
+      buildAndSendSolanaTransaction,
+      buildAndSendSolanaTransactionWithSession,
+      waitForSolanaConfirmation: vi.fn().mockResolvedValue(true),
+      SOL_DECIMALS: 9,
+    }));
+    vi.doMock("@solana/kit", () => ({
+      address: (value: string) => value,
+    }));
+
+    const { performSolanaSend } = await import("../../src/commands/send-solana.js");
+    await performSolanaSend({} as Command, "SoRecipientAddr", "0.5");
+
+    expect(buildAndSendSolanaTransaction).not.toHaveBeenCalled();
+    expect(buildAndSendSolanaTransactionWithSession).toHaveBeenCalledWith(expect.objectContaining({
+      session,
+      authToken: "auth-token",
+    }));
+  });
+
   it("rejects SPL token transfers for now", async () => {
     vi.doUnmock("../../src/commands/send-solana.js");
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveActiveSigner: vi.fn(),
       resolveNetwork: () => "solana-devnet",
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
@@ -519,6 +601,9 @@ describe("performSolanaSend", () => {
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => undefined,
+      resolveActiveSigner: vi.fn(),
+      resolveAuthToken: () => undefined,
+      resolveWalletSession: () => null,
       resolveNetwork: () => "solana-devnet",
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
@@ -563,11 +648,14 @@ describe("performSolanaSend", () => {
     });
   });
 
-  it("rejects --signer session because session wallet does not support Solana", async () => {
+  it("rejects --signer session when no Solana session is active", async () => {
     vi.doUnmock("../../src/commands/send-solana.js");
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveActiveSigner: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
       resolveNetwork: () => "solana-devnet",
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => false,
@@ -610,7 +698,7 @@ describe("performSolanaSend", () => {
       performSolanaSend({} as Command, "SoRecipientAddr", "0.5", undefined, { signer: "session" }),
     ).rejects.toMatchObject({
       code: ErrorCode.INVALID_ARGS,
-      message: expect.stringContaining("session wallet does not yet support Solana"),
+      message: expect.stringContaining("No active Solana wallet session"),
     });
   });
 
@@ -619,6 +707,7 @@ describe("performSolanaSend", () => {
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveActiveSigner: vi.fn(),
       resolveNetwork: () => "solana-devnet",
       resolveSolanaNetwork: () => "solana-devnet",
       resolveGasSponsored: () => true,

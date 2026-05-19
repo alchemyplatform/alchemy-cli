@@ -56,6 +56,11 @@ function doMockDeps(args: {
   vi.doMock("../../src/lib/wallet-session.js", () => ({
     loadStoredSession: () =>
       args.storedSession !== undefined ? args.storedSession : args.validSession,
+    getWalletSessionByChain: (session: WalletSession, chainType: "evm" | "solana") => {
+      if (chainType === "evm" && session.evmAddress) return session;
+      if (chainType === "solana" && session.solanaAddress) return session;
+      return null;
+    },
   }));
   vi.doMock("../../src/lib/chains.js", () => ({
     networkToChain: () => ({

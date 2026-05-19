@@ -227,6 +227,107 @@ describe("wallet-api", () => {
     expect((requestBodies[1] as { environment: Record<string, unknown> }).environment.clientInstanceId).toBeUndefined();
   });
 
+  it("creates grouped wallet session requests", async () => {
+    let requestUrl = "";
+    let requestBody = "";
+    const baseUrl = await createTestServer((req, res) => {
+      requestUrl = req.url ?? "";
+      req.setEncoding("utf8");
+      req.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      req.on("end", () => {
+        res.writeHead(201, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          data: {
+            sessionId: "connection-request-1",
+            approvalUrl: "https://dashboard.alchemy.com/products/agent-wallet?sessionId=connection-request-1",
+            expiresAt: "2026-05-01T00:00:00.000Z",
+            sessions: [
+              { walletSessionId: "session-evm", chainType: "evm", status: "PENDING" },
+              { walletSessionId: "session-solana", chainType: "solana", status: "PENDING" },
+            ],
+          },
+        }));
+      });
+    });
+    process.env.ALCHEMY_ADMIN_API_BASE_URL = baseUrl;
+
+    const { createRemoteWalletSessionRequest } = await import("../../src/lib/wallet-api.js");
+    const response = await createRemoteWalletSessionRequest("auth-token", {
+      publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+      requestSignerVersion: "v1",
+      chains: ["evm", "solana"],
+      capabilities: {
+        evm: { "evm.signMessage": true },
+        solana: { "solana.signTransaction": true },
+      },
+      environment: {
+        platform: "darwin",
+        arch: "arm64",
+        nodeVersion: "v22.0.0",
+        interactive: true,
+      },
+    });
+
+    expect(requestUrl).toBe("/wallet/sessions");
+    expect(JSON.parse(requestBody)).toMatchObject({
+      chains: ["evm", "solana"],
+      capabilities: {
+        evm: { "evm.signMessage": true },
+        solana: { "solana.signTransaction": true },
+      },
+    });
+    expect(response).toMatchObject({
+      sessionId: "connection-request-1",
+      sessions: [
+        { walletSessionId: "session-evm", chainType: "evm", status: "pending" },
+        { walletSessionId: "session-solana", chainType: "solana", status: "pending" },
+      ],
+    });
+  });
+
+  it("gets grouped wallet session requests", async () => {
+    const baseUrl = await createTestServer((req, res) => {
+      expect(req.url).toBe("/wallet/sessions/connection-request-1");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        data: {
+          type: "sessionRequest",
+          sessionId: "connection-request-1",
+          sessions: [
+            {
+              walletSessionId: "11111111-1111-4111-8111-111111111111",
+              status: "APPROVED",
+              chainType: "evm",
+              walletId: "wallet-evm",
+              address: "0xabc123",
+            },
+            {
+              walletSessionId: "22222222-2222-4222-8222-222222222222",
+              status: "APPROVED",
+              chainType: "solana",
+              solanaWalletId: "wallet-solana",
+              solanaAddress: "SoLaNaAddress",
+            },
+          ],
+        },
+      }));
+    });
+    process.env.ALCHEMY_ADMIN_API_BASE_URL = baseUrl;
+
+    const { getRemoteWalletSessionRequest } = await import("../../src/lib/wallet-api.js");
+    await expect(
+      getRemoteWalletSessionRequest("auth-token", "connection-request-1"),
+    ).resolves.toMatchObject({
+      sessionId: "connection-request-1",
+      sessions: [
+        { sessionId: "11111111-1111-4111-8111-111111111111", status: "approved", privyAppId: undefined },
+        { sessionId: "22222222-2222-4222-8222-222222222222", status: "approved", solanaWalletId: "wallet-solana" },
+      ],
+    });
+  });
+
   it("allows the staging admin API override for wallet routes", async () => {
     process.env.ALCHEMY_ADMIN_API_BASE_URL = "https://admin-api.alchemypreview.com";
 

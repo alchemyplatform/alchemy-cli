@@ -2,8 +2,11 @@ import { Command } from "commander";
 import { address as solAddress } from "@solana/kit";
 import {
   clientFromFlags,
+  resolveActiveSigner,
+  resolveAuthToken,
   resolveSolanaNetwork,
   resolveSolanaWalletKey,
+  resolveWalletSession,
 } from "../lib/resolve.js";
 import { validateSolanaAddress } from "../lib/validators.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
@@ -20,11 +23,13 @@ import {
   createSolanaSignerFromKeyBytes,
   buildSolTransferInstruction,
   buildAndSendSolanaTransaction,
+  buildAndSendSolanaTransactionWithSession,
   waitForSolanaConfirmation,
   SOL_DECIMALS,
 } from "../lib/solana-tx.js";
 import { resolveSolanaFeeSponsorship } from "../lib/solana-fees.js";
 import { parseAmount } from "../lib/token-amounts.js";
+import { getWalletSessionByChain } from "../lib/wallet-session.js";
 
 export function registerSolanaSend(program: Command) {
   const sendCmd = program
@@ -63,17 +68,7 @@ export async function performSolanaSend(
   if (tokenAddress) {
     throw errInvalidArgs("SPL token transfers are not yet supported. Omit --token for native SOL transfers.");
   }
-  if (opts.signer === "session") {
-    throw errInvalidArgs(
-      "The session wallet does not yet support Solana. Use `--signer local` or configure a local Solana wallet with `alchemy wallet connect --mode local --chain solana`.",
-    );
-  }
-
-  const solanaKey = resolveSolanaWalletKey(program);
-  if (!solanaKey) {
-    throw errSolanaWalletKeyRequired();
-  }
-  const keyBytes = parseSolanaKeyBytes(solanaKey);
+  const signer = await resolveSolanaSigner(program, opts.signer);
 
   validateSolanaAddress(toArg);
   const to = solAddress(toArg);
@@ -82,8 +77,11 @@ export async function performSolanaSend(
   const symbol = nativeTokenSymbol(network);
   const lamports = parseAmount(amountArg, SOL_DECIMALS);
 
-  const signer = await createSolanaSignerFromKeyBytes(keyBytes);
-  const instruction = buildSolTransferInstruction(signer, to, lamports);
+  const instruction = buildSolTransferInstruction(
+    { address: solAddress(signer.address) },
+    to,
+    lamports,
+  );
 
   const { sponsored, feePolicyId } = await resolveSolanaFeeSponsorship(program);
 
@@ -92,13 +90,25 @@ export async function performSolanaSend(
   const result = await withSpinner(
     "Sending transaction…",
     "Transaction submitted",
-    () => buildAndSendSolanaTransaction({
-      client,
-      instructions: [instruction],
-      senderKeyBytes: keyBytes,
-      sponsored,
-      gasPolicyId: feePolicyId,
-    }),
+    async () => {
+      if (signer.type === "session") {
+        return await buildAndSendSolanaTransactionWithSession({
+          client,
+          instructions: [instruction],
+          session: signer.session,
+          authToken: signer.authToken,
+          sponsored,
+          gasPolicyId: feePolicyId,
+        });
+      }
+      return await buildAndSendSolanaTransaction({
+        client,
+        instructions: [instruction],
+        senderKeyBytes: signer.keyBytes,
+        sponsored,
+        gasPolicyId: feePolicyId,
+      });
+    },
   );
 
   const confirmed = await withSpinner(
@@ -135,4 +145,84 @@ export async function performSolanaSend(
 
     printKeyValue(pairs);
   }
+}
+
+type ResolvedSolanaSigner =
+  | {
+      type: "session";
+      address: string;
+      session: NonNullable<ReturnType<typeof resolveWalletSession>>;
+      authToken: string;
+    }
+  | {
+      type: "local";
+      address: string;
+      keyBytes: Uint8Array;
+    };
+
+async function resolveSolanaSigner(
+  program: Command,
+  signer: "session" | "local" | undefined,
+): Promise<ResolvedSolanaSigner> {
+  if (signer === "session") {
+    return resolveSessionSolanaSigner();
+  }
+
+  if (signer === undefined && resolveActiveSigner(program) === "session") {
+    return resolveSessionSolanaSigner();
+  }
+
+  const solanaKey = resolveSolanaWalletKey(program);
+  if (!solanaKey) {
+    if (signer === undefined) {
+      const authToken = resolveAuthToken();
+      const session = resolveWalletSession();
+      const solanaSession = session
+        ? getWalletSessionByChain(session, "solana")
+        : null;
+      if (authToken && solanaSession?.solanaAddress) {
+        return {
+          type: "session",
+          address: solanaSession.solanaAddress,
+          session: solanaSession,
+          authToken,
+        };
+      }
+    }
+    throw errSolanaWalletKeyRequired();
+  }
+  const keyBytes = parseSolanaKeyBytes(solanaKey);
+  const localSigner = await createSolanaSignerFromKeyBytes(keyBytes);
+  return {
+    type: "local",
+    address: localSigner.address,
+    keyBytes,
+  };
+}
+
+function resolveSessionSolanaSigner(): Extract<ResolvedSolanaSigner, { type: "session" }> {
+  const sessionSigner = tryResolveSessionSolanaSigner();
+  if (!sessionSigner) {
+    throw errInvalidArgs(
+      "No active Solana wallet session. Run `alchemy wallet connect --mode session` first.",
+    );
+  }
+  return sessionSigner;
+}
+
+function tryResolveSessionSolanaSigner(): Extract<ResolvedSolanaSigner, { type: "session" }> | undefined {
+  const authToken = resolveAuthToken();
+  const session = resolveWalletSession();
+  const solanaSession = session
+    ? getWalletSessionByChain(session, "solana")
+    : null;
+  if (!authToken || !solanaSession?.solanaAddress) {
+    return undefined;
+  }
+  return {
+    type: "session",
+    address: solanaSession.solanaAddress,
+    session: solanaSession,
+    authToken,
+  };
 }

@@ -204,8 +204,8 @@ export function errAppRequired(): CLIError {
 export function errWalletKeyRequired(): CLIError {
   return new CLIError(
     ErrorCode.AUTH_REQUIRED,
-    "Wallet key required for x402. Set ALCHEMY_WALLET_KEY, run 'alchemy wallet connect --mode local --chain evm', or use --wallet-key-file.",
-    "alchemy wallet connect --mode local --chain evm",
+    "Wallet key required for x402. Set ALCHEMY_WALLET_KEY, run 'alchemy wallet connect --mode local', or use --wallet-key-file.",
+    "alchemy wallet connect --mode local",
   );
 }
 
@@ -228,8 +228,8 @@ export function errNoActiveSession(): CLIError {
 export function errSolanaWalletKeyRequired(): CLIError {
   return new CLIError(
     ErrorCode.AUTH_REQUIRED,
-    "Solana wallet key required. Set ALCHEMY_SOLANA_WALLET_KEY, run 'alchemy wallet connect --mode local --chain solana', or use --solana-wallet-key-file.",
-    "alchemy wallet connect --mode local --chain solana",
+    "Solana wallet key required. Set ALCHEMY_SOLANA_WALLET_KEY, run 'alchemy wallet connect --mode local', or use --solana-wallet-key-file.",
+    "alchemy wallet connect --mode local",
   );
 }
 

@@ -69,7 +69,7 @@ describe("wallet command", () => {
     const program = new Command();
     registerWallet(program);
 
-    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local", "--chain", "both"], {
+    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local"], {
       from: "node",
     });
 
@@ -167,7 +167,7 @@ describe("wallet command", () => {
     const program = new Command();
     registerWallet(program);
 
-    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local", "--chain", "both"], {
+    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local"], {
       from: "node",
     });
 
@@ -243,6 +243,22 @@ describe("wallet command", () => {
     });
 
     expect(exitWithError).toHaveBeenCalledTimes(1);
+  });
+
+  it("wallet connect no longer accepts a chain creation flag", async () => {
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    program.exitOverride();
+    registerWallet(program);
+
+    await expect(
+      program.parseAsync(
+        ["node", "test", "wallet", "connect", "--mode", "local", "--chain", "evm"],
+        { from: "node" },
+      ),
+    ).rejects.toMatchObject({
+      code: "commander.unknownOption",
+    });
   });
 
   it("wallet address prints both EVM and Solana addresses", async () => {
@@ -869,24 +885,45 @@ describe("wallet command", () => {
     const printJSON = vi.fn();
     const exitWithError = vi.fn();
     const openBrowser = vi.fn();
-    const createRemoteWalletSession = vi.fn().mockResolvedValue({
-      sessionId: "remote-session",
+    const createRemoteWalletSessionRequest = vi.fn().mockResolvedValue({
+      sessionId: "connection-request",
       approvalUrl: "https://dashboard.alchemy.com/approve",
       expiresAt: "2026-04-21T00:00:00.000Z",
+      sessions: [
+        { walletSessionId: "evm-session", chainType: "evm", status: "pending" },
+        { walletSessionId: "solana-session", chainType: "solana", status: "pending" },
+      ],
     });
-    const getRemoteWalletSession = vi.fn().mockResolvedValue({
-      sessionId: "remote-session",
-      status: "approved",
-      privyAppId: "privy-app",
-      walletId: "wallet-123",
-      address: "0xabc123",
-      chainType: "evm",
-      capabilities: {
-        "evm.signMessage": true,
-        "evm.signTypedData": true,
-        "evm.signAuthorization": true,
-      },
-      expiresAt: "2026-04-21T00:00:00.000Z",
+    const getRemoteWalletSessionRequest = vi.fn().mockResolvedValue({
+      sessionId: "connection-request",
+      sessions: [
+        {
+          sessionId: "evm-session",
+          status: "approved",
+          privyAppId: "privy-app",
+          walletId: "evm-wallet-123",
+          evmAddress: "0xabc123",
+          chainType: "evm",
+          capabilities: {
+            "evm.signMessage": true,
+            "evm.signTypedData": true,
+            "evm.signAuthorization": true,
+          },
+          expiresAt: "2026-04-21T00:00:00.000Z",
+        },
+        {
+          sessionId: "solana-session",
+          status: "approved",
+          privyAppId: "privy-app",
+          solanaWalletId: "solana-wallet-123",
+          solanaAddress: "SoLaNaSessionAddress",
+          chainType: "solana",
+          capabilities: {
+            "solana.signTransaction": true,
+          },
+          expiresAt: "2026-04-21T00:00:00.000Z",
+        },
+      ],
     });
     const updateSession = vi.fn();
     const getOrCreateWalletClientInstance = vi.fn(() => ({
@@ -915,9 +952,11 @@ describe("wallet command", () => {
       openBrowser,
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
-      createRemoteWalletSession,
+      createRemoteWalletSession: vi.fn(),
+      createRemoteWalletSessionRequest,
       disconnectRemoteWalletSession: vi.fn(),
-      getRemoteWalletSession,
+      getRemoteWalletSession: vi.fn(),
+      getRemoteWalletSessionRequest,
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -975,43 +1014,68 @@ describe("wallet command", () => {
     expect(getOrCreateWalletClientInstance).toHaveBeenCalledWith({
       instanceName: "Office Mac",
     });
-    expect(createRemoteWalletSession).toHaveBeenCalledWith("auth-token", expect.objectContaining({
+    expect(createRemoteWalletSessionRequest).toHaveBeenCalledWith("auth-token", expect.objectContaining({
       requestSignerVersion: "v1",
-      chainType: "evm",
+      chains: ["evm", "solana"],
       capabilities: {
-        "evm.signMessage": true,
-        "evm.signTypedData": true,
-        "evm.signAuthorization": true,
+        evm: {
+          "evm.signMessage": true,
+          "evm.signTypedData": true,
+          "evm.signAuthorization": true,
+        },
+        solana: {
+          "solana.signTransaction": true,
+        },
       },
       environment: expect.objectContaining({
         clientInstanceId: "11111111-1111-4111-8111-111111111111",
         clientInstanceName: "Office Mac",
       }),
     }));
-    expect(getRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
+    expect(getRemoteWalletSessionRequest).toHaveBeenCalledWith("auth-token", "connection-request");
     expect(openBrowser).toHaveBeenCalledWith("https://dashboard.alchemy.com/approve");
     expect(updateSession).toHaveBeenCalledWith(expect.objectContaining({
       status: "approved",
-      walletId: "wallet-123",
-      evmWalletId: "wallet-123",
+      walletId: "evm-wallet-123",
+      evmWalletId: "evm-wallet-123",
       evmAddress: "0xabc123",
+      solanaWalletId: "solana-wallet-123",
+      solanaAddress: "SoLaNaSessionAddress",
       privyAppId: "privy-app",
+      connectionRequestId: "connection-request",
     }));
-    expect(printJSON).toHaveBeenCalledWith({
-      sessionId: "remote-session",
+    expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
+      connectionRequestId: "connection-request",
+      sessionId: "evm-session",
+      walletSessionId: "evm-session",
       status: "approved",
       privyAppId: "privy-app",
-      walletId: "wallet-123",
+      walletId: "evm-wallet-123",
       evmAddress: "0xabc123",
-      evmWalletId: "wallet-123",
-      chainType: "evm",
+      evmWalletId: "evm-wallet-123",
+      solanaAddress: "SoLaNaSessionAddress",
+      solanaWalletId: "solana-wallet-123",
+      chainType: "both",
       capabilities: {
         "evm.signMessage": true,
         "evm.signTypedData": true,
         "evm.signAuthorization": true,
+        "solana.signTransaction": true,
       },
       expiresAt: "2026-04-21T00:00:00.000Z",
-    });
+      sessionsByChain: expect.objectContaining({
+        evm: expect.objectContaining({
+          sessionId: "evm-session",
+          walletId: "evm-wallet-123",
+          walletAddress: "0xabc123",
+        }),
+        solana: expect.objectContaining({
+          sessionId: "solana-session",
+          walletId: "solana-wallet-123",
+          walletAddress: "SoLaNaSessionAddress",
+        }),
+      }),
+    }));
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
@@ -1019,24 +1083,43 @@ describe("wallet command", () => {
     const exitWithError = vi.fn();
     const openBrowser = vi.fn();
     const promptText = vi.fn().mockResolvedValue("");
-    const createRemoteWalletSession = vi.fn().mockResolvedValue({
-      sessionId: "remote-session",
+    const createRemoteWalletSessionRequest = vi.fn().mockResolvedValue({
+      sessionId: "connection-request",
       approvalUrl: "https://dashboard.alchemy.com/approve",
       expiresAt: "2026-04-21T00:00:00.000Z",
+      sessions: [
+        { walletSessionId: "evm-session", chainType: "evm", status: "pending" },
+        { walletSessionId: "solana-session", chainType: "solana", status: "pending" },
+      ],
     });
-    const getRemoteWalletSession = vi.fn().mockResolvedValue({
-      sessionId: "remote-session",
-      status: "approved",
-      privyAppId: "privy-app",
-      walletId: "wallet-123",
-      address: "0xabc123",
-      chainType: "evm",
-      capabilities: {
-        "evm.signMessage": true,
-        "evm.signTypedData": true,
-        "evm.signAuthorization": true,
-      },
-      expiresAt: "2026-04-21T00:00:00.000Z",
+    const getRemoteWalletSessionRequest = vi.fn().mockResolvedValue({
+      sessionId: "connection-request",
+      sessions: [
+        {
+          sessionId: "evm-session",
+          status: "approved",
+          privyAppId: "privy-app",
+          evmWalletId: "wallet-123",
+          evmAddress: "0xabc123",
+          chainType: "evm",
+          capabilities: {
+            "evm.signMessage": true,
+            "evm.signTypedData": true,
+            "evm.signAuthorization": true,
+          },
+          expiresAt: "2026-04-21T00:00:00.000Z",
+        },
+        {
+          sessionId: "solana-session",
+          status: "approved",
+          privyAppId: "privy-app",
+          solanaWalletId: "solana-wallet-123",
+          solanaAddress: "SoLaNaSessionAddress",
+          chainType: "solana",
+          capabilities: { "solana.signTransaction": true },
+          expiresAt: "2026-04-21T00:00:00.000Z",
+        },
+      ],
     });
 
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -1063,9 +1146,11 @@ describe("wallet command", () => {
       openBrowser,
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
-      createRemoteWalletSession,
+      createRemoteWalletSession: vi.fn(),
+      createRemoteWalletSessionRequest,
       disconnectRemoteWalletSession: vi.fn(),
-      getRemoteWalletSession,
+      getRemoteWalletSession: vi.fn(),
+      getRemoteWalletSessionRequest,
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -1116,7 +1201,7 @@ describe("wallet command", () => {
       cancelMessage: "Wallet connect cancelled.",
     });
     expect(openBrowser).toHaveBeenCalledWith("https://dashboard.alchemy.com/approve");
-    expect(getRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
+    expect(getRemoteWalletSessionRequest).toHaveBeenCalledWith("auth-token", "connection-request");
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
@@ -1125,10 +1210,14 @@ describe("wallet command", () => {
     const clearSession = vi.fn();
     const openBrowser = vi.fn();
     const promptText = vi.fn().mockResolvedValue(null);
-    const createRemoteWalletSession = vi.fn().mockResolvedValue({
-      sessionId: "remote-session",
+    const createRemoteWalletSessionRequest = vi.fn().mockResolvedValue({
+      sessionId: "connection-request",
       approvalUrl: "https://dashboard.alchemy.com/approve",
       expiresAt: "2026-04-21T00:00:00.000Z",
+      sessions: [
+        { walletSessionId: "evm-session", chainType: "evm", status: "pending" },
+        { walletSessionId: "solana-session", chainType: "solana", status: "pending" },
+      ],
     });
     const disconnectRemoteWalletSession = vi.fn().mockResolvedValue({
       sessionId: "remote-session",
@@ -1161,9 +1250,11 @@ describe("wallet command", () => {
       openBrowser,
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
-      createRemoteWalletSession,
+      createRemoteWalletSession: vi.fn(),
+      createRemoteWalletSessionRequest,
       disconnectRemoteWalletSession,
       getRemoteWalletSession,
+      getRemoteWalletSessionRequest: vi.fn(),
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -1215,7 +1306,8 @@ describe("wallet command", () => {
 
     expect(openBrowser).not.toHaveBeenCalled();
     expect(getRemoteWalletSession).not.toHaveBeenCalled();
-    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "evm-session");
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "solana-session");
     expect(clearSession).toHaveBeenCalledTimes(1);
     expect(processExit).toHaveBeenCalledWith(130);
     expect(exitWithError).not.toHaveBeenCalled();
@@ -1226,17 +1318,21 @@ describe("wallet command", () => {
     const clearSession = vi.fn();
     const openBrowser = vi.fn();
     const promptText = vi.fn().mockResolvedValue("");
-    const createRemoteWalletSession = vi.fn().mockResolvedValue({
-      sessionId: "remote-session",
+    const createRemoteWalletSessionRequest = vi.fn().mockResolvedValue({
+      sessionId: "connection-request",
       approvalUrl: "https://dashboard.alchemy.com/approve",
       expiresAt: "2026-04-21T00:00:00.000Z",
+      sessions: [
+        { walletSessionId: "evm-session", chainType: "evm", status: "pending" },
+        { walletSessionId: "solana-session", chainType: "solana", status: "pending" },
+      ],
     });
     const disconnectRemoteWalletSession = vi.fn().mockResolvedValue({
       sessionId: "remote-session",
       status: "revoked",
       alreadyDisconnected: false,
     });
-    const getRemoteWalletSession = vi.fn(
+    const getRemoteWalletSessionRequest = vi.fn(
       () => new Promise<never>(() => undefined),
     );
     const exitSpy = vi
@@ -1269,9 +1365,11 @@ describe("wallet command", () => {
       openBrowser,
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
-      createRemoteWalletSession,
+      createRemoteWalletSession: vi.fn(),
+      createRemoteWalletSessionRequest,
       disconnectRemoteWalletSession,
-      getRemoteWalletSession,
+      getRemoteWalletSession: vi.fn(),
+      getRemoteWalletSessionRequest,
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -1318,13 +1416,14 @@ describe("wallet command", () => {
       { from: "node" },
     );
     await vi.waitFor(() => {
-      expect(getRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
+      expect(getRemoteWalletSessionRequest).toHaveBeenCalledWith("auth-token", "connection-request");
     });
 
     process.emit("SIGINT", "SIGINT");
 
     await expect(parsePromise).rejects.toThrow("process.exit 130");
-    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "remote-session");
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "evm-session");
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "solana-session");
     expect(clearSession).toHaveBeenCalledTimes(1);
     expect(exitWithError).not.toHaveBeenCalled();
     expect(exitSpy).toHaveBeenCalledWith(130);
@@ -1332,7 +1431,7 @@ describe("wallet command", () => {
 
   it("wallet connect cancels cleanly when the user declines to replace an existing session", async () => {
     const exitWithError = vi.fn();
-    const createRemoteWalletSession = vi.fn();
+    const createRemoteWalletSessionRequest = vi.fn();
     const clearSession = vi.fn();
     const promptConfirm = vi.fn().mockResolvedValue(false);
 
@@ -1362,9 +1461,11 @@ describe("wallet command", () => {
       promptText: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
-      createRemoteWalletSession,
+      createRemoteWalletSession: vi.fn(),
+      createRemoteWalletSessionRequest,
       disconnectRemoteWalletSession: vi.fn(),
       getRemoteWalletSession: vi.fn(),
+      getRemoteWalletSessionRequest: vi.fn(),
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -1406,7 +1507,7 @@ describe("wallet command", () => {
     });
 
     expect(promptConfirm).toHaveBeenCalledTimes(1);
-    expect(createRemoteWalletSession).not.toHaveBeenCalled();
+    expect(createRemoteWalletSessionRequest).not.toHaveBeenCalled();
     expect(clearSession).not.toHaveBeenCalled();
     expect(exitWithError).not.toHaveBeenCalled();
   });
@@ -1414,7 +1515,7 @@ describe("wallet command", () => {
   it("wallet connect clears the local pending session if session creation fails", async () => {
     const exitWithError = vi.fn();
     const clearSession = vi.fn();
-    const createRemoteWalletSession = vi.fn().mockRejectedValue(new Error("backend down"));
+    const createRemoteWalletSessionRequest = vi.fn().mockRejectedValue(new Error("backend down"));
 
     vi.doMock("../../src/lib/resolve.js", () => ({
       resolveWalletKey: vi.fn(),
@@ -1437,9 +1538,11 @@ describe("wallet command", () => {
       openBrowser: vi.fn(),
     }));
     vi.doMock("../../src/lib/wallet-api.js", () => ({
-      createRemoteWalletSession,
+      createRemoteWalletSession: vi.fn(),
+      createRemoteWalletSessionRequest,
       disconnectRemoteWalletSession: vi.fn(),
       getRemoteWalletSession: vi.fn(),
+      getRemoteWalletSessionRequest: vi.fn(),
       getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
     }));
     vi.doMock("../../src/lib/config.js", () => ({
@@ -1878,6 +1981,255 @@ describe("wallet command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("wallet status --verify checks each stored chain session", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+    const saveSession = vi.fn();
+    const getRemoteWalletSession = vi.fn(async (_token: string, sessionId: string) => {
+      if (sessionId === "evm-session") {
+        return {
+          sessionId,
+          status: "approved",
+          expiresAt: "2099-04-21T00:00:00.000Z",
+          evmWalletId: "evm-wallet",
+          evmAddress: "0xabc123",
+          chainType: "evm",
+          capabilities: {
+            "evm.signMessage": true,
+          },
+        };
+      }
+      return {
+        sessionId,
+        status: "approved",
+        expiresAt: "2099-04-21T00:00:00.000Z",
+        solanaWalletId: "solana-wallet",
+        solanaAddress: "SoLaNaSessionAddress",
+        chainType: "solana",
+        capabilities: {
+          "solana.signTransaction": true,
+        },
+      };
+    });
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
+      resolveActiveSigner: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/wallet-api.js", () => ({
+      createRemoteWalletSession: vi.fn(),
+      disconnectRemoteWalletSession: vi.fn(),
+      getRemoteWalletSession,
+      getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      createPendingSession: vi.fn(),
+      loadSession: vi.fn(),
+      clearSession: vi.fn(),
+      updateSession: vi.fn(),
+      saveSession,
+      loadStoredSession: () => ({
+        sessionId: "evm-session",
+        status: "approved",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        expiresAt: "2099-04-21T00:00:00.000Z",
+        envelopeVersion: "v1",
+        publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+        privateKeyPem: "pem",
+        evmAddress: "0xabc123",
+        solanaAddress: "SoLaNaSessionAddress",
+        chainType: "both",
+        capabilities: {
+          "evm.signMessage": true,
+          "solana.signTransaction": true,
+        },
+        sessionsByChain: {
+          evm: {
+            sessionId: "evm-session",
+            status: "approved",
+            expiresAt: "2099-04-21T00:00:00.000Z",
+            chainType: "evm",
+            walletId: "evm-wallet",
+            walletAddress: "0xabc123",
+          },
+          solana: {
+            sessionId: "solana-session",
+            status: "approved",
+            expiresAt: "2099-04-21T00:00:00.000Z",
+            chainType: "solana",
+            walletId: "solana-wallet",
+            walletAddress: "SoLaNaSessionAddress",
+          },
+        },
+      }),
+      isSessionValid: () => true,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "status", "--verify"], {
+      from: "node",
+    });
+
+    expect(getRemoteWalletSession).toHaveBeenCalledWith("auth-token", "evm-session");
+    expect(getRemoteWalletSession).toHaveBeenCalledWith("auth-token", "solana-session");
+    expect(saveSession).toHaveBeenCalledWith(expect.objectContaining({
+      chainType: "both",
+      capabilities: expect.objectContaining({
+        "evm.signMessage": true,
+        "solana.signTransaction": true,
+      }),
+      sessionsByChain: expect.objectContaining({
+        solana: expect.objectContaining({
+          status: "approved",
+          walletAddress: "SoLaNaSessionAddress",
+        }),
+      }),
+    }));
+    expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
+      chainType: "both",
+      remoteStatus: "approved",
+      signerCapabilities: ["evm.signMessage", "solana.signTransaction"],
+      sessionsByChain: expect.objectContaining({
+        solana: expect.objectContaining({
+          walletAddress: "SoLaNaSessionAddress",
+        }),
+      }),
+    }));
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("wallet status remains active when one verified chain session is still approved", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+    const saveSession = vi.fn();
+    const getRemoteWalletSession = vi.fn(async (_token: string, sessionId: string) => {
+      if (sessionId === "evm-session") {
+        return {
+          sessionId,
+          status: "revoked",
+          expiresAt: "2099-04-21T00:00:00.000Z",
+          evmWalletId: "evm-wallet",
+          evmAddress: "0xabc123",
+          chainType: "evm",
+        };
+      }
+      return {
+        sessionId,
+        status: "approved",
+        expiresAt: "2099-04-21T00:00:00.000Z",
+        solanaWalletId: "solana-wallet",
+        solanaAddress: "SoLaNaSessionAddress",
+        chainType: "solana",
+        capabilities: {
+          "solana.signTransaction": true,
+        },
+      };
+    });
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
+      resolveActiveSigner: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/wallet-api.js", () => ({
+      createRemoteWalletSession: vi.fn(),
+      disconnectRemoteWalletSession: vi.fn(),
+      getRemoteWalletSession,
+      getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      createPendingSession: vi.fn(),
+      loadSession: vi.fn(),
+      clearSession: vi.fn(),
+      updateSession: vi.fn(),
+      saveSession,
+      loadStoredSession: () => ({
+        sessionId: "evm-session",
+        status: "approved",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        expiresAt: "2099-04-21T00:00:00.000Z",
+        envelopeVersion: "v1",
+        publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+        privateKeyPem: "pem",
+        chainType: "both",
+        sessionsByChain: {
+          evm: {
+            sessionId: "evm-session",
+            status: "approved",
+            expiresAt: "2099-04-21T00:00:00.000Z",
+            chainType: "evm",
+          },
+          solana: {
+            sessionId: "solana-session",
+            status: "approved",
+            expiresAt: "2099-04-21T00:00:00.000Z",
+            chainType: "solana",
+          },
+        },
+      }),
+      isSessionValid: (session: { sessionsByChain?: Record<string, { status: string }> }) =>
+        Object.values(session.sessionsByChain ?? {}).some((chainSession) => {
+          return chainSession.status === "approved";
+        }),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "status", "--verify"], {
+      from: "node",
+    });
+
+    expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
+      status: "active",
+      remoteStatus: "revoked",
+      sessionsByChain: expect.objectContaining({
+        evm: expect.objectContaining({ status: "revoked" }),
+        solana: expect.objectContaining({ status: "approved" }),
+      }),
+    }));
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
   it("wallet disconnect revokes backend session and clears local state", async () => {
     const printJSON = vi.fn();
     const exitWithError = vi.fn();
@@ -1948,6 +2300,99 @@ describe("wallet command", () => {
       alreadyDisconnected: false,
       remoteStatus: null,
       backendRevokeAttempted: true,
+      backendRevokeFailed: false,
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("wallet disconnect revokes pending chain sessions", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+    const clearSession = vi.fn(() => true);
+    const disconnectRemoteWalletSession = vi.fn().mockResolvedValue({
+      alreadyDisconnected: false,
+      status: "revoked",
+    });
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/wallet-api.js", () => ({
+      createRemoteWalletSession: vi.fn(),
+      disconnectRemoteWalletSession,
+      getRemoteWalletSession: vi.fn(),
+      getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      createPendingSession: vi.fn(),
+      loadSession: vi.fn(),
+      clearSession,
+      updateSession: vi.fn(),
+      saveSession: vi.fn(),
+      loadStoredSession: () => ({
+        sessionId: "evm-session",
+        status: "approved",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        expiresAt: "2099-04-21T00:00:00.000Z",
+        envelopeVersion: "v1",
+        publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+        privateKeyPem: "pem",
+        chainType: "both",
+        sessionsByChain: {
+          evm: {
+            sessionId: "evm-session",
+            status: "approved",
+            expiresAt: "2099-04-21T00:00:00.000Z",
+            chainType: "evm",
+          },
+          solana: {
+            sessionId: "solana-session",
+            status: "pending",
+            expiresAt: "2099-04-21T00:00:00.000Z",
+            chainType: "solana",
+          },
+        },
+      }),
+      isSessionValid: () => true,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "disconnect"], {
+      from: "node",
+    });
+
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "evm-session");
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "solana-session");
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledTimes(2);
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(printJSON).toHaveBeenCalledWith({
+      disconnected: true,
+      revoked: true,
+      alreadyDisconnected: false,
+      remoteStatus: "revoked",
+      backendRevokeAttempted: true,
+      backendRevokeFailed: false,
     });
     expect(exitWithError).not.toHaveBeenCalled();
   });
@@ -2020,6 +2465,7 @@ describe("wallet command", () => {
       alreadyDisconnected: true,
       remoteStatus: "revoked",
       backendRevokeAttempted: true,
+      backendRevokeFailed: false,
     });
     expect(exitWithError).not.toHaveBeenCalled();
   });
@@ -2091,6 +2537,7 @@ describe("wallet command", () => {
       alreadyDisconnected: false,
       remoteStatus: null,
       backendRevokeAttempted: false,
+      backendRevokeFailed: false,
     });
     expect(exitWithError).not.toHaveBeenCalled();
   });
@@ -2223,7 +2670,7 @@ describe("wallet command", () => {
     const program = new Command();
     registerWallet(program);
 
-    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local", "--chain", "both"], {
+    await program.parseAsync(["node", "test", "wallet", "connect", "--mode", "local"], {
       from: "node",
     });
 
@@ -2470,5 +2917,115 @@ describe("wallet command", () => {
     const stripped = savedPayloads.find((p) => !("active_signer" in p));
     expect(stripped).toBeDefined();
     expect(stripped).not.toHaveProperty("active_signer");
+  });
+
+  it("wallet disconnect clears local state even when one backend revoke fails", async () => {
+    const printJSON = vi.fn();
+    const exitWithError = vi.fn();
+    const clearSession = vi.fn(() => true);
+    const save = vi.fn();
+    const disconnectRemoteWalletSession = vi.fn(async (_token: string, sessionId: string) => {
+      if (sessionId === "solana-session") {
+        throw new Error("network blip");
+      }
+      return {
+        alreadyDisconnected: false,
+        status: null,
+      };
+    });
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ active_signer: "session", api_key: "k" }),
+      save,
+      configDir: () => "/tmp/alchemy",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/wallet-api.js", () => ({
+      createRemoteWalletSession: vi.fn(),
+      disconnectRemoteWalletSession,
+      getRemoteWalletSession: vi.fn(),
+      getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      createPendingSession: vi.fn(),
+      loadSession: vi.fn(),
+      loadStoredSession: () => ({
+        sessionId: "evm-session",
+        status: "approved",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        expiresAt: "2099-04-21T00:00:00.000Z",
+        envelopeVersion: "v1",
+        publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+        privateKeyPem: "pem",
+        sessionsByChain: {
+          evm: {
+            sessionId: "evm-session",
+            status: "approved",
+            expiresAt: "2099-04-21T00:00:00.000Z",
+            chainType: "evm",
+          },
+          solana: {
+            sessionId: "solana-session",
+            status: "approved",
+            expiresAt: "2099-04-21T00:00:00.000Z",
+            chainType: "solana",
+          },
+        },
+      }),
+      clearSession,
+      updateSession: vi.fn(),
+      getWalletSessionByChain: (
+        session: { sessionsByChain: Record<string, { sessionId: string; chainType: "evm" | "solana" }> },
+        chainType: "evm" | "solana",
+      ) => ({
+        ...session,
+        sessionId: session.sessionsByChain[chainType].sessionId,
+        chainType,
+      }),
+      isSessionValid: () => true,
+      saveSession: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "disconnect"], {
+      from: "node",
+    });
+
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "evm-session");
+    expect(disconnectRemoteWalletSession).toHaveBeenCalledWith("auth-token", "solana-session");
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledWith(expect.not.objectContaining({ active_signer: "session" }));
+    expect(printJSON).toHaveBeenCalledWith({
+      disconnected: true,
+      revoked: true,
+      alreadyDisconnected: false,
+      remoteStatus: null,
+      backendRevokeAttempted: true,
+      backendRevokeFailed: true,
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
   });
 });
