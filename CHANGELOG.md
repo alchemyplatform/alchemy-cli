@@ -1,5 +1,11 @@
 # @alchemy/cli
 
+## 0.9.0
+
+### Minor Changes
+
+- [#55](https://github.com/OMGWINNING/alchemy-cli/pull/55) [`f7e477e`](https://github.com/OMGWINNING/alchemy-cli/commit/f7e477ef49e31753267723a5bebc543571a94fdd) Thanks [@blakecduncan](https://github.com/blakecduncan)! - Add unified EVM and Solana wallet connection flows, including multichain session approvals and Solana session signing support.
+
 ## 0.8.0
 
 ### Minor Changes
