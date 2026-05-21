@@ -250,7 +250,7 @@ export class AdminClient {
   }): Promise<App> {
     const resp = await this.request<{ data: App }>("POST", "/v1/apps", {
       name: opts.name,
-      chainNetworks: opts.networks,
+      networkAllowlist: opts.networks,
       ...(opts.description && { description: opts.description }),
       ...(opts.products && { products: opts.products }),
     });

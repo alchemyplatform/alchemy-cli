@@ -305,7 +305,8 @@ describe("AdminClient", () => {
     await client.createApp({ name: "Test", networks: ["ETH_MAINNET"] });
     const parsed = JSON.parse(body);
     expect(parsed.name).toBe("Test");
-    expect(parsed.chainNetworks).toEqual(["ETH_MAINNET"]);
+    expect(parsed.networkAllowlist).toEqual(["ETH_MAINNET"]);
+    expect(parsed.chainNetworks).toBeUndefined();
   });
 
   it("deleteApp sends DELETE request", async () => {
