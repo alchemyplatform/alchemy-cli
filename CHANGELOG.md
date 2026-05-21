@@ -1,5 +1,11 @@
 # @alchemy/cli
 
+## 0.9.1
+
+### Patch Changes
+
+- [#57](https://github.com/OMGWINNING/alchemy-cli/pull/57) [`341c7d5`](https://github.com/OMGWINNING/alchemy-cli/commit/341c7d57d147624756db7b3ada24ca0a4ff9fb7d) Thanks [@lohnim](https://github.com/lohnim)! - Fix `app create` failing with HTTP 400. The CLI was sending `chainNetworks` in the POST body, but the Admin API expects `networkAllowlist`.
+
 ## 0.9.0
 
 ### Minor Changes
