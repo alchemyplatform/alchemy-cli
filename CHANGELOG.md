@@ -1,5 +1,11 @@
 # @alchemy/cli
 
+## 0.9.2
+
+### Patch Changes
+
+- [#46](https://github.com/OMGWINNING/alchemy-cli/pull/46) [`065357f`](https://github.com/OMGWINNING/alchemy-cli/commit/065357f0bff91a9b039642c92d3f150051d3c055) Thanks [@lohnim](https://github.com/lohnim)! - Add `alchemy evm token <SYMBOL>` and `alchemy evm token list` for resolving common token addresses (ETH, USDC, WETH, USDT, DAI, …) per chain from a curated registry. `--address-only` prints just the 0x address for easy shell composition: `--from $(alchemy evm token ETH --address-only)`.
+
 ## 0.9.1
 
 ### Patch Changes
