@@ -22,8 +22,8 @@ import {
   fetchTokenDecimals,
   formatTokenAmount,
 } from "../lib/token-amounts.js";
+import { NATIVE_TOKEN_ADDRESS } from "../lib/token-registry.js";
 
-const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 const NATIVE_DECIMALS = 18;
 
 function isNativeToken(address: string): boolean {
@@ -168,6 +168,11 @@ export function registerSwap(program: Command) {
     .addHelpText(
       "after",
       `
+Tip: use 'alchemy evm token <SYMBOL>' to resolve common token addresses
+(ETH, USDC, WETH, USDT, DAI, …). Example:
+  --from $(alchemy evm token ETH --address-only) \\
+  --to $(alchemy evm token USDC --address-only -n eth-mainnet)
+
 Examples:
   alchemy evm swap quote --from 0xEeee...EEeE --to 0xA0b8...USDC --amount 1.0 -n eth-mainnet
   alchemy evm swap quote --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0`,
@@ -196,6 +201,10 @@ Examples:
     .addHelpText(
       "after",
       `
+Tip: use 'alchemy evm token <SYMBOL>' to resolve common token addresses
+(ETH, USDC, WETH, USDT, DAI, …). Run 'alchemy evm token list' to discover
+known symbols on the current network.
+
 Examples:
   alchemy evm swap execute --from 0xEeee...EEeE --to 0xA0b8...USDC --amount 1.0 -n eth-mainnet
   alchemy evm swap execute --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0

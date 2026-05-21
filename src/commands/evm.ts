@@ -13,6 +13,7 @@ import { registerEvmSend } from "./send-evm.js";
 import { registerSimulate } from "./simulate.js";
 import { registerStatus } from "./status.js";
 import { registerSwap } from "./swap.js";
+import { registerEvmToken } from "./evm-token.js";
 import { registerTrace } from "./trace.js";
 import { registerTx } from "./tx.js";
 
@@ -26,6 +27,7 @@ export function registerEvm(program: Command) {
   registerEvmSend(cmd);
   registerContract(cmd);
   registerSwap(cmd);
+  registerEvmToken(cmd);
   registerApprove(cmd);
   registerStatus(cmd);
   registerNetwork(cmd);

@@ -21,8 +21,8 @@ import {
   fetchTokenDecimals,
   formatTokenAmount,
 } from "../lib/token-amounts.js";
+import { NATIVE_TOKEN_ADDRESS } from "../lib/token-registry.js";
 
-const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 const NATIVE_DECIMALS = 18;
 
 function isNativeToken(address: string): boolean {
@@ -198,6 +198,9 @@ export function registerBridge(program: Command) {
 Source network comes from the global -n/--network flag. Use --to-network for the destination chain.
 For same-chain token exchanges, use 'alchemy evm swap'.
 
+Tip: use 'alchemy evm token <SYMBOL>' to resolve common token addresses
+(ETH, USDC, WETH, USDT, DAI, …) per chain.
+
 Examples:
   alchemy xchain bridge quote --from ${NATIVE_TOKEN_ADDRESS} --to ${NATIVE_TOKEN_ADDRESS} --amount 0.1 --to-network base-mainnet -n eth-mainnet
   alchemy xchain bridge quote --from <eth_usdc_address> --to <arb_usdc_address> --amount 100 --to-network arb-mainnet -n eth-mainnet`,
@@ -229,6 +232,9 @@ Examples:
       `
 Source network comes from the global -n/--network flag. Use --to-network for the destination chain.
 For same-chain token exchanges, use 'alchemy evm swap'.
+
+Tip: use 'alchemy evm token <SYMBOL>' to resolve common token addresses
+(ETH, USDC, WETH, USDT, DAI, …) per chain.
 
 Examples:
   alchemy xchain bridge execute --from ${NATIVE_TOKEN_ADDRESS} --to ${NATIVE_TOKEN_ADDRESS} --amount 0.1 --to-network base-mainnet -n eth-mainnet

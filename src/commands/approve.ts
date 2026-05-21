@@ -26,8 +26,7 @@ import {
   fetchTokenDecimals,
   formatTokenAmount,
 } from "../lib/token-amounts.js";
-
-const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
+import { NATIVE_TOKEN_ADDRESS } from "../lib/token-registry.js";
 
 interface ApproveOpts {
   tokenAddress: string;
