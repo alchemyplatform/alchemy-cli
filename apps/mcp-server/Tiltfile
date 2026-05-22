@@ -1,0 +1,87 @@
+# Tiltfile for local development with smoke testing
+# Requires: tilt, docker, aws cli (with SSO configured)
+#
+# Usage:
+#   tilt up                           # start server against staging (default)
+#   tilt up -- --env=prod             # start server against production
+#   tilt trigger smoke-test           # run smoke tests (opens browser for OAuth)
+
+# ── Environment config (staging or prod) ──
+config.define_string_list("env")
+cfg = config.parse()
+env_list = cfg.get("env", ["staging"])
+env = env_list[0]
+
+ENV_CONFIG = {
+    "staging": {
+        "secret_id": "staging/authchemy",
+        "authchemy_url": "https://auth.alchemypreview.com",
+        "auth_server_url": "https://auth.alchemypreview.com",
+        "base_domain": "alchemypreview.com",
+    },
+    "prod": {
+        "secret_id": "production/authchemy",
+        "authchemy_url": "https://auth.alchemy.com",
+        "auth_server_url": "https://auth.alchemy.com",
+        "base_domain": "alchemy.com",
+    },
+}
+
+if env not in ENV_CONFIG:
+    fail("Unknown env '%s' — use 'staging' or 'prod'" % env)
+
+e = ENV_CONFIG[env]
+
+# Allow running with any k8s context (we're not deploying to k8s)
+allow_k8s_contexts(k8s_context())
+
+# ── Ensure AWS session is active (prompts SSO login if expired) ──
+local("aws sts get-caller-identity > /dev/null 2>&1 || aws sso login", quiet=True)
+
+# ── Redis via docker-compose ──
+docker_compose("docker-compose.yaml")
+
+# ── Fetch SHARED_SECRET from AWS Secrets Manager ──
+authchemy_secret = str(local(
+    "aws secretsmanager get-secret-value --secret-id %s --query SecretString --output text | jq -r .SHARED_SECRET" % e["secret_id"],
+    quiet=True,
+)).strip()
+
+# ── MCP Server (local process) ──
+local_resource(
+    "mcp-server",
+    serve_cmd="pnpm dev",
+    deps=["src", "package.json"],
+    resource_deps=["redis"],
+    serve_env={
+        "PORT": "3000",
+        # Local Redis
+        "REDIS_HOST": "localhost",
+        "REDIS_PORT": "6379",
+        # Authchemy (public URL — internal ALB is only reachable within VPC)
+        "AUTHCHEMY_BASE_URL": e["authchemy_url"],
+        "AUTHCHEMY_SHARED_SECRET": authchemy_secret,
+        # Domain — controls RPC base domain
+        "ALCHEMY_BASE_DOMAIN": e["base_domain"],
+        # Resource URL must match what the MCP client connects to
+        "MCP_RESOURCE_URL": "http://localhost:3000/mcp",
+        # Auth server (handles OAuth registration, token exchange)
+        "MCP_AUTH_SERVER_URL": e["auth_server_url"],
+    },
+    readiness_probe=probe(
+        exec=exec_action(command=["curl", "-sf", "http://localhost:3000/health"]),
+        period_secs=5,
+    ),
+)
+
+print("=== Running against %s ===" % env)
+
+# ── Smoke Tests (manual trigger) ──
+# Opens browser for OAuth login automatically if no token provided
+local_resource(
+    "smoke-test",
+    cmd="./scripts/smoke-test.sh http://localhost:3000",
+    resource_deps=["mcp-server"],
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+)

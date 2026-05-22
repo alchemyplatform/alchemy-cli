@@ -1,0 +1,44 @@
+global:
+  env:
+  - name: NODE_ENV
+    value: "production"
+  - name: PORT
+    value: "3000"
+  - name: ENVIRONMENT
+    value: "staging"
+  - name: ALCHEMY_BASE_DOMAIN
+    value: "alchemypreview.com"
+  - name: REDIS_TLS
+    value: "true"
+  # Required to talk to authchemy ALB from OVH — the ALB cert is issued for
+  # auth.alchemypreview.com but we hit it via the ALB hostname. Same pattern
+  # as dashboard (webapp-api). TODO: replace with internal ALB.
+  - name: NODE_TLS_REJECT_UNAUTHORIZED
+    value: "0"
+  - name: AUTHCHEMY_SHARED_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: authchemy-secrets
+        key: SHARED_SECRET
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  secrets:
+  - name: authchemy-secrets
+    path: staging/authchemy
+    keys:
+      - SHARED_SECRET
+  - name: alchemy-mcp-server-secrets
+    path: computev2/alchemy-mcp-server/staging/secrets
+    keys:
+      - REDIS_PASSWORD
+  rolloutConfig:
+    enabled: false
+  monitoring:
+    enabled: true
+    targets:
+      - path: /metrics
+        portName: http

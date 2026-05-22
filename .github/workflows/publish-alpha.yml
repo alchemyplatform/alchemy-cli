@@ -40,10 +40,11 @@ jobs:
         run: |
           node -e "
           const fs = require('node:fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const pkgPath = 'apps/cli/package.json';
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           const base = pkg.version.replace(/-.*/, '');
           pkg.version = \`\${base}-alpha.\${process.env.GITHUB_RUN_NUMBER}\`;
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           console.log('Alpha version:', pkg.version);
           "
       - name: Build alpha package
@@ -103,7 +104,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$(node -p "require('./apps/cli/package.json').version")
           git add -A
           git commit -S -m "chore: release v${VERSION}"
           git push
@@ -117,8 +118,8 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          NOTES=$(sed -n "/^## ${VERSION}$/,/^## /{ /^## ${VERSION}$/d; /^## /d; p; }" CHANGELOG.md)
+          VERSION=$(node -p "require('./apps/cli/package.json').version")
+          NOTES=$(sed -n "/^## ${VERSION}$/,/^## /{ /^## ${VERSION}$/d; /^## /d; p; }" apps/cli/CHANGELOG.md)
           gh release create "v${VERSION}" \
             --repo ${{ github.repository }} \
             --title "v${VERSION}" \

@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "build-mcp": {
+      "source": "OMGWINNING/internal-skills",
+      "sourceType": "github",
+      "skillPath": "engineering/agent-experience/skills/build-mcp/SKILL.md",
+      "computedHash": "f00f8a781bdf42c7f82e0fb4b7d50e6a4bf0a015990402984547f89e38898151"
+    },
     "cli": {
       "source": "OMGWINNING/internal-skills",
       "sourceType": "github",
@@ -17,7 +23,7 @@
       "source": "OMGWINNING/internal-skills",
       "sourceType": "github",
       "skillPath": "engineering/developer-experience/skills/git/SKILL.md",
-      "computedHash": "604479b5eaef777dcc5d680aa964aee8193185c12e43380c2995acc795904623"
+      "computedHash": "add4e757697c262954c9c996d71d8112294f9bf5242a7226367142382e419524"
     },
     "lsp-setup": {
       "source": "OMGWINNING/internal-skills",

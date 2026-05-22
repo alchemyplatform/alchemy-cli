@@ -1,0 +1,100 @@
+version: 2.1
+
+parameters:
+  publish_mcp_image:
+    type: boolean
+    default: false
+
+orbs:
+  aws-cli: circleci/aws-cli@4.1.3
+
+commands:
+  setup_aws_oidc:
+    steps:
+      - aws-cli/setup:
+          role_arn: arn:aws:iam::209202477790:role/circleci-oidc-alchemy-mcp-server-ecs_ecr_alchemy-mcp-server
+          profile_name: oidc
+      - run:
+          name: Export AWS env vars from profile
+          command: |
+            aws configure export-credentials --profile oidc --format env >> "$BASH_ENV"
+            source "$BASH_ENV"
+            echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:0:4}****"
+            echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:0:4}****"
+            echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:0:4}****"
+
+  install_deps:
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-pnpm-{{ checksum "pnpm-lock.yaml" }}
+            - v1-pnpm-
+      - run:
+          name: Enable pnpm
+          command: corepack enable
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile
+          environment:
+            SKIP_SKILL_SYNC: "1"
+      - save_cache:
+          key: v1-pnpm-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.local/share/pnpm/store
+
+jobs:
+  build:
+    docker:
+      - image: cimg/node:22.0
+    steps:
+      - install_deps
+      - run:
+          name: Build
+          command: pnpm run build
+
+  docker_build_and_push:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - setup_aws_oidc
+      - checkout
+      - run:
+          name: Build and push MCP server image
+          command: |
+            set -euo pipefail
+            VERSION="$(sed -n 's/.*"version": "\(.*\)",/\1/p' apps/mcp-server/package.json | head -1)"
+            IMAGE="209202477790.dkr.ecr.us-east-1.amazonaws.com/alchemy-mcp-server:${VERSION}"
+
+            if aws ecr describe-images \
+              --repository-name alchemy-mcp-server \
+              --image-ids "imageTag=${VERSION}" \
+              --region us-east-1 >/dev/null 2>&1; then
+              echo "Image ${IMAGE} already exists; skipping push."
+              exit 0
+            fi
+
+            aws ecr get-login-password --region us-east-1 \
+              | docker login --username AWS --password-stdin 209202477790.dkr.ecr.us-east-1.amazonaws.com
+            docker build --platform linux/amd64 -f apps/mcp-server/Dockerfile -t "${IMAGE}" .
+            docker push "${IMAGE}"
+
+workflows:
+  ci:
+    jobs:
+      - build
+
+  deploying:
+    when:
+      and:
+        - equal: [main, << pipeline.git.branch >>]
+        - << pipeline.parameters.publish_mcp_image >>
+    jobs:
+      - docker_build_and_push:
+          name: Build and push to ECR - alchemy-mcp-server
+          context:
+            - repo_ssh_key
+            - artifactory
+            - aws_account_meta

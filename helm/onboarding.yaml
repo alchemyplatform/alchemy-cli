@@ -1,0 +1,21 @@
+applications:
+- name: alchemy-mcp-server
+  team: agent-experience
+  destinations:
+  - cluster: computev2-ovh-stg-use1-0
+    provider: ovh
+    region: use1
+    environment: stg
+    namespace: ns-agent-experience-alchemy-mcp-server-stg
+    workloads:
+    - name: mcp
+      namespace: ns-agent-experience-alchemy-mcp-server-mcp-stg
+  - cluster: computev2-ovh-prod-use1-0
+    provider: ovh
+    region: use1
+    environment: prod
+    namespace: ns-agent-experience-alchemy-mcp-server-prod
+    workloads:
+    - name: mcp
+      namespace: ns-agent-experience-alchemy-mcp-server-mcp-prod
+  groupWorkloads: false

@@ -1,0 +1,30 @@
+global:
+  workloads:
+    name: alchemy-mcp-server-mcp
+    image: alchemy-mcp-server
+    tag: latest
+    imagePullPolicy: IfNotPresent
+    workloadType: deployment
+    rolloutEnabled: false
+    replicas: 3
+    labels:
+      team: agent-experience
+      environment: prod
+    ingress:
+      enabled: false
+      port: 3000
+    ports:
+    - name: http
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+    env: []
+    secrets: []
+    command: []
+    args: []
+    resources: {}
+    monitoring:
+      enabled: true
+      targets:
+        - path: /metrics
+          portName: http

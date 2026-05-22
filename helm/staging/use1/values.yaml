@@ -1,0 +1,50 @@
+alchemymcpserver:
+  labels:
+    environment: staging
+    product: alchemy-mcp-server
+    region: use1
+
+  env:
+    NODE_ENV: production
+    PORT: "3000"
+    ENVIRONMENT: staging
+    ALCHEMY_BASE_DOMAIN: alchemypreview.com
+    REDIS_HOST: "" # TODO: set Redis host for staging
+    REDIS_TLS: "true"
+
+  replicaCount: 1
+
+  runtimeConfig:
+    resources:
+      enabled: true
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      timeoutSeconds: 5
+      periodSeconds: 10
+      successThreshold: 1
+      failureThreshold: 3
+      scheme: HTTP
+      path: /health
+      port: 3000
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+      periodSeconds: 5
+      successThreshold: 1
+      failureThreshold: 3
+      scheme: HTTP
+      path: /health
+      port: 3000
+
+  monitoring:
+    manifestLabel: core
+
+  rolloutConfig:
+    pauseDuration: 2m

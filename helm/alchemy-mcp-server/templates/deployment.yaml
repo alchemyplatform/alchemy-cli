@@ -1,0 +1,121 @@
+{{- range $i, $name := list "alchemy-mcp-server" "alchemy-mcp-server-canary" }}
+--- # we need this in order to render multiple deployment charts
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  {{ $name }}
+  namespace: alchemy-mcp-server
+  labels:
+    app.kubernetes.io/instance:  {{ $name }}
+    app.kubernetes.io/name:  {{ $name }}
+    app.kubernetes.io/part-of: {{ $name }}
+    app.kubernetes.io/service_version: {{ $.Values.images.tag }}
+    {{- if $.Values.labels }}
+{{ toYaml $.Values.labels | indent 4 }}
+    {{- end }}
+spec:
+  {{- if eq $name "alchemy-mcp-server-canary" }}
+  replicas: 1
+  {{- else }}
+  replicas: 0
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance:  {{ $name }}
+      app.kubernetes.io/name:  {{ $name }}
+      app.kubernetes.io/part-of: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance:  {{ $name }}
+        app.kubernetes.io/name:  {{ $name }}
+        app.kubernetes.io/part-of: {{ $name }}
+        {{ if hasKey $.Values.images "deploy" }}
+        app.kubernetes.io/service_version: {{ $.Values.images.tag }}-{{ $.Values.images.deploy }}
+        {{- else }}
+        app.kubernetes.io/service_version: {{ $.Values.images.tag }}
+        {{- end }}
+        {{- if $.Values.labels }}
+{{ toYaml $.Values.labels | indent 8 }}
+        {{- end }}
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $name }}
+          matchLabelKeys:
+            - rollouts-pod-template-hash
+      containers:
+        - name: alchemy-mcp-server
+          image: {{ $.Values.images.name }}:{{ $.Values.images.tag }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          resources:
+            requests:
+              memory: "{{ $.Values.runtimeConfig.resources.requests.memory }}"
+              {{- if hasKey $.Values.runtimeConfig.resources.requests "cpu" }}
+              cpu: "{{ $.Values.runtimeConfig.resources.requests.cpu }}"
+              {{- end }}
+            limits:
+              memory: "{{ $.Values.runtimeConfig.resources.limits.memory }}"
+              {{- if hasKey $.Values.runtimeConfig.resources.limits "cpu" }}
+              cpu: "{{ $.Values.runtimeConfig.resources.limits.cpu }}"
+              {{- end }}
+          env:
+            {{- range $key, $value := $.Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: SERVICE_VERSION
+              value: {{ $.Values.images.tag }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "alchemy-mcp-server-secrets"
+                  key: REDIS_PASSWORD
+          {{- if $.Values.runtimeConfig.livenessProbe.enabled }}
+          livenessProbe:
+            initialDelaySeconds: {{ $.Values.runtimeConfig.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ $.Values.runtimeConfig.livenessProbe.timeoutSeconds }}
+            periodSeconds: {{ $.Values.runtimeConfig.livenessProbe.periodSeconds }}
+            successThreshold: {{ $.Values.runtimeConfig.livenessProbe.successThreshold }}
+            failureThreshold: {{ $.Values.runtimeConfig.livenessProbe.failureThreshold }}
+            httpGet:
+              scheme: {{ $.Values.runtimeConfig.livenessProbe.scheme }}
+              path: {{ $.Values.runtimeConfig.livenessProbe.path }}
+              port: {{ $.Values.runtimeConfig.livenessProbe.port }}
+          {{- end }}
+          {{- if $.Values.runtimeConfig.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ $.Values.runtimeConfig.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ $.Values.runtimeConfig.readinessProbe.timeoutSeconds }}
+            periodSeconds: {{ $.Values.runtimeConfig.readinessProbe.periodSeconds }}
+            successThreshold: {{ $.Values.runtimeConfig.readinessProbe.successThreshold }}
+            failureThreshold: {{ $.Values.runtimeConfig.readinessProbe.failureThreshold }}
+            httpGet:
+              scheme: {{ $.Values.runtimeConfig.readinessProbe.scheme }}
+              path: {{ $.Values.runtimeConfig.readinessProbe.path }}
+              port: {{ $.Values.runtimeConfig.readinessProbe.port }}
+          {{- end }}
+      hostNetwork: {{ $.Values.hostNetwork }}
+      dnsPolicy: {{ $.Values.dnsPolicy }}
+      {{- if $.Values.affinity }}
+      affinity:
+      {{ toYaml $.Values.affinity | indent 8 }}
+      {{- end }}
+      {{- if $.Values.tolerations }}
+      tolerations:
+      {{ toYaml $.Values.tolerations | indent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,3 @@
+alchemymcpserver:
+  images:
+    tag: 0.1.0

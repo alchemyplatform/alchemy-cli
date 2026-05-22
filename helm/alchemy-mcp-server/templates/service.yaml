@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alchemy-mcp-server
+  namespace: alchemy-mcp-server
+  labels:
+    app.kubernetes.io/instance: alchemy-mcp-server
+    app.kubernetes.io/name: alchemy-mcp-server
+    app.kubernetes.io/part-of: alchemy-mcp-server
+    service_version: {{ .Values.images.tag }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: alchemy-mcp-server
+    app.kubernetes.io/name: alchemy-mcp-server
+    app.kubernetes.io/part-of: alchemy-mcp-server
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alchemy-mcp-server-canary
+  namespace: alchemy-mcp-server
+  labels:
+    app.kubernetes.io/instance: alchemy-mcp-server-canary
+    app.kubernetes.io/name: alchemy-mcp-server-canary
+    app.kubernetes.io/part-of: alchemy-mcp-server-canary
+    service_version: {{ .Values.images.tag }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: alchemy-mcp-server-canary
+    app.kubernetes.io/name: alchemy-mcp-server-canary
+    app.kubernetes.io/part-of: alchemy-mcp-server-canary
+    app.kubernetes.io/service_version: {{ $.Values.images.tag }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

@@ -1,0 +1,63 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: alchemy-mcp-server-alerts
+  namespace: alchemy-mcp-server
+  labels:
+    app.kubernetes.io/instance: alchemy-mcp-server
+    app.kubernetes.io/name: alchemy-mcp-server
+    shard: {{ .Values.monitoring.manifestLabel }}
+spec:
+  groups:
+    - name: alchemy-mcp-server
+      rules:
+        # Alert on high 5xx error rate (>5% of requests over 5 minutes)
+        - alert: McpServerHighErrorRate
+          expr: |
+            sum(rate(mcp_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(mcp_http_requests_total[5m]))
+            > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            team: agent-experience
+          annotations:
+            summary: "MCP server error rate above 5%"
+            description: "{{ "{{ $value | humanizePercentage }}" }} of requests are returning 5xx errors."
+
+        # Alert on auth system errors (not validation failures — actual errors)
+        - alert: McpServerAuthErrors
+          expr: |
+            sum(rate(mcp_errors_total{type="auth_error"}[5m])) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            team: agent-experience
+          annotations:
+            summary: "MCP server auth system errors"
+            description: "Authchemy validation is failing with errors (not token rejections)."
+
+        # Alert on unhandled errors
+        - alert: McpServerUnhandledErrors
+          expr: |
+            sum(rate(mcp_errors_total{type!="auth_error"}[5m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+            team: agent-experience
+          annotations:
+            summary: "MCP server unhandled errors"
+            description: "Unhandled errors detected: {{ "{{ $labels.type }}" }}"
+
+        # Alert on high request latency (p99 > 10s over 5 minutes)
+        - alert: McpServerHighLatency
+          expr: |
+            histogram_quantile(0.99, sum(rate(mcp_http_request_duration_seconds_bucket{path="/mcp"}[5m])) by (le))
+            > 10
+          for: 5m
+          labels:
+            severity: warning
+            team: agent-experience
+          annotations:
+            summary: "MCP server p99 latency above 10s"
+            description: "p99 latency is {{ "{{ $value | humanizeDuration }}" }}"

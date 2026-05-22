@@ -1,0 +1,224 @@
+{
+  "dashboard": {
+    "title": "Alchemy MCP Server",
+    "tags": ["mcp", "agent-experience"],
+    "timezone": "browser",
+    "links": [
+      {
+        "title": "View Logs (Loki)",
+        "url": "https://grafana.corp.alchemyapi.io/explore?schemaVersion=1&panes=%7B%224i3%22:%7B%22datasource%22:%22c803fb62-409f-4bc8-abd3-56187412d332%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bjob%3D%5C%22ns-agent-experience-alchemy-mcp-server-mcp-prod%2Falchemy-mcp-server-mcp%5C%22%7D%22,%22queryType%22:%22range%22,%22datasource%22:%7B%22type%22:%22loki%22,%22uid%22:%22c803fb62-409f-4bc8-abd3-56187412d332%22%7D,%22editorMode%22:%22builder%22,%22direction%22:%22backward%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D,%22panelsState%22:%7B%22logs%22:%7B%22visualisationType%22:%22logs%22%7D%7D%7D%7D&orgId=2",
+        "type": "link",
+        "icon": "doc",
+        "targetBlank": true
+      },
+      {
+        "title": "API Logs (Imply)",
+        "url": "https://alchemy.implycloud.com/p/0ebda5af-9f2e-4fff-a98e-54c62062e1ee/pivot/i/42f475349f6b7b646e/Alchemy_Api_Logs_Internal_Dw",
+        "type": "link",
+        "icon": "database",
+        "targetBlank": true
+      }
+    ],
+    "panels": [
+      {
+        "title": "Request Rate",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_http_requests_total{path=\"/mcp\"}[5m])) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Request Latency (p50/p95/p99)",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "histogram_quantile(0.50, sum(rate(mcp_http_request_duration_seconds_bucket{path=\"/mcp\"}[5m])) by (le))",
+            "legendFormat": "p50"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "histogram_quantile(0.95, sum(rate(mcp_http_request_duration_seconds_bucket{path=\"/mcp\"}[5m])) by (le))",
+            "legendFormat": "p95"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "histogram_quantile(0.99, sum(rate(mcp_http_request_duration_seconds_bucket{path=\"/mcp\"}[5m])) by (le))",
+            "legendFormat": "p99"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(mcp_http_requests_total[5m]))",
+            "legendFormat": "5xx rate"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_http_requests_total{status=~\"4..\"}[5m])) / sum(rate(mcp_http_requests_total[5m]))",
+            "legendFormat": "4xx rate"
+          }
+        ]
+      },
+      {
+        "title": "Auth Metrics",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_auth_success_total[5m]))",
+            "legendFormat": "success"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_auth_failures_total[5m])) by (reason)",
+            "legendFormat": "failure: {{reason}}"
+          }
+        ]
+      },
+      {
+        "title": "Tool Call Rate (by tool)",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_tool_calls_total[5m])) by (tool)",
+            "legendFormat": "{{tool}}"
+          }
+        ]
+      },
+      {
+        "title": "Tool Call Status",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_tool_calls_total{status=\"success\"}[5m]))",
+            "legendFormat": "success"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_tool_calls_total{status=\"error\"}[5m]))",
+            "legendFormat": "error"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_tool_calls_total{status=\"exception\"}[5m]))",
+            "legendFormat": "exception"
+          }
+        ]
+      },
+      {
+        "title": "Tool Call Latency (p50/p95/p99)",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "histogram_quantile(0.50, sum(rate(mcp_tool_call_duration_seconds_bucket[5m])) by (le, tool))",
+            "legendFormat": "p50 {{tool}}"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "histogram_quantile(0.95, sum(rate(mcp_tool_call_duration_seconds_bucket[5m])) by (le, tool))",
+            "legendFormat": "p95 {{tool}}"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "histogram_quantile(0.99, sum(rate(mcp_tool_call_duration_seconds_bucket[5m])) by (le, tool))",
+            "legendFormat": "p99 {{tool}}"
+          }
+        ]
+      },
+      {
+        "title": "Top Tools by Call Volume",
+        "type": "bargauge",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "topk(10, sum(increase(mcp_tool_calls_total[1h])) by (tool))",
+            "legendFormat": "{{tool}}"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      },
+      {
+        "title": "Tool Error Rate (by tool)",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_tool_calls_total{status!=\"success\"}[5m])) by (tool) / sum(rate(mcp_tool_calls_total[5m])) by (tool)",
+            "legendFormat": "{{tool}}"
+          }
+        ]
+      },
+      {
+        "title": "Errors",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "sum(rate(mcp_errors_total[5m])) by (type)",
+            "legendFormat": "{{type}}"
+          }
+        ]
+      },
+      {
+        "title": "Node.js Memory",
+        "type": "timeseries",
+        "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "nodejs_heap_size_used_bytes",
+            "legendFormat": "heap used"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "nodejs_heap_size_total_bytes",
+            "legendFormat": "heap total"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "thanos-obsv2" },
+            "expr": "process_resident_memory_bytes",
+            "legendFormat": "RSS"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 39,
+    "version": 2
+  }
+}

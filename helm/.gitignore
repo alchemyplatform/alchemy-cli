@@ -1,0 +1,13 @@
+### Helm ###
+
+# Chart dependencies
+**/charts/*.tgz
+
+# Lockfile
+Chart.lock
+
+# Locally rendered charts
+**/rendered-chart.yaml
+
+# Helm test output
+**/helm-render-output/

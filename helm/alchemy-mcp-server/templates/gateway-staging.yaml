@@ -1,0 +1,20 @@
+{{- if eq .Values.labels.environment "staging" }}
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: mcp-server-staging-gw
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: alchemy-com-tls
+      hosts:
+        - "mcp.alchemypreview.com"
+{{- end }}

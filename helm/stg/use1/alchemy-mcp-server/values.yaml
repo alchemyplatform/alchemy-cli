@@ -1,0 +1,33 @@
+alchemy-mcp-server:
+  workloads:
+  - name: alchemy-mcp-server-mcp
+    image: 209202477790.dkr.ecr.us-east-1.amazonaws.com/alchemy-mcp-server
+    tag: 0.3.5
+    imagePullPolicy: IfNotPresent
+    workloadType: deployment
+    rolloutEnabled: false
+    replicas: 1
+    labels:
+      team: agent-experience
+      environment: stg
+    ingress:
+      enabled: true
+      port: 3000
+    customDomains:
+    - commonName: mcp.alchemypreview.com
+      domains:
+      - mcp.alchemypreview.com
+      dnsProvider: cloudflare
+      shortName: web
+    ports:
+    - name: http
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+    env:
+    - name: REDIS_HOST
+      value: "master.alchemy-mcp-server-stg.z3x987.use1.cache.amazonaws.com"
+    - name: AUTHCHEMY_BASE_URL
+      value: "https://authchemy-stg-alb-2145578085.us-east-1.elb.amazonaws.com"
+    command: []
+    args: []

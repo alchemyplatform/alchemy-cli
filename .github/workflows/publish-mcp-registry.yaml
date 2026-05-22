@@ -1,0 +1,28 @@
+name: Publish MCP Registry Entry
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download mcp-publisher
+        run: |
+          curl -L -o mcp-publisher.tar.gz https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz
+          tar -xzf mcp-publisher.tar.gz
+          chmod +x mcp-publisher
+
+      - name: Login with DNS verification
+        env:
+          MCP_PUBLISHER_PRIVATE_KEY: ${{ secrets.MCP_PUBLISHER_PRIVATE_KEY }}
+        run: ./mcp-publisher login dns --domain alchemy.com --private-key "$MCP_PUBLISHER_PRIVATE_KEY"
+
+      - name: Publish server
+        run: ./mcp-publisher publish server.json

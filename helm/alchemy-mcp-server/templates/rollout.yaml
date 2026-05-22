@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: alchemy-mcp-server-rollout
+  namespace: alchemy-mcp-server
+spec:
+  replicas: {{ $.Values.replicaCount }}
+  progressDeadlineAbort: true
+  progressDeadlineSeconds: 180
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: alchemy-mcp-server
+      app.kubernetes.io/name: alchemy-mcp-server
+      app.kubernetes.io/part-of: alchemy-mcp-server
+  strategy:
+    canary:
+      canaryMetadata:
+        labels:
+          service.istio.io/canonical-revision: canary
+          service.istio.io/version: canary
+          version: canary
+      stableMetadata:
+        labels:
+          service.istio.io/canonical-revision: stable
+          service.istio.io/version: stable
+          version: stable
+      steps:
+        - setWeight: 0
+        - pause:
+            duration: 3m
+        - setCanaryScale:
+            matchTrafficWeight: true
+        - setWeight: 10
+        - pause:
+            duration: {{ .Values.rolloutConfig.pauseDuration }}
+        - setWeight: 25
+        - pause:
+            duration: {{ .Values.rolloutConfig.pauseDuration }}
+        - setWeight: 50
+        - pause:
+            duration: {{ .Values.rolloutConfig.pauseDuration }}
+        - setWeight: 75
+        - pause:
+            duration: {{ .Values.rolloutConfig.pauseDuration }}
+        - setWeight: 100
+      trafficRouting:
+        istio:
+          destinationRule:
+            canarySubsetName: canary
+            name: alchemy-mcp-server-dr
+            stableSubsetName: stable
+          virtualService:
+            name: alchemy-mcp-server-vs.alchemy-mcp-server
+            routes:
+              - primary
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: alchemy-mcp-server
+    scaleDown: onsuccess

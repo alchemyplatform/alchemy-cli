@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: alchemy-mcp-server
+  namespace: alchemy-mcp-server
+  labels:
+    app.kubernetes.io/instance: alchemy-mcp-server
+    app.kubernetes.io/name: alchemy-mcp-server
+    app.kubernetes.io/part-of: alchemy-mcp-server
+    shard: {{ .Values.monitoring.manifestLabel }}
+spec:
+  endpoints:
+    - interval: 30s
+      port: metrics
+      path: /metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: alchemy-mcp-server
+      app.kubernetes.io/name: alchemy-mcp-server
+      app.kubernetes.io/part-of: alchemy-mcp-server
+  targetLabels:
+    - service_version

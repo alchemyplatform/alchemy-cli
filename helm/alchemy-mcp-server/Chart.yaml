@@ -1,0 +1,5 @@
+apiVersion: v2
+name: alchemy-mcp-server
+description: Alchemy MCP Server - Model Context Protocol server with Streamable HTTP transport
+version: 0.0.1
+appVersion: 0.0.1

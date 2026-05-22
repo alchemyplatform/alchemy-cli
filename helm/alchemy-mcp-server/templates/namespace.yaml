@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: alchemy-mcp-server
+  labels:
+    name: alchemy-mcp-server
+    app.kubernetes.io/name: alchemy-mcp-server
+    app.kubernetes.io/part-of: alchemy-mcp-server
+    istio-injection: enabled

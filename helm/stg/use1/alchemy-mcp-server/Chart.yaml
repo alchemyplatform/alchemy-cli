@@ -1,0 +1,9 @@
+apiVersion: v2
+name: alchemy-mcp-server
+version: 0.0.1
+description: Helm chart for alchemy-mcp-server deployment
+dependencies:
+- name: alchemy-base
+  version: ^0.x.x
+  repository: oci://ghcr.io/alchemy-docker/helm-charts
+  alias: alchemy-mcp-server

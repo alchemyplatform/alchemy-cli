@@ -1,68 +1,28 @@
 {
-  "name": "@alchemy/cli",
-  "version": "0.9.2",
-  "description": "Alchemy CLI — interact with blockchain data",
+  "name": "alchemy",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Alchemy developer tools monorepo",
   "type": "module",
-  "bin": {
-    "alchemy": "./dist/index.js"
-  },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "live:check": "node --env-file-if-exists=.env.local --import=tsx scripts/live-check.ts",
+    "build": "pnpm -r --if-present run build",
+    "dev:cli": "pnpm --filter @alchemy/cli dev",
+    "dev:mcp": "pnpm --filter @alchemy/mcp-server dev",
+    "lint": "pnpm -r --if-present run lint",
     "postinstall": "node ./scripts/postinstall.cjs",
     "sync:skills": "node scripts/sync-skills.mjs",
     "update:skills": "npx skills update && pnpm sync:skills",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:e2e": "pnpm build && vitest run --config vitest.e2e.config.ts",
-    "test:live": "pnpm build && node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.live.config.ts",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit",
+    "test": "pnpm -r --if-present run test",
+    "test:cli:e2e": "pnpm --filter @alchemy/cli test:e2e",
+    "test:cli:live": "pnpm --filter @alchemy/cli test:live",
+    "mcp:docker:build": "docker build -f apps/mcp-server/Dockerfile .",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "pnpm build && changeset publish"
   },
-  "keywords": [
-    "alchemy",
-    "blockchain",
-    "ethereum",
-    "cli"
-  ],
-  "files": [
-    "dist",
-    "README.md",
-    "scripts/postinstall.cjs"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "license": "MIT",
-  "engines": {
-    "node": ">=22"
-  },
-  "dependencies": {
-    "@alchemy/wallet-apis": "5.0.0-beta.28",
-    "@alchemy/x402": "^0.4.0",
-    "@noble/hashes": "^2.0.1",
-    "@solana-program/system": "^0.12.0",
-    "@solana/kit": "^6.7.0",
-    "cli-table3": "^0.6.5",
-    "commander": "^14.0.3",
-    "qrcode": "^1.5.4",
-    "viem": "^2.47.10",
-    "zod": "^4.3.6"
-  },
   "devDependencies": {
     "@changesets/changelog-github": "^0.6.0",
-    "@changesets/cli": "^2.30.0",
-    "@types/node": "^25.3.0",
-    "@types/qrcode": "^1.5.6",
-    "@vitest/coverage-v8": "^4.0.18",
-    "tsup": "^8.5.1",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "@changesets/cli": "^2.30.0"
   },
   "packageManager": "pnpm@10.18.2+sha512.9fb969fa749b3ade6035e0f109f0b8a60b5d08a1a87fdf72e337da90dcc93336e2280ca4e44f2358a649b83c17959e9993e777c2080879f3801e6f0d999ad3dd",
   "pnpm": {

@@ -28,7 +28,7 @@ coverage/
 
 # Plans
 plans/
-docs/
+docs/proposal-ows-integration.md
 
 # Generated agent skills
 .agents/skills/

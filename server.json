@@ -1,0 +1,54 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.alchemy/mcp",
+  "title": "Alchemy MCP Server",
+  "description": "Blockchain data across 100+ chains: token prices, NFTs, transfers, simulation, traces, Solana DAS",
+  "version": "0.3.5",
+  "websiteUrl": "https://docs.alchemy.com/docs/alchemy-mcp-server",
+  "icons": [
+    {
+      "src": "https://www.alchemy.com/apple-touch-icon.png",
+      "mimeType": "image/png",
+      "sizes": ["180x180"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.alchemy.com/mcp"
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "toolCount": 167,
+      "auth": "OAuth 2.1 via Alchemy Dashboard",
+      "categories": [
+        { "name": "Admin", "description": "Alchemy app and account management", "count": 8 },
+        { "name": "EVM JSON-RPC", "description": "Standard Ethereum JSON-RPC for blocks, transactions, balances, gas, and state", "count": 31 },
+        { "name": "Token API", "description": "ERC-20 token balances, metadata, allowances, and transfer history", "count": 5 },
+        { "name": "NFT API", "description": "NFT ownership, metadata, collections, floor prices, spam detection, and rarity", "count": 21 },
+        { "name": "Prices API", "description": "Current and historical token prices by symbol or contract address", "count": 3 },
+        { "name": "Portfolio API", "description": "Multi-chain portfolio queries for tokens and NFTs across 100+ networks", "count": 4 },
+        { "name": "Simulation", "description": "Transaction simulation with asset change and execution trace previews", "count": 5 },
+        { "name": "Tracing & Debugging", "description": "EVM execution traces via debug_* and trace_* namespaces", "count": 12 },
+        { "name": "Account Abstraction (ERC-4337)", "description": "Bundler and gas manager tools for UserOperations", "count": 7 },
+        { "name": "Smart Wallets", "description": "Prepare, send, and manage smart account calls with session and cross-chain support", "count": 8 },
+        { "name": "Solana DAS", "description": "Digital Asset Standard for Solana NFTs, compressed NFTs, and token accounts", "count": 11 },
+        { "name": "Solana RPC", "description": "Solana JSON-RPC for accounts, transactions, tokens, blocks, staking, and cluster info", "count": 52 }
+      ],
+      "chains": {
+        "note": "Representative subset — the server proxies to Alchemy's gateway which supports 100+ networks. Use list_chains for the live set.",
+        "evm": [
+          "Ethereum", "Base", "Polygon", "Arbitrum", "Optimism",
+          "Zora", "BNB Smart Chain", "Avalanche", "Fantom", "Gnosis",
+          "Scroll", "Linea", "zkSync", "Blast", "Mantle",
+          "Berachain", "World Chain", "Shape", "Soneium", "Zetachain",
+          "Polynomial", "Abstract", "Ink", "Degen", "Celo", "Metis",
+          "opBNB", "Fraxtal", "Starknet", "Flow", "Unichain",
+          "ApeChain", "Anime", "Bob", "Sei", "Lens"
+        ],
+        "solana": ["Solana Mainnet", "Solana Devnet"]
+      }
+    }
+  }
+}

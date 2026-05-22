@@ -1,0 +1,74 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: alchemy-mcp-server-dr
+  namespace: alchemy-mcp-server
+spec:
+  host: alchemy-mcp-server.alchemy-mcp-server.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      http:
+        h2UpgradePolicy: UPGRADE
+    loadBalancer:
+      simple: LEAST_REQUEST
+      localityLbSetting:
+        enabled: true
+  subsets:
+    - labels:
+        version: canary
+      name: canary
+    - labels:
+        version: stable
+      name: stable
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: alchemy-mcp-server-vs
+  namespace: alchemy-mcp-server
+spec:
+  gateways:
+    {{- if eq .Values.labels.environment "staging" }}
+    - istio-system/mcp-server-staging-gw
+    {{- else }}
+    - istio-system/mcp-server-gw
+    {{- end }}
+  hosts:
+    - "alchemy-mcp-server.alchemy-mcp-server.svc.cluster.local"
+    {{- if eq .Values.labels.environment "staging" }}
+    - "mcp.alchemypreview.com"
+    {{- else }}
+    - "mcp.alchemy.com"
+    {{- end }}
+  http:
+    - match:
+        - headers:
+            x-alchemy-canary:
+              exact: "alchemy-mcp-server"
+      name: canary
+      route:
+        - destination:
+            host: alchemy-mcp-server.alchemy-mcp-server.svc.cluster.local
+            port:
+              number: 80
+            subset: canary
+    - match:
+        - uri:
+            prefix: /
+      name: primary
+      retries:
+        attempts: 0
+      route:
+        - destination:
+            host: alchemy-mcp-server.alchemy-mcp-server.svc.cluster.local
+            port:
+              number: 80
+            subset: stable
+          weight: 100
+        - destination:
+            host: alchemy-mcp-server.alchemy-mcp-server.svc.cluster.local
+            port:
+              number: 80
+            subset: canary
+          weight: 0

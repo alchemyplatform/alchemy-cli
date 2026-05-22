@@ -1,0 +1,21 @@
+# This workflow is used to publish ArgoCD manifests to the computev2-app-of-apps repository.
+# It executes a workflow call to the computev2-onboarding repository's publish-argocd-manifests.yaml workflow.
+name: ArgoCD Manifests
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-publish-argocd:
+    name: Publish ArgoCD manifests
+    uses: OMGWINNING/computev2-onboarding/.github/workflows/publish-argocd-manifests.yaml@master
+    secrets:
+      COMPUTEV2_GITOPS_GHCR_READ_TOKEN: ${{ secrets.COMPUTEV2_GITOPS_GHCR_READ_TOKEN }}
+      COMPUTEV2_ARGOCD_APP_MANIFESTS_REPO_TOKEN: ${{ secrets.COMPUTEV2_ARGOCD_APP_MANIFESTS_REPO_TOKEN }}
+      ALCHEMY_BOT_COMPUTEV2_GPG_PRIVATE_KEY: ${{ secrets.ALCHEMY_BOT_COMPUTEV2_GPG_PRIVATE_KEY }}
+      ALCHEMY_BOT_COMPUTEV2_GPG_PASSPHRASE: ${{ secrets.ALCHEMY_BOT_COMPUTEV2_GPG_PASSPHRASE }}

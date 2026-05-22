@@ -1,0 +1,19 @@
+labels:
+  name: alchemy-mcp-server
+
+images:
+  name: 209202477790.dkr.ecr.us-east-1.amazonaws.com/alchemy-mcp-server
+
+replicaCount: 3
+hostNetwork: false
+dnsPolicy: ClusterFirst
+imagePullPolicy: IfNotPresent
+
+affinity: {}
+tolerations: []
+
+rolloutConfig:
+  pauseDuration: 2m
+
+monitoring:
+  manifestLabel: core
