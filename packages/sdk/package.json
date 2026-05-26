@@ -26,6 +26,10 @@
     "./admin": {
       "types": "./src/admin/index.ts",
       "import": "./dist/admin/index.js"
+    },
+    "./surfaces": {
+      "types": "./src/surfaces/index.ts",
+      "import": "./dist/surfaces/index.js"
     }
   },
   "files": [

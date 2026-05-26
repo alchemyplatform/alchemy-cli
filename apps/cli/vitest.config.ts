@@ -7,6 +7,7 @@ export default defineConfig({
       { find: "@alchemy/sdk/admin", replacement: new URL("../../packages/sdk/src/admin/index.ts", import.meta.url).pathname },
       { find: "@alchemy/sdk/data", replacement: new URL("../../packages/sdk/src/data/index.ts", import.meta.url).pathname },
       { find: "@alchemy/sdk/evm", replacement: new URL("../../packages/sdk/src/evm/index.ts", import.meta.url).pathname },
+      { find: "@alchemy/sdk/surfaces", replacement: new URL("../../packages/sdk/src/surfaces/index.ts", import.meta.url).pathname },
     ],
   },
   test: {

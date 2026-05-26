@@ -5,6 +5,7 @@ import { registerTokens } from "./tokens.js";
 import { registerTransfers } from "./transfers.js";
 import { registerPrices } from "./prices.js";
 import { registerPortfolio } from "./portfolio.js";
+import { registerDataSurfaceCommands } from "./surface-parity.js";
 
 export function registerData(program: Command) {
   const cmd = program.command("data").description("Query blockchain data");
@@ -14,4 +15,5 @@ export function registerData(program: Command) {
   registerTransfers(cmd);
   registerPrices(cmd);
   registerPortfolio(cmd);
+  registerDataSurfaceCommands(program, cmd);
 }

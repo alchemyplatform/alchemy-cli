@@ -42,4 +42,36 @@ describe("rpc command", () => {
     expect(printSyntaxJSON).toHaveBeenCalledWith({ ok: true });
     expect(exitWithError).not.toHaveBeenCalled();
   });
+
+  it("rpc help prints CLI help instead of calling a help RPC method", async () => {
+    const clientFromFlags = vi.fn();
+    let stdout = "";
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags,
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => false,
+      debug: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: vi.fn(),
+      printSyntaxJSON: vi.fn(),
+    }));
+
+    const { registerRPC } = await import("../../src/commands/rpc.js");
+    const program = new Command();
+    program.configureOutput({
+      writeOut: (str) => {
+        stdout += str;
+      },
+    });
+    registerRPC(program);
+
+    await program.parseAsync(["node", "test", "rpc", "help"], { from: "node" });
+
+    expect(clientFromFlags).not.toHaveBeenCalled();
+    expect(stdout).toContain("Usage:");
+    expect(stdout).toContain("ethGetBalance");
+  });
 });

@@ -8,6 +8,7 @@ import { registerSolanaDelegate } from "./solana-delegate.js";
 import { registerSolanaProgram } from "./solana-program.js";
 import { registerSolanaSend } from "./send-solana.js";
 import { registerStatus } from "./status.js";
+import { registerSolanaRpcSurfaceCommands } from "./surface-parity.js";
 
 function registerReservedSolanaCommand(args: {
   cmd: Command;
@@ -84,5 +85,6 @@ export function registerSolana(program: Command) {
   registerSolanaProgram(cmd);
   registerSolanaDelegate(cmd);
   registerStatus(cmd, { networkMode: "solana" });
+  registerSolanaRpcSurfaceCommands(program, cmd);
   registerReservedSolanaCommands(cmd);
 }
