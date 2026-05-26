@@ -1,4 +1,5 @@
 import type { AlchemyClient } from "./client-interface.js";
+import { networkRpcCall, RpcApiError } from "@alchemy/sdk/evm";
 import {
   CLIError,
   errInvalidAPIKey,
@@ -10,7 +11,7 @@ import {
 } from "./errors.js";
 import { parseBaseURLOverride, fetchWithTimeout, getBaseDomain } from "./client-utils.js";
 import { getRPCNetworkIds } from "./networks.js";
-import { verbose as isVerbose } from "./output.js";
+import { timeout as globalTimeout, verbose as isVerbose } from "./output.js";
 import { redactSensitiveText } from "./redact.js";
 
 export interface RPCRequest {
@@ -108,7 +109,7 @@ export class Client implements AlchemyClient {
         return errRPC(parsed.error.code, parsed.error.message);
       }
     } catch {
-      // Not JSON — fall through
+      // Not JSON; fall through.
     }
     return null;
   }
@@ -124,13 +125,6 @@ export class Client implements AlchemyClient {
   }
 
   async call(method: string, params: unknown[] | Record<string, unknown> = []): Promise<unknown> {
-    const body: RPCRequest = {
-      jsonrpc: "2.0",
-      method,
-      params,
-      id: 1,
-    };
-
     const redactedURL = redactSensitiveText(this.rpcURL());
     this.verboseLog(`→ POST ${redactedURL}`);
     this.verboseLog(`  method: ${method}`);
@@ -140,38 +134,28 @@ export class Client implements AlchemyClient {
     }
     const startTime = Date.now();
 
-    const resp = await this.doFetch(this.rpcURL(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    this.verboseLog(`← ${resp.status} ${resp.statusText} (${Date.now() - startTime}ms)`);
-
-    if (resp.status === 429) throw errRateLimited();
-    if (resp.status === 401 || resp.status === 403) {
-      const detail = await resp.text().catch(() => "");
-      throw this.authErrorFromResponseBody(detail);
+    try {
+      const result = await networkRpcCall(this.network, this.apiKey, method, params, {
+        breadcrumb: "alchemy-cli",
+        endpointUrl: this.rpcURL(),
+        ...(globalTimeout && { timeoutMs: globalTimeout }),
+      });
+      this.verboseLog(`← ok (${Date.now() - startTime}ms)`);
+      return result;
+    } catch (err) {
+      this.verboseLog(`← error (${Date.now() - startTime}ms)`);
+      if (err instanceof RpcApiError) {
+        if (err.status === 429) throw errRateLimited();
+        if (err.status === 401 || err.status === 403) {
+          throw this.authErrorFromResponseBody(err.message);
+        }
+        if (err.status !== undefined) {
+          throw errNetwork(`HTTP ${err.status}: ${err.message}`);
+        }
+        throw errRPC(err.code, err.message);
+      }
+      throw err;
     }
-
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => "");
-      // Try to parse as JSON-RPC error before falling back to network error
-      const rpcError = this.tryParseRPCError(text);
-      if (rpcError) throw rpcError;
-      throw errNetwork(`HTTP ${resp.status}: ${text}`);
-    }
-
-    const rpcResp = (await resp.json()) as RPCResponse;
-
-    if (rpcResp.error) {
-      throw errRPC(rpcResp.error.code, rpcResp.error.message);
-    }
-
-    return rpcResp.result;
   }
 
   async callEnhanced(

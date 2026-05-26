@@ -1,21 +1,16 @@
-import { validateNetwork } from "./rpc.js";
+import {
+  dataGet as sharedDataGet,
+  dataPost as sharedDataPost,
+  nftBaseUrl as sharedNftBaseUrl,
+  portfolioBaseUrl as sharedPortfolioBaseUrl,
+  pricesBaseUrl as sharedPricesBaseUrl,
+} from "@alchemy/sdk/data";
 
-const DATA_TIMEOUT_MS = 30_000;
+export { DataApiError } from "@alchemy/sdk/data";
 
-function getGatewayDomain(): string {
-  const domain = process.env.ALCHEMY_BASE_DOMAIN ?? "alchemy.com";
-  return `g.${domain}`;
-}
-
-export class DataApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "DataApiError";
-  }
-}
+const MCP_CLIENT_OPTIONS = {
+  breadcrumb: "alchemy-mcp-server",
+} as const;
 
 export async function dataGet(
   baseUrl: string,
@@ -23,32 +18,7 @@ export async function dataGet(
   path: string,
   params?: Record<string, string | string[] | undefined>,
 ): Promise<unknown> {
-  const url = new URL(`${baseUrl}/${apiKey}${path}`);
-  if (params) {
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined) continue;
-      if (Array.isArray(v)) {
-        for (const item of v) url.searchParams.append(k, item);
-      } else {
-        url.searchParams.set(k, v);
-      }
-    }
-  }
-
-  const resp = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "x-alchemy-client-breadcrumb": "alchemy-mcp-server",
-    },
-    signal: AbortSignal.timeout(DATA_TIMEOUT_MS),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    throw new DataApiError(resp.status, text || `HTTP ${resp.status}`);
-  }
-  return resp.json();
+  return sharedDataGet(baseUrl, apiKey, path, params, MCP_CLIENT_OPTIONS);
 }
 
 export async function dataPost(
@@ -57,38 +27,17 @@ export async function dataPost(
   path: string,
   body: unknown,
 ): Promise<unknown> {
-  const url = `${baseUrl}/${apiKey}${path}`;
-
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "x-alchemy-client-breadcrumb": "alchemy-mcp-server",
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(DATA_TIMEOUT_MS),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    throw new DataApiError(resp.status, text || `HTTP ${resp.status}`);
-  }
-  return resp.json();
+  return sharedDataPost(baseUrl, apiKey, path, body, MCP_CLIENT_OPTIONS);
 }
 
-/** NFT API base: https://{network}.g.alchemy.com/nft/v3 */
 export function nftBaseUrl(network: string): string {
-  validateNetwork(network);
-  return `https://${network}.${getGatewayDomain()}/nft/v3`;
+  return sharedNftBaseUrl(network, MCP_CLIENT_OPTIONS);
 }
 
-/** Prices API base: https://api.g.alchemy.com/prices/v1 */
 export function pricesBaseUrl(): string {
-  return `https://api.${getGatewayDomain()}/prices/v1`;
+  return sharedPricesBaseUrl(MCP_CLIENT_OPTIONS);
 }
 
-/** Portfolio/Data API base: https://api.g.alchemy.com/data/v1 */
 export function portfolioBaseUrl(): string {
-  return `https://api.${getGatewayDomain()}/data/v1`;
+  return sharedPortfolioBaseUrl(MCP_CLIENT_OPTIONS);
 }

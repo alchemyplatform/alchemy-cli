@@ -1,6 +1,6 @@
 import type { InstrumentedServer } from "../server.js";
 import { z } from "zod";
-import { rpcCall, rpcCallGlobal } from "../clients/rpc.js";
+import { mcpRpcClient } from "../clients/rpc.js";
 import { getApiKey, toolResult, handleToolError, formatResult } from "./helpers.js";
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
@@ -27,7 +27,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, address, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getBalance", [address, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getBalance", [address, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -47,7 +47,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockNumber, fullTransactions }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getBlockByNumber", [blockNumber, fullTransactions]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getBlockByNumber", [blockNumber, fullTransactions]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -67,7 +67,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockHash, fullTransactions }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getBlockByHash", [blockHash, fullTransactions]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getBlockByHash", [blockHash, fullTransactions]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -86,7 +86,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, transactionHash }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getTransactionByHash", [transactionHash]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getTransactionByHash", [transactionHash]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -105,7 +105,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, transactionHash }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getTransactionReceipt", [transactionHash]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getTransactionReceipt", [transactionHash]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -125,7 +125,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, address, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getTransactionCount", [address, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getTransactionCount", [address, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -143,7 +143,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_blockNumber", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_blockNumber", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -161,7 +161,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_gasPrice", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_gasPrice", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -187,7 +187,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (from) { tx.from = from; }
         if (value) { tx.value = value; }
         if (data) { tx.data = data; }
-        const result = await rpcCall(network, apiKey, "eth_estimateGas", [tx]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_estimateGas", [tx]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -207,7 +207,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, address, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getCode", [address, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getCode", [address, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -228,7 +228,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, address, storageSlot, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getStorageAt", [address, storageSlot, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getStorageAt", [address, storageSlot, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -253,7 +253,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const filter: Record<string, unknown> = { fromBlock, toBlock };
         if (address) { filter.address = address; }
         if (topics) { filter.topics = topics; }
-        const result = await rpcCall(network, apiKey, "eth_getLogs", [filter]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getLogs", [filter]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -271,7 +271,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_chainId", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_chainId", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -294,7 +294,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [blockCount, newestBlock];
         if (rewardPercentiles) { params.push(rewardPercentiles); }
-        const result = await rpcCall(network, apiKey, "eth_feeHistory", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_feeHistory", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -312,7 +312,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_maxPriorityFeePerGas", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_maxPriorityFeePerGas", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -332,7 +332,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "net_version", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "net_version", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -350,7 +350,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "web3_clientVersion", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "web3_clientVersion", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -369,7 +369,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockHash }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getBlockTransactionCountByHash", [blockHash]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getBlockTransactionCountByHash", [blockHash]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -388,7 +388,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getBlockTransactionCountByNumber", [blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getBlockTransactionCountByNumber", [blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -408,7 +408,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockHash, index }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getTransactionByBlockHashAndIndex", [blockHash, index]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getTransactionByBlockHashAndIndex", [blockHash, index]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -428,7 +428,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockNumber, index }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getTransactionByBlockNumberAndIndex", [blockNumber, index]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getTransactionByBlockNumberAndIndex", [blockNumber, index]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -446,7 +446,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_syncing", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_syncing", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -471,7 +471,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (stateBlockNumber) {
           params.stateBlockNumber = stateBlockNumber;
         }
-        const result = await rpcCall(network, apiKey, "eth_callBundle", [params]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_callBundle", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -491,7 +491,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, calls, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_callMany", [calls, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_callMany", [calls, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -509,7 +509,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "net_listening", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "net_listening", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -528,7 +528,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, data }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "web3_sha3", [data]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "web3_sha3", [data]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -559,7 +559,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (pageKey) {
           params.push({ pageKey });
         }
-        const result = await rpcCall(network, apiKey, "alchemy_getTokenBalances", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_getTokenBalances", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -578,7 +578,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, contractAddress }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "alchemy_getTokenMetadata", [contractAddress]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_getTokenMetadata", [contractAddress]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -599,7 +599,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, contract, owner, spender }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "alchemy_getTokenAllowance", [
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_getTokenAllowance", [
           { contract, owner, spender },
         ]);
         return toolResult(formatResult(result));
@@ -645,7 +645,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (order) params.order = order;
         if (maxCount) params.maxCount = maxCount;
         if (pageKey) params.pageKey = pageKey;
-        const result = await rpcCall(network, apiKey, "alchemy_getAssetTransfers", [params]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_getAssetTransfers", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -672,7 +672,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const params: Record<string, string> = {};
         if (blockNumber) params.blockNumber = blockNumber;
         if (blockHash) params.blockHash = blockHash;
-        const result = await rpcCall(network, apiKey, "alchemy_getTransactionReceipts", [params]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_getTransactionReceipts", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -701,7 +701,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const tx: Record<string, string> = { from, to };
         if (value) tx.value = value;
         if (data) tx.data = data;
-        const result = await rpcCall(network, apiKey, "alchemy_simulateAssetChanges", [tx]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_simulateAssetChanges", [tx]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -726,7 +726,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const tx: Record<string, string> = { from, to };
         if (value) tx.value = value;
         if (data) tx.data = data;
-        const result = await rpcCall(network, apiKey, "alchemy_simulateExecution", [tx]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_simulateExecution", [tx]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -758,7 +758,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (from) tx.from = from;
         if (value) tx.value = value;
         if (data) tx.data = data;
-        const result = await rpcCall(network, apiKey, "trace_call", [tx, traceType, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "trace_call", [tx, traceType, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -777,7 +777,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, transactionHash }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "trace_transaction", [transactionHash]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "trace_transaction", [transactionHash]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -796,7 +796,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "trace_block", [blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "trace_block", [blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -826,7 +826,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (timeout) opts.timeout = timeout;
         const params: unknown[] = [transactionHash];
         if (Object.keys(opts).length > 0) params.push(opts);
-        const result = await rpcCall(network, apiKey, "debug_traceTransaction", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "debug_traceTransaction", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -858,7 +858,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (tracer) opts.tracer = tracer;
         const params: unknown[] = [tx, blockNumber];
         if (Object.keys(opts).length > 0) params.push(opts);
-        const result = await rpcCall(network, apiKey, "debug_traceCall", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "debug_traceCall", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -884,7 +884,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, userOperation, entryPoint }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "estimateUserOperationGas", [userOperation, entryPoint]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "estimateUserOperationGas", [userOperation, entryPoint]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -903,7 +903,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, userOpHash }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getUserOperationReceipt", [userOpHash]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getUserOperationReceipt", [userOpHash]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -922,7 +922,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, userOpHash }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getUserOperationByHash", [userOpHash]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getUserOperationByHash", [userOpHash]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -940,7 +940,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "supportedEntryPoints", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "supportedEntryPoints", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -963,7 +963,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, id }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getAsset", { id });
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAsset", { id });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -986,7 +986,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { ownerAddress, page };
         if (limit) params.limit = limit;
-        const result = await rpcCall(network, apiKey, "getAssetsByOwner", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetsByOwner", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1014,7 +1014,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (grouping) params.grouping = grouping;
         if (compressed !== undefined) params.compressed = compressed;
         if (limit) params.limit = limit;
-        const result = await rpcCall(network, apiKey, "searchAssets", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "searchAssets", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1037,7 +1037,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { ownerAddress: owner, page };
         if (limit) params.limit = limit;
-        const result = await rpcCall(network, apiKey, "getTokenAccounts", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTokenAccounts", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1060,7 +1060,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, ids }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getAssets", { ids });
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssets", { ids });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1079,7 +1079,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, id }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getAssetProof", { id });
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetProof", { id });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1102,7 +1102,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { authorityAddress, page };
         if (limit) params.limit = limit;
-        const result = await rpcCall(network, apiKey, "getAssetsByAuthority", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetsByAuthority", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1126,7 +1126,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { groupKey, groupValue, page };
         if (limit) params.limit = limit;
-        const result = await rpcCall(network, apiKey, "getAssetsByGroup", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetsByGroup", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1149,7 +1149,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { creatorAddress, page };
         if (limit) params.limit = limit;
-        const result = await rpcCall(network, apiKey, "getAssetsByCreator", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetsByCreator", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1172,7 +1172,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { id, page };
         if (limit) params.limit = limit;
-        const result = await rpcCall(network, apiKey, "getAssetSignatures", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetSignatures", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1195,7 +1195,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { mintAddress: mint, page };
         if (limit) params.limit = limit;
-        const result = await rpcCall(network, apiKey, "getNftEditions", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getNftEditions", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1223,7 +1223,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, transactions }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "alchemy_simulateAssetChangesBundle", [transactions]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_simulateAssetChangesBundle", [transactions]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1247,7 +1247,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, transactions }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "alchemy_simulateExecutionBundle", [transactions]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_simulateExecutionBundle", [transactions]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1270,7 +1270,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [userOperation, entryPoint];
         if (blockNumber) params.push(blockNumber);
-        const result = await rpcCall(network, apiKey, "alchemy_simulateUserOperationAssetChanges", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_simulateUserOperationAssetChanges", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1305,7 +1305,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (toAddress) filter.toAddress = toAddress;
         if (after !== undefined) filter.after = after;
         if (count !== undefined) filter.count = count;
-        const result = await rpcCall(network, apiKey, "trace_filter", [filter]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "trace_filter", [filter]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1325,7 +1325,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, transactionHash, traceType }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "trace_replayTransaction", [transactionHash, traceType]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "trace_replayTransaction", [transactionHash, traceType]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1345,7 +1345,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockNumber, traceType }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "trace_replayBlockTransactions", [blockNumber, traceType]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "trace_replayBlockTransactions", [blockNumber, traceType]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1371,7 +1371,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [blockNumber];
         if (tracer) params.push({ tracer });
-        const result = await rpcCall(network, apiKey, "debug_traceBlockByNumber", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "debug_traceBlockByNumber", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1393,7 +1393,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [blockHash];
         if (tracer) params.push({ tracer });
-        const result = await rpcCall(network, apiKey, "debug_traceBlockByHash", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "debug_traceBlockByHash", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1412,7 +1412,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "debug_getRawBlock", [blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "debug_getRawBlock", [blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1431,7 +1431,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "debug_getRawReceipts", [blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "debug_getRawReceipts", [blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1460,7 +1460,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { policyId, entryPoint, dummySignature, userOperation };
         if (overrides) params.overrides = overrides;
-        const result = await rpcCall(network, apiKey, "alchemy_requestGasAndPaymasterAndData", [params]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_requestGasAndPaymasterAndData", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1481,7 +1481,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, policyId, entryPoint, userOperation }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "alchemy_requestPaymasterAndData", [
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "alchemy_requestPaymasterAndData", [
           { policyId, entryPoint, userOperation },
         ]);
         return toolResult(formatResult(result));
@@ -1513,7 +1513,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const params: Record<string, unknown> = {};
         if (signerAddress) params.signerAddress = signerAddress;
         if (accountAddress) params.accountAddress = accountAddress;
-        const result = await rpcCallGlobal(apiKey, "wallet_requestAccount", [params]);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_requestAccount", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1540,7 +1540,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { from, chainId, calls };
         if (capabilities) params.capabilities = capabilities;
-        const result = await rpcCallGlobal(apiKey, "wallet_prepareCalls", [params]);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_prepareCalls", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1558,7 +1558,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ data }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCallGlobal(apiKey, "wallet_sendPreparedCalls", [{ type: "array", data }]);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_sendPreparedCalls", [{ type: "array", data }]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1576,7 +1576,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ callId }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCallGlobal(apiKey, "wallet_getCallsStatus", [callId]);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_getCallsStatus", [callId]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1596,7 +1596,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
       try {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = chainIds ? [walletAddress, chainIds] : [walletAddress];
-        const result = await rpcCallGlobal(apiKey, "wallet_getCapabilities", params);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_getCapabilities", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1619,7 +1619,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const params: Record<string, unknown> = { signerAddress };
         if (limit) params.limit = limit;
         if (after) params.after = after;
-        const result = await rpcCallGlobal(apiKey, "wallet_listAccounts", [params]);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_listAccounts", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1644,7 +1644,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const key = { type: keyType, publicKey: keyPublicKey };
         const params: Record<string, unknown> = { chainId, key, permissions };
         if (expirySec) params.expirySec = expirySec;
-        const result = await rpcCallGlobal(apiKey, "wallet_createSession", [params]);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_createSession", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1662,7 +1662,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ callId }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCallGlobal(apiKey, "wallet_getCrossChainStatus_v0", [callId]);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_getCrossChainStatus_v0", [callId]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1687,7 +1687,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: Record<string, unknown> = { from, chainId, fromToken, toToken, fromAmount };
         if (slippage) params.slippage = slippage;
-        const result = await rpcCallGlobal(apiKey, "wallet_requestQuote_v0", [params]);
+        const result = await mcpRpcClient.globalRpcCall(apiKey, "wallet_requestQuote_v0", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1719,7 +1719,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const tx: Record<string, string> = { to, data };
         if (from) tx.from = from;
         if (value) tx.value = value;
-        const result = await rpcCall(network, apiKey, "eth_call", [tx, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_call", [tx, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1738,7 +1738,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getBlockReceipts", [blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getBlockReceipts", [blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1759,7 +1759,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, address, storageKeys, blockNumber }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_getProof", [address, storageKeys, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_getProof", [address, storageKeys, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1786,7 +1786,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (from) tx.from = from;
         if (data) tx.data = data;
         if (value) tx.value = value;
-        const result = await rpcCall(network, apiKey, "eth_createAccessList", [tx, blockNumber]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_createAccessList", [tx, blockNumber]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1804,7 +1804,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "eth_blobBaseFee", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "eth_blobBaseFee", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1826,7 +1826,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "rundler_maxPriorityFeePerGas", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "rundler_maxPriorityFeePerGas", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1857,7 +1857,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [pubkey];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getBalance", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getBalance", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1880,7 +1880,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const config: Record<string, unknown> = { encoding };
         if (commitment) config.commitment = commitment;
-        const result = await rpcCall(network, apiKey, "getAccountInfo", [pubkey, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAccountInfo", [pubkey, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1903,7 +1903,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const config: Record<string, unknown> = { encoding };
         if (commitment) config.commitment = commitment;
-        const result = await rpcCall(network, apiKey, "getMultipleAccounts", [pubkeys, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getMultipleAccounts", [pubkeys, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1929,7 +1929,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const config: Record<string, unknown> = { encoding, maxSupportedTransactionVersion };
         if (commitment) config.commitment = commitment;
-        const result = await rpcCall(network, apiKey, "getTransaction", [signature, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTransaction", [signature, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1957,7 +1957,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (before) config.before = before;
         if (until) config.until = until;
         if (commitment) config.commitment = commitment;
-        const result = await rpcCall(network, apiKey, "getSignaturesForAddress", [address, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getSignaturesForAddress", [address, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -1979,7 +1979,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [signatures];
         if (searchTransactionHistory !== undefined) params.push({ searchTransactionHistory });
-        const result = await rpcCall(network, apiKey, "getSignatureStatuses", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getSignatureStatuses", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2005,7 +2005,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (commitment) config.commitment = commitment;
         if (sigVerify !== undefined) config.sigVerify = sigVerify;
         if (replaceRecentBlockhash !== undefined) config.replaceRecentBlockhash = replaceRecentBlockhash;
-        const result = await rpcCall(network, apiKey, "simulateTransaction", [transaction, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "simulateTransaction", [transaction, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2029,7 +2029,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [pubkey];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getTokenAccountBalance", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTokenAccountBalance", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2057,7 +2057,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         else if (programId) filter.programId = programId;
         const config: Record<string, unknown> = { encoding };
         if (commitment) config.commitment = commitment;
-        const result = await rpcCall(network, apiKey, "getTokenAccountsByOwner", [owner, filter, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTokenAccountsByOwner", [owner, filter, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2085,7 +2085,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         else if (programId) filter.programId = programId;
         const config: Record<string, unknown> = { encoding };
         if (commitment) config.commitment = commitment;
-        const result = await rpcCall(network, apiKey, "getTokenAccountsByDelegate", [delegate, filter, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTokenAccountsByDelegate", [delegate, filter, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2107,7 +2107,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [mint];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getTokenSupply", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTokenSupply", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2129,7 +2129,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [mint];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getTokenLargestAccounts", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTokenLargestAccounts", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2158,7 +2158,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const config: Record<string, unknown> = { encoding, transactionDetails, maxSupportedTransactionVersion };
         if (commitment) config.commitment = commitment;
         if (rewards !== undefined) config.rewards = rewards;
-        const result = await rpcCall(network, apiKey, "getBlock", [slot, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getBlock", [slot, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2179,7 +2179,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getBlockHeight", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getBlockHeight", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2198,7 +2198,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, slot }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getBlockTime", [slot]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getBlockTime", [slot]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2222,7 +2222,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const params: unknown[] = [startSlot];
         if (endSlot !== undefined) params.push(endSlot);
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getBlocks", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getBlocks", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2243,7 +2243,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getSlot", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getSlot", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2264,7 +2264,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getLatestBlockhash", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getLatestBlockhash", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2286,7 +2286,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [blockhash];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "isBlockhashValid", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "isBlockhashValid", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2315,7 +2315,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (filters) config.filters = filters;
         if (withContext !== undefined) config.withContext = withContext;
         if (commitment) config.commitment = commitment;
-        const result = await rpcCall(network, apiKey, "getProgramAccounts", [programId, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getProgramAccounts", [programId, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2338,7 +2338,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getEpochInfo", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getEpochInfo", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2359,7 +2359,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getSupply", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getSupply", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2377,7 +2377,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getVersion", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getVersion", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2398,7 +2398,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getTransactionCount", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTransactionCount", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2416,7 +2416,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getInflationRate", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getInflationRate", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2440,7 +2440,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const config: Record<string, unknown> = {};
         if (epoch !== undefined) config.epoch = epoch;
         if (commitment) config.commitment = commitment;
-        const result = await rpcCall(network, apiKey, "getInflationReward", [addresses, config]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getInflationReward", [addresses, config]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2464,7 +2464,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (votePubkey) config.votePubkey = votePubkey;
         if (commitment) config.commitment = commitment;
         const params: unknown[] = Object.keys(config).length > 0 ? [config] : [];
-        const result = await rpcCall(network, apiKey, "getVoteAccounts", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getVoteAccounts", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2488,7 +2488,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (filter) config.filter = filter;
         if (commitment) config.commitment = commitment;
         const params: unknown[] = Object.keys(config).length > 0 ? [config] : [];
-        const result = await rpcCall(network, apiKey, "getLargestAccounts", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getLargestAccounts", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2512,7 +2512,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [message];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getFeeForMessage", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getFeeForMessage", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2532,7 +2532,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
       try {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = addresses ? [addresses] : [];
-        const result = await rpcCall(network, apiKey, "getRecentPrioritizationFees", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getRecentPrioritizationFees", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2554,7 +2554,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [dataLength];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getMinimumBalanceForRentExemption", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getMinimumBalanceForRentExemption", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2581,7 +2581,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (transaction) params.transaction = transaction;
         if (accountKeys) params.accountKeys = accountKeys;
         if (options) params.options = options;
-        const result = await rpcCall(network, apiKey, "getPriorityFeeEstimate", [params]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getPriorityFeeEstimate", [params]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2601,7 +2601,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getClusterNodes", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getClusterNodes", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2627,7 +2627,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (commitment) config.commitment = commitment;
         const params: unknown[] = slot !== undefined ? [slot] : [null];
         if (Object.keys(config).length > 0) params.push(config);
-        const result = await rpcCall(network, apiKey, "getLeaderSchedule", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getLeaderSchedule", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2643,7 +2643,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getMaxRetransmitSlot", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getMaxRetransmitSlot", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2659,7 +2659,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getMaxShredInsertSlot", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getMaxShredInsertSlot", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2679,7 +2679,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
       try {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = limit !== undefined ? [limit] : [];
-        const result = await rpcCall(network, apiKey, "getRecentPerformanceSamples", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getRecentPerformanceSamples", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2695,7 +2695,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getFirstAvailableBlock", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getFirstAvailableBlock", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2711,7 +2711,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getGenesisHash", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getGenesisHash", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2727,7 +2727,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getHighestSnapshotSlot", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getHighestSnapshotSlot", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2743,7 +2743,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getIdentity", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getIdentity", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2764,7 +2764,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getInflationGovernor", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getInflationGovernor", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2780,7 +2780,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "minimumLedgerSlot", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "minimumLedgerSlot", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2803,7 +2803,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [pubkey, lamports];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "requestAirdrop", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "requestAirdrop", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2822,7 +2822,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, slot }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getBlockCommitment", [slot]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getBlockCommitment", [slot]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2846,7 +2846,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (identity) config.identity = identity;
         if (commitment) config.commitment = commitment;
         const params: unknown[] = Object.keys(config).length > 0 ? [config] : [];
-        const result = await rpcCall(network, apiKey, "getBlockProduction", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getBlockProduction", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2867,7 +2867,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getSlotLeader", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getSlotLeader", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2887,7 +2887,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, startSlot, limit }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getSlotLeaders", [startSlot, limit]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getSlotLeaders", [startSlot, limit]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2903,7 +2903,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "getEpochSchedule", []);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getEpochSchedule", []);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2926,7 +2926,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const params: unknown[] = [startSlot, limit];
         if (commitment) params.push({ commitment });
-        const result = await rpcCall(network, apiKey, "getBlocksWithLimit", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getBlocksWithLimit", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2952,7 +2952,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         if (commitment) config.commitment = commitment;
         const params: unknown[] = [pubkey];
         if (Object.keys(config).length > 0) params.push(config);
-        const result = await rpcCall(network, apiKey, "getStakeActivation", params);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getStakeActivation", params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -2971,7 +2971,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
     async ({ network, transactions }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await rpcCall(network, apiKey, "simulateBundle", [{ encodedTransactions: transactions }]);
+        const result = await mcpRpcClient.networkRpcCall(network, apiKey, "simulateBundle", [{ encodedTransactions: transactions }]);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { rpcCall, rpcCallGlobal, RpcApiError, validateNetwork } from "../../src/clients/rpc.js";
+import { mcpRpcClient, RpcApiError, validateNetwork } from "../../src/clients/rpc.js";
 
 describe("RPC client", () => {
   const fetchMock = vi.fn();
@@ -23,8 +23,12 @@ describe("RPC client", () => {
       }),
     );
 
-    await expect(rpcCall("eth-mainnet", "key-123", "eth_blockNumber", [])).resolves.toBe("0x10");
+    await expect(mcpRpcClient.networkRpcCall("eth-mainnet", "key-123", "eth_blockNumber", [])).resolves.toBe("0x10");
 
+    const requestBody = fetchMock.mock.calls[0][1].body;
+    expect(requestBody).toEqual(expect.any(String));
+    const body = JSON.parse(requestBody as string);
+    expect(body).toMatchObject({ jsonrpc: "2.0", method: "eth_blockNumber", params: [] });
     expect(fetchMock).toHaveBeenCalledWith(
       "https://eth-mainnet.g.example.com/v2/key-123",
       expect.objectContaining({
@@ -33,7 +37,6 @@ describe("RPC client", () => {
           "Content-Type": "application/json",
           "x-alchemy-client-breadcrumb": "alchemy-mcp-server",
         },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
         signal: expect.any(AbortSignal),
       }),
     );
@@ -46,7 +49,7 @@ describe("RPC client", () => {
       }),
     );
 
-    await expect(rpcCallGlobal("key-123", "wallet_getCallsStatus", ["0xabc"])).resolves.toEqual({ ok: true });
+    await expect(mcpRpcClient.globalRpcCall("key-123", "wallet_getCallsStatus", ["0xabc"])).resolves.toEqual({ ok: true });
 
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.g.example.com/v2/key-123");
   });
@@ -58,7 +61,7 @@ describe("RPC client", () => {
       }),
     );
 
-    await expect(rpcCall("eth-mainnet", "key-123", "eth_getBalance", [])).rejects.toMatchObject({
+    await expect(mcpRpcClient.networkRpcCall("eth-mainnet", "key-123", "eth_getBalance", [])).rejects.toMatchObject({
       name: "RpcApiError",
       code: -32602,
       message: "bad params",
@@ -68,7 +71,7 @@ describe("RPC client", () => {
   it("maps HTTP failures to RpcApiError with response body text", async () => {
     fetchMock.mockResolvedValueOnce(new Response("rate limited", { status: 429 }));
 
-    await expect(rpcCall("eth-mainnet", "key-123", "eth_blockNumber", [])).rejects.toMatchObject({
+    await expect(mcpRpcClient.networkRpcCall("eth-mainnet", "key-123", "eth_blockNumber", [])).rejects.toMatchObject({
       name: "RpcApiError",
       code: 429,
       message: "rate limited",
@@ -77,7 +80,7 @@ describe("RPC client", () => {
 
   it("rejects unsafe network identifiers before fetch", async () => {
     expect(() => validateNetwork("https://evil.example")).toThrow(RpcApiError);
-    await expect(rpcCall("eth-mainnet.evil", "key-123", "eth_blockNumber", [])).rejects.toMatchObject({
+    await expect(mcpRpcClient.networkRpcCall("eth-mainnet.evil", "key-123", "eth_blockNumber", [])).rejects.toMatchObject({
       code: -32602,
     });
     expect(fetchMock).not.toHaveBeenCalled();

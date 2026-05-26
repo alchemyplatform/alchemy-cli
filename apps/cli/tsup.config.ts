@@ -8,6 +8,7 @@ export default defineConfig({
   outDir: "dist",
   clean: true,
   sourcemap: false,
+  noExternal: ["@alchemy/sdk"],
   banner: {
     js: [
       "#!/usr/bin/env node",

@@ -1,6 +1,14 @@
 import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    alias: [
+      { find: /^@alchemy\/sdk$/, replacement: new URL("../../packages/sdk/src/index.ts", import.meta.url).pathname },
+      { find: "@alchemy/sdk/admin", replacement: new URL("../../packages/sdk/src/admin/index.ts", import.meta.url).pathname },
+      { find: "@alchemy/sdk/data", replacement: new URL("../../packages/sdk/src/data/index.ts", import.meta.url).pathname },
+      { find: "@alchemy/sdk/evm", replacement: new URL("../../packages/sdk/src/evm/index.ts", import.meta.url).pathname },
+    ],
+  },
   test: {
     exclude: [...configDefaults.exclude, "tests/e2e/**", "tests/live/**"],
     coverage: {
