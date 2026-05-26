@@ -1,12 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  DataApiError,
-  dataGet,
-  dataPost,
-  nftBaseUrl,
-  portfolioBaseUrl,
-  pricesBaseUrl,
-} from "../../src/clients/data.js";
+import { DataApiError, mcpDataClient } from "../../src/clients/data.js";
 
 describe("Data API client", () => {
   const fetchMock = vi.fn();
@@ -27,7 +20,7 @@ describe("Data API client", () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ownedNfts: [] }), { status: 200 }));
 
     await expect(
-      dataGet("https://eth-mainnet.g.example.com/nft/v3", "key-123", "/getNFTsForOwner", {
+      mcpDataClient.create("key-123").nft.getNFTsForOwner("eth-mainnet", {
         owner: "0xabc",
         "contractAddresses[]": ["0x1", "0x2"],
         pageKey: undefined,
@@ -51,14 +44,16 @@ describe("Data API client", () => {
   it("posts JSON bodies with Alchemy MCP breadcrumb headers", async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ prices: [] }), { status: 200 }));
 
+    const body = {
+      addresses: [{ network: "eth-mainnet", address: "0xabc" }],
+    };
+
     await expect(
-      dataPost("https://api.g.example.com/prices/v1", "key-123", "/tokens/by-symbol", {
-        symbols: ["ETH"],
-      }),
+      mcpDataClient.create("key-123").prices.getTokenPricesByAddress(body),
     ).resolves.toEqual({ prices: [] });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.g.example.com/prices/v1/key-123/tokens/by-symbol",
+      "https://api.g.example.com/prices/v1/key-123/tokens/by-address",
       expect.objectContaining({
         method: "POST",
         headers: {
@@ -66,7 +61,7 @@ describe("Data API client", () => {
           Accept: "application/json",
           "x-alchemy-client-breadcrumb": "alchemy-mcp-server",
         },
-        body: JSON.stringify({ symbols: ["ETH"] }),
+        body: JSON.stringify(body),
         signal: expect.any(AbortSignal),
       }),
     );
@@ -75,17 +70,24 @@ describe("Data API client", () => {
   it("maps non-2xx responses to DataApiError", async () => {
     fetchMock.mockResolvedValueOnce(new Response("not enabled", { status: 403 }));
 
-    await expect(dataGet("https://api.g.example.com/data/v1", "key-123", "/assets/tokens")).rejects.toMatchObject({
+    const request = mcpDataClient.create("key-123").portfolio.getTokensByAddress({
+      addresses: [{ address: "0xabc" }],
+    });
+
+    await expect(request).rejects.toThrow(DataApiError);
+    await expect(request).rejects.toMatchObject({
       name: "DataApiError",
       status: 403,
       message: "not enabled",
     });
   });
 
-  it("uses gateway-domain helpers and validates NFT network IDs", () => {
-    expect(nftBaseUrl("base-mainnet")).toBe("https://base-mainnet.g.example.com/nft/v3");
-    expect(pricesBaseUrl()).toBe("https://api.g.example.com/prices/v1");
-    expect(portfolioBaseUrl()).toBe("https://api.g.example.com/data/v1");
-    expect(() => nftBaseUrl("base-mainnet.example.com")).toThrow("Invalid network identifier");
+  it("validates NFT network IDs before fetch", () => {
+    expect(() =>
+      mcpDataClient.create("key-123").nft.getNFTsForOwner("base-mainnet.example.com", {
+        owner: "0xabc",
+      }),
+    ).toThrow("Invalid network identifier");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

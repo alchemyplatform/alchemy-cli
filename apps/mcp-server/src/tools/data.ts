@@ -1,6 +1,6 @@
 import type { InstrumentedServer } from "../server.js";
 import { z } from "zod";
-import { dataGet, dataPost, nftBaseUrl, pricesBaseUrl, portfolioBaseUrl } from "../clients/data.js";
+import { mcpDataClient } from "../clients/data.js";
 import { getApiKey, toolResult, handleToolError, formatResult } from "./helpers.js";
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
@@ -38,7 +38,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         if (orderBy) params.orderBy = orderBy;
         if (pageKey) params.pageKey = pageKey;
         if (pageSize) params.pageSize = String(pageSize);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getNFTsForOwner", params);
+        const result = await mcpDataClient.create(apiKey).nft.getNFTsForOwner(network, params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -66,7 +66,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         };
         if (startToken) params.startToken = startToken;
         if (limit) params.limit = String(limit);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getNFTsForContract", params);
+        const result = await mcpDataClient.create(apiKey).nft.getNFTsForContract(network, params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -91,7 +91,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         const params: Record<string, string | undefined> = { contractAddress, tokenId };
         if (tokenType) params.tokenType = tokenType;
         if (refreshCache) params.refreshCache = String(refreshCache);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getNFTMetadata", params);
+        const result = await mcpDataClient.create(apiKey).nft.getNFTMetadata(network, params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -117,7 +117,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         const apiKey = await getApiKey(authInfo);
         const body: Record<string, unknown> = { tokens };
         if (refreshCache) body.refreshCache = refreshCache;
-        const result = await dataPost(nftBaseUrl(network), apiKey, "/getNFTMetadataBatch", body);
+        const result = await mcpDataClient.create(apiKey).nft.getNFTMetadataBatch(network, body);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -136,7 +136,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, contractAddress }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getContractMetadata", { contractAddress });
+        const result = await mcpDataClient.create(apiKey).nft.getContractMetadata(network, { contractAddress });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -156,7 +156,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, contractAddress, tokenId }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getOwnersForNFT", { contractAddress, tokenId });
+        const result = await mcpDataClient.create(apiKey).nft.getOwnersForNFT(network, { contractAddress, tokenId });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -180,7 +180,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         const params: Record<string, string | undefined> = { contractAddress };
         if (withTokenBalances) params.withTokenBalances = String(withTokenBalances);
         if (pageKey) params.pageKey = pageKey;
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getOwnersForContract", params);
+        const result = await mcpDataClient.create(apiKey).nft.getOwnersForContract(network, params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -199,7 +199,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, contractAddress }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getFloorPrice", { contractAddress });
+        const result = await mcpDataClient.create(apiKey).nft.getFloorPrice(network, { contractAddress });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -218,7 +218,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, contractAddress }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/isSpamContract", { contractAddress });
+        const result = await mcpDataClient.create(apiKey).nft.isSpamContract(network, { contractAddress });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -237,7 +237,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, query }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/searchContractMetadata", { query });
+        const result = await mcpDataClient.create(apiKey).nft.searchContractMetadata(network, { query });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -265,7 +265,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         if (order) params.order = order;
         if (pageKey) params.pageKey = pageKey;
         if (limit) params.limit = String(limit);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getNFTSales", params);
+        const result = await mcpDataClient.create(apiKey).nft.getNFTSales(network, params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -291,7 +291,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         if (excludeFilters) params["excludeFilters[]"] = excludeFilters;
         if (pageKey) params.pageKey = pageKey;
         if (pageSize) params.pageSize = String(pageSize);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getContractsForOwner", params);
+        const result = await mcpDataClient.create(apiKey).nft.getContractsForOwner(network, params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -323,7 +323,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         if (collectionSlug) params.collectionSlug = collectionSlug;
         if (startToken) params.startToken = startToken;
         if (limit) params.limit = String(limit);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getNFTsForCollection", params);
+        const result = await mcpDataClient.create(apiKey).nft.getNFTsForCollection(network, params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -342,7 +342,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, collectionSlug }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getCollectionMetadata", { collectionSlug });
+        const result = await mcpDataClient.create(apiKey).nft.getCollectionMetadata(network, { collectionSlug });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -361,7 +361,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, contractAddresses }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataPost(nftBaseUrl(network), apiKey, "/getContractMetadataBatch", { contractAddresses });
+        const result = await mcpDataClient.create(apiKey).nft.getContractMetadataBatch(network, { contractAddresses });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -381,7 +381,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getSpamContracts", {});
+        const result = await mcpDataClient.create(apiKey).nft.getSpamContracts(network);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -401,7 +401,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, contractAddress, tokenId }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/isAirdropNFT", { contractAddress, tokenId });
+        const result = await mcpDataClient.create(apiKey).nft.isAirdropNFT(network, { contractAddress, tokenId });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -420,7 +420,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, contractAddress }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/summarizeNFTAttributes", { contractAddress });
+        const result = await mcpDataClient.create(apiKey).nft.summarizeNFTAttributes(network, { contractAddress });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -440,7 +440,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, wallet, contractAddress }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/isHolderOfContract", { wallet, contractAddress });
+        const result = await mcpDataClient.create(apiKey).nft.isHolderOfContract(network, { wallet, contractAddress });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -460,7 +460,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ network, contractAddress, tokenId }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/computeRarity", { contractAddress, tokenId });
+        const result = await mcpDataClient.create(apiKey).nft.computeRarity(network, { contractAddress, tokenId });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -492,7 +492,7 @@ export function registerDataTools(server: InstrumentedServer): void {
         if (includeFilters) params["includeFilters[]"] = includeFilters;
         if (pageKey) params.pageKey = pageKey;
         if (pageSize) params.pageSize = String(pageSize);
-        const result = await dataGet(nftBaseUrl(network), apiKey, "/getCollectionsForOwner", params);
+        const result = await mcpDataClient.create(apiKey).nft.getCollectionsForOwner(network, params);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -516,7 +516,7 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ symbols }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const result = await dataGet(pricesBaseUrl(), apiKey, "/tokens/by-symbol", { symbols });
+        const result = await mcpDataClient.create(apiKey).prices.getTokenPricesBySymbol({ symbols });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -538,7 +538,7 @@ export function registerDataTools(server: InstrumentedServer): void {
           const idx = a.indexOf(":");
           return { network: a.slice(0, idx), address: a.slice(idx + 1) };
         });
-        const result = await dataPost(pricesBaseUrl(), apiKey, "/tokens/by-address", { addresses: parsed });
+        const result = await mcpDataClient.create(apiKey).prices.getTokenPricesByAddress({ addresses: parsed });
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -568,7 +568,7 @@ export function registerDataTools(server: InstrumentedServer): void {
           body.network = network;
           body.address = address;
         }
-        const result = await dataPost(pricesBaseUrl(), apiKey, "/tokens/historical", body);
+        const result = await mcpDataClient.create(apiKey).prices.getHistoricalTokenPrices(body);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -591,10 +591,9 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ address, networks }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const entry: Record<string, unknown> = { address };
-        if (networks) entry.networks = networks;
-        const body: Record<string, unknown> = { addresses: [entry] };
-        const result = await dataPost(portfolioBaseUrl(), apiKey, "/assets/tokens/by-address", body);
+        const entry = { address, ...(networks && { networks }) };
+        const body = { addresses: [entry] };
+        const result = await mcpDataClient.create(apiKey).portfolio.getTokensByAddress(body);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -613,10 +612,9 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ address, networks }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const entry: Record<string, unknown> = { address };
-        if (networks) entry.networks = networks;
-        const body: Record<string, unknown> = { addresses: [entry] };
-        const result = await dataPost(portfolioBaseUrl(), apiKey, "/assets/tokens/balances/by-address", body);
+        const entry = { address, ...(networks && { networks }) };
+        const body = { addresses: [entry] };
+        const result = await mcpDataClient.create(apiKey).portfolio.getTokenBalancesByAddress(body);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -635,10 +633,9 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ address, networks }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const entry: Record<string, unknown> = { address };
-        if (networks) entry.networks = networks;
-        const body: Record<string, unknown> = { addresses: [entry] };
-        const result = await dataPost(portfolioBaseUrl(), apiKey, "/assets/nfts/by-address", body);
+        const entry = { address, ...(networks && { networks }) };
+        const body = { addresses: [entry] };
+        const result = await mcpDataClient.create(apiKey).portfolio.getNFTsByAddress(body);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
@@ -657,10 +654,9 @@ export function registerDataTools(server: InstrumentedServer): void {
     async ({ address, networks }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
-        const entry: Record<string, unknown> = { address };
-        if (networks) entry.networks = networks;
-        const body: Record<string, unknown> = { addresses: [entry] };
-        const result = await dataPost(portfolioBaseUrl(), apiKey, "/assets/nfts/contracts/by-address", body);
+        const entry = { address, ...(networks && { networks }) };
+        const body = { addresses: [entry] };
+        const result = await mcpDataClient.create(apiKey).portfolio.getNFTContractsByAddress(body);
         return toolResult(formatResult(result));
       } catch (err) {
         return handleToolError(err);
