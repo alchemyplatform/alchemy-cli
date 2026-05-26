@@ -82,7 +82,12 @@ describe("app tools", () => {
     expect(getApp).toHaveBeenCalledWith("user-token", "app_123");
     expect(redisSet).toHaveBeenCalledWith(
       "app:hash:user-token",
-      JSON.stringify({ apiKey: "abcdefghijklmnop", appId: "app_123", appName: "Test App" }),
+      JSON.stringify({
+        apiKey: "abcdefghijklmnop",
+        webhookApiKey: "whsec",
+        appId: "app_123",
+        appName: "Test App",
+      }),
       "EX",
       90 * 24 * 60 * 60,
     );

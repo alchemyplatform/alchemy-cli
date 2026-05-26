@@ -1,4 +1,5 @@
 import {
+  createAlchemyAdminClient,
   createApp as sharedCreateApp,
   deleteApp as sharedDeleteApp,
   getApp as sharedGetApp,
@@ -24,6 +25,8 @@ export { AdminApiError } from "@alchemy/sdk/admin";
 const MCP_CLIENT_OPTIONS = {
   breadcrumb: "alchemy-mcp-server",
 } as const satisfies AdminClientOptions;
+
+export const mcpAdminClient = createAlchemyAdminClient(MCP_CLIENT_OPTIONS);
 
 export async function getApp(authToken: string, appId: string) {
   return sharedGetApp(authToken, appId, MCP_CLIENT_OPTIONS);

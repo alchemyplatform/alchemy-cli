@@ -81,7 +81,12 @@ export function registerAppTools(server: InstrumentedServer): void {
         const APP_CACHE_TTL_SECONDS = 90 * 24 * 60 * 60; // 90 days
         await redis.set(
           `${REDIS_APP_PREFIX}${hashToken(token)}`,
-          JSON.stringify({ apiKey: app.apiKey, appId: app.id, appName: app.name }),
+          JSON.stringify({
+            apiKey: app.apiKey,
+            webhookApiKey: app.webhookApiKey,
+            appId: app.id,
+            appName: app.name,
+          }),
           "EX",
           APP_CACHE_TTL_SECONDS,
         );

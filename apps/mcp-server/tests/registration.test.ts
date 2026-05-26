@@ -19,6 +19,8 @@ describe("MCP registration", () => {
     expect(tools).toContain("ethGetBalance");
     expect(tools).toContain("getNFTsForOwner");
     expect(tools).toContain("getTokenBalances");
+    expect(tools).toContain("list_webhooks");
+    expect(tools).toContain("list_gas_policies");
     expect(tools.length).toBeGreaterThan(100);
     expect(new Set(tools).size).toBe(tools.length);
   });

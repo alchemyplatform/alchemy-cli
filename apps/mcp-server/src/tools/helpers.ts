@@ -6,22 +6,37 @@ import { hashToken } from "../auth.js";
 
 const REDIS_APP_PREFIX = "app:";
 
+export interface SelectedApp {
+  apiKey: string;
+  webhookApiKey?: string;
+  appId?: string;
+  appName?: string;
+}
+
 export function requireAuth(authInfo: { token?: string } | undefined): string {
   const token = authInfo?.token;
   if (!token) throw new AuthRequiredError();
   return token;
 }
 
-export async function getApiKey(
+export async function getSelectedApp(
   authInfo: { token?: string } | undefined,
-): Promise<string> {
+): Promise<SelectedApp> {
   const token = requireAuth(authInfo);
   const redis = getRedisClient();
   const cached = await redis.get(`${REDIS_APP_PREFIX}${hashToken(token)}`);
   if (!cached) {
     throw new AppNotSelectedError();
   }
-  const { apiKey } = JSON.parse(cached) as { apiKey: string };
+  const selectedApp = JSON.parse(cached) as SelectedApp;
+  if (!selectedApp.apiKey) throw new AppNotSelectedError();
+  return selectedApp;
+}
+
+export async function getApiKey(
+  authInfo: { token?: string } | undefined,
+): Promise<string> {
+  const { apiKey } = await getSelectedApp(authInfo);
   return apiKey;
 }
 
@@ -41,6 +56,13 @@ export class AppNotSelectedError extends Error {
       "Do NOT auto-select when multiple apps are available.",
     );
     this.name = "AppNotSelectedError";
+  }
+}
+
+export class WebhookApiKeyUnavailableError extends Error {
+  constructor(appId: string) {
+    super(`Webhook API key is unavailable for app ${appId}. Call get_app to verify the app exists and has webhook access.`);
+    this.name = "WebhookApiKeyUnavailableError";
   }
 }
 
@@ -77,6 +99,9 @@ export function handleToolError(err: unknown) {
     return toolError(err.message);
   }
   if (err instanceof AppNotSelectedError) {
+    return toolError(err.message);
+  }
+  if (err instanceof WebhookApiKeyUnavailableError) {
     return toolError(err.message);
   }
   if (err instanceof AdminApiError) {
