@@ -261,6 +261,90 @@ describe("wallet command", () => {
     });
   });
 
+  it("wallet connect defaults to session mode in non-interactive mode", async () => {
+    const exitWithError = vi.fn();
+    const promptSelect = vi.fn();
+    const createRemoteWalletSessionRequest = vi.fn().mockRejectedValue(new Error("stop after session start"));
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/auth.js", () => ({
+      openBrowser: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/wallet-api.js", () => ({
+      createRemoteWalletSession: vi.fn(),
+      createRemoteWalletSessionRequest,
+      disconnectRemoteWalletSession: vi.fn(),
+      getRemoteWalletSession: vi.fn(),
+      getRemoteWalletSessionRequest: vi.fn(),
+      getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      getOrCreateWalletClientInstance: () => ({
+        id: "11111111-1111-4111-8111-111111111111",
+      }),
+      getOrCreateWalletClientInstanceId: () => "11111111-1111-4111-8111-111111111111",
+      load: () => ({}),
+      save: vi.fn(),
+      configDir: () => "/tmp/alchemy",
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      createPendingSession: () => ({
+        sessionId: "local-session",
+        status: "pending",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        expiresAt: "2026-04-21T00:00:00.000Z",
+        envelopeVersion: "v1",
+        publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+        privateKeyPem: "pem",
+      }),
+      loadSession: () => null,
+      clearSession: vi.fn(),
+      updateSession: vi.fn(),
+      isSessionValid: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect,
+      promptConfirm: vi.fn(),
+      promptText: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "connect"], {
+      from: "node",
+    });
+
+    expect(promptSelect).not.toHaveBeenCalled();
+    expect(createRemoteWalletSessionRequest).toHaveBeenCalledWith("auth-token", expect.objectContaining({
+      chains: ["evm", "solana"],
+    }));
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      message: "stop after session start",
+    }));
+  });
+
   it("wallet address prints both EVM and Solana addresses", async () => {
     const printJSON = vi.fn();
     const exitWithError = vi.fn();

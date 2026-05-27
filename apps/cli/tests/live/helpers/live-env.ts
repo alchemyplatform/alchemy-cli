@@ -78,6 +78,8 @@ export interface LiveConfig {
   evmSendAmount: string;
   evmDepositAmount: string;
   solanaSendAmount: string;
+  solanaSplMint?: string;
+  solanaSplSendAmount?: string;
 }
 
 export interface LiveBalanceStatus {
@@ -117,6 +119,8 @@ export async function loadLiveConfig(): Promise<LiveConfig> {
     evmSendAmount: optionalEnv("ALCHEMY_LIVE_EVM_SEND_AMOUNT", "0.000001"),
     evmDepositAmount: optionalEnv("ALCHEMY_LIVE_EVM_DEPOSIT_AMOUNT", "0.000001"),
     solanaSendAmount: optionalEnv("ALCHEMY_LIVE_SOLANA_SEND_AMOUNT", "0.001"),
+    solanaSplMint: process.env.ALCHEMY_LIVE_SOLANA_SPL_MINT?.trim() || undefined,
+    solanaSplSendAmount: process.env.ALCHEMY_LIVE_SOLANA_SPL_SEND_AMOUNT?.trim() || undefined,
   };
 }
 

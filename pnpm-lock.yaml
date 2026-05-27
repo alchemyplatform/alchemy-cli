@@ -7,6 +7,8 @@ settings:
 overrides:
   typebox: 1.0.81
 
+packageExtensionsChecksum: sha256-JlgBy5eOsMXUAhbSwm99h8EjlDrrNUWco4Se8SZwSLk=
+
 importers:
 
   .:
@@ -2549,6 +2551,7 @@ snapshots:
   '@alchemy/common@5.0.0-beta.4(viem@2.47.10(typescript@5.9.3)(zod@4.3.6))':
     dependencies:
       viem: 2.47.10(typescript@5.9.3)(zod@4.3.6)
+      zod: 3.25.76
 
   '@alchemy/wallet-api-types@0.1.0-alpha.27(typescript@5.9.3)(zod@4.3.6)':
     dependencies:

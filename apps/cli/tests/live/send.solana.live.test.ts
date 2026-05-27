@@ -3,6 +3,10 @@ import { parseJSON, requireLiveConfig, runLiveSolanaCLI } from "./helpers/live-h
 import type { LiveConfig } from "./helpers/live-env.js";
 
 const sponsoredIt = process.env.ALCHEMY_LIVE_SOLANA_GAS_POLICY_ID?.trim() ? it : it.skip;
+const splIt = process.env.ALCHEMY_LIVE_SOLANA_SPL_MINT?.trim() &&
+  process.env.ALCHEMY_LIVE_SOLANA_SPL_SEND_AMOUNT?.trim()
+  ? it
+  : it.skip;
 
 interface SolanaSendPayload {
   from: string;
@@ -63,6 +67,43 @@ describe("live Solana send", () => {
       network: config.solanaNetwork,
       sponsored: true,
     });
+    expect(payload.status === "confirmed" || payload.status === "pending").toBe(true);
+    expect(payload.signature).toMatch(/^[1-9A-HJ-NP-Za-km-z]+$/);
+  });
+
+  splIt("sends a dust SPL token transfer on devnet", async () => {
+    const result = await runLiveSolanaCLI(
+      [
+        "send",
+        config.solanaRecipient,
+        config.solanaSplSendAmount!,
+        "--token",
+        config.solanaSplMint!,
+      ],
+      config,
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+
+    const payload = parseJSON<SolanaSendPayload & {
+      tokenAddress: string;
+      sourceTokenAccount: string;
+      destinationTokenAccount: string;
+      createdDestinationTokenAccount: boolean;
+    }>(result.stdout);
+    expect(payload).toMatchObject({
+      from: config.solanaAddress,
+      to: config.solanaRecipient,
+      amount: config.solanaSplSendAmount,
+      token: config.solanaSplMint,
+      tokenAddress: config.solanaSplMint,
+      network: config.solanaNetwork,
+      sponsored: false,
+    });
+    expect(payload.sourceTokenAccount).toMatch(/^[1-9A-HJ-NP-Za-km-z]+$/);
+    expect(payload.destinationTokenAccount).toMatch(/^[1-9A-HJ-NP-Za-km-z]+$/);
+    expect(typeof payload.createdDestinationTokenAccount).toBe("boolean");
     expect(payload.status === "confirmed" || payload.status === "pending").toBe(true);
     expect(payload.signature).toMatch(/^[1-9A-HJ-NP-Za-km-z]+$/);
   });

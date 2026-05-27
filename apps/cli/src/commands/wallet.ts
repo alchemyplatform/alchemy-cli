@@ -1011,7 +1011,7 @@ async function runConnectFlow(
   // Validate flag coherence.
   const force = Boolean(opts.force);
   const importPath = opts.import;
-  let mode: "session" | "local" | undefined;
+  let mode: WalletSource | undefined;
 
   if (opts.mode === "session" || opts.mode === "local") {
     mode = opts.mode;
@@ -1036,21 +1036,20 @@ async function runConnectFlow(
   // Prompt for mode if unset and interactive.
   if (!mode) {
     if (!isInteractiveAllowed(program)) {
-      throw errInvalidArgs(
-        "Specify `--mode <session|local>` in non-interactive mode.",
-      );
+      mode = "session";
+    } else {
+      const choice = await promptSelect<WalletSource>({
+        message: "Choose a wallet to connect",
+        options: [
+          { value: "session", label: "Session wallet", hint: "Recommended — Alchemy-managed, more secure" },
+          { value: "local", label: "Local wallet", hint: "Private key stored on this machine" },
+        ],
+        initialValue: "session",
+        cancelMessage: "Wallet connect cancelled.",
+      });
+      if (choice === null) throw new WalletConnectInterruptedError();
+      mode = choice;
     }
-    const choice = await promptSelect<"session" | "local">({
-      message: "Choose a wallet to connect",
-      options: [
-        { value: "session", label: "Session wallet", hint: "Recommended — Alchemy-managed, more secure" },
-        { value: "local", label: "Local wallet", hint: "Private key stored on this machine" },
-      ],
-      initialValue: "session",
-      cancelMessage: "Wallet connect cancelled.",
-    });
-    if (choice === null) throw new WalletConnectInterruptedError();
-    mode = choice;
   }
 
   if (mode === "session") {

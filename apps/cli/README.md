@@ -137,7 +137,8 @@ Per-command override: pass `--signer <session\|local>` to `evm send`, `evm appro
 | `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"'` |
 | `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}'` |
 | `solana network list` | Lists networks from the Solana namespace | `alchemy solana network list --search solana` |
-| `solana send <to> <amount>` | Sends SOL to an address | `alchemy solana send <pubkey> 0.1` |
+| `solana send <to> <amount>` | Sends SOL or SPL tokens to an address | `alchemy solana send <pubkey> 0.1` |
+| `solana send <to> <amount> --token <mint>` | Sends an SPL token and creates the recipient ATA if needed | `alchemy solana send <pubkey> 10 --token <mint>` |
 | `solana program accounts/account/show` | Inspects Solana program accounts and account metadata | `alchemy solana program accounts <program-id>` |
 | `solana delegate approve/revoke` | Approves or revokes SPL token delegates | `alchemy solana delegate approve --token-account <addr> --mint <mint> --delegate <addr> --amount 1 --decimals 6` |
 | `solana status [id]` | Checks Solana transaction or operation status | `alchemy solana status <signature>` |
@@ -254,7 +255,7 @@ Additional env vars:
 | `wallet connect` | `--mode <session\|local>`, `--chain <evm\|solana\|both>`, `--import <path>`, `--instance-name <name>`, `--force` |
 | `wallet status` | `--verify` |
 | `wallet qr` | `--type <evm\|solana>`, `--solana` |
-| `solana send` | `--fee-sponsored`, `--fee-policy-id <id>`, `--signer <local>` (session signing is not yet supported for Solana) |
+| `solana send` | `--token <mint>`, `--dry-run`, `--fail-if-associated-token-account-missing`, `--from-token-account <address>`, `--recipient-token-account <address>`, `--fee-sponsored`, `--fee-policy-id <id>`, `--signer <session\|local>` |
 | `solana program accounts` | `--filters <json>`, `--encoding <encoding>`, `--limit <n>` |
 | `solana delegate approve` | `--token-account <address>`, `--mint <address>`, `--delegate <address>`, `--amount <number>`, `--decimals <n>`, `--fee-sponsored`, `--fee-policy-id <id>` |
 | `solana delegate revoke` | `--token-account <address>`, `--fee-sponsored`, `--fee-policy-id <id>` |

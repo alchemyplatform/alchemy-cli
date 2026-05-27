@@ -38,6 +38,8 @@ The package scripts automatically load `.env.local` when it exists, so you do no
 - `ALCHEMY_LIVE_EVM_SEND_AMOUNT` default: `0.000001`
 - `ALCHEMY_LIVE_EVM_DEPOSIT_AMOUNT` default: `0.000001`
 - `ALCHEMY_LIVE_SOLANA_SEND_AMOUNT` default: `0.001`
+- `ALCHEMY_LIVE_SOLANA_SPL_MINT` enables optional SPL token send tests
+- `ALCHEMY_LIVE_SOLANA_SPL_SEND_AMOUNT` amount for optional SPL token send tests
 
 ## Expected EVM Test Contract
 

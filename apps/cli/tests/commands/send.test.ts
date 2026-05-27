@@ -640,7 +640,232 @@ describe("performSolanaSend", () => {
     }));
   });
 
-  it("rejects SPL token transfers for now", async () => {
+  it("rejects SPL-only token account flags when --token is omitted", async () => {
+    vi.doUnmock("../../src/commands/send-solana.js");
+
+    vi.doMock("@solana/kit", () => ({
+      address: (value: string) => value,
+    }));
+
+    const { performSolanaSend } = await import("../../src/commands/send-solana.js");
+
+    await expect(
+      performSolanaSend({} as Command, "SoRecipientAddr", "0.5", undefined, {
+        fromTokenAccount: "SourceAta",
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.INVALID_ARGS,
+      message: expect.stringContaining("--from-token-account requires --token <mint>"),
+    });
+
+    await expect(
+      performSolanaSend({} as Command, "SoRecipientAddr", "0.5", undefined, {
+        recipientTokenAccount: "DestAta",
+        failIfAssociatedTokenAccountMissing: true,
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.INVALID_ARGS,
+      message: expect.stringContaining("--recipient-token-account, --fail-if-associated-token-account-missing require --token <mint>"),
+    });
+  });
+
+  it("sends an SPL token transfer and creates the recipient ATA by default", async () => {
+    vi.doUnmock("../../src/commands/send-solana.js");
+
+    const printJSON = vi.fn();
+    const buildAndSendSolanaTransaction = vi.fn().mockResolvedValue({
+      signature: "spl-sig",
+      fromAddress: "SoSignerAddr",
+    });
+    const createIx = { kind: "create-ata-ix" };
+    const transferIx = { kind: "transfer-checked-ix" };
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveActiveSigner: vi.fn(),
+      resolveNetwork: () => "solana-devnet",
+      resolveSolanaNetwork: () => "solana-devnet",
+      resolveGasSponsored: () => false,
+      resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
+      clientFromFlags: () => ({ network: "solana-devnet" }),
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateSolanaAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "SOL",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+    }));
+    vi.doMock("../../src/lib/solana-tx.js", () => ({
+      parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),
+      createSolanaSignerFromKeyBytes: async () => ({ address: "SoSignerAddr" }),
+      buildSolTransferInstruction: vi.fn(),
+      buildAndSendSolanaTransaction,
+      waitForSolanaConfirmation: vi.fn().mockResolvedValue(true),
+      SOL_DECIMALS: 9,
+    }));
+    vi.doMock("../../src/lib/solana-token.js", () => ({
+      fetchSplMintInfo: vi.fn().mockResolvedValue({
+        mint: "MintAddr",
+        decimals: 6,
+        tokenProgramAddress: "TokenProgram",
+      }),
+      deriveAssociatedTokenAccount: vi.fn()
+        .mockResolvedValueOnce("SourceAta")
+        .mockResolvedValueOnce("DestAta"),
+      fetchSplTokenAccountInfo: vi.fn()
+        .mockResolvedValueOnce({
+          address: "SourceAta",
+          mint: "MintAddr",
+          owner: "SoSignerAddr",
+          tokenProgramAddress: "TokenProgram",
+        })
+        .mockResolvedValueOnce(null),
+      assertTokenAccountMatches: vi.fn(),
+      buildCreateAssociatedTokenAccountIdempotentInstruction: vi.fn().mockReturnValue(createIx),
+      buildSplTokenTransferCheckedInstruction: vi.fn().mockReturnValue(transferIx),
+    }));
+    vi.doMock("@solana/kit", () => ({
+      address: (value: string) => value,
+    }));
+
+    const { performSolanaSend } = await import("../../src/commands/send-solana.js");
+    await performSolanaSend({} as Command, "SoRecipientAddr", "0.5", "MintAddr");
+
+    expect(buildAndSendSolanaTransaction).toHaveBeenCalledWith({
+      client: { network: "solana-devnet" },
+      instructions: [createIx, transferIx],
+      senderKeyBytes: Uint8Array.from({ length: 64 }, (_, i) => i),
+      sponsored: false,
+      gasPolicyId: undefined,
+    });
+    expect(printJSON).toHaveBeenCalledWith({
+      from: "SoSignerAddr",
+      to: "SoRecipientAddr",
+      amount: "0.5",
+      token: "MintAddr",
+      tokenAddress: "MintAddr",
+      network: "solana-devnet",
+      sponsored: false,
+      tokenProgramAddress: "TokenProgram",
+      sourceTokenAccount: "SourceAta",
+      destinationTokenAccount: "DestAta",
+      createdDestinationTokenAccount: true,
+      signature: "spl-sig",
+      status: "confirmed",
+    });
+  });
+
+  it("previews an SPL token transfer without signing or sending", async () => {
+    vi.doUnmock("../../src/commands/send-solana.js");
+
+    const printJSON = vi.fn();
+    const buildAndSendSolanaTransaction = vi.fn();
+    const transferIx = { kind: "transfer-checked-ix" };
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveSolanaWalletKey: () => JSON.stringify(Array.from({ length: 64 }, (_, i) => i)),
+      resolveActiveSigner: vi.fn(),
+      resolveNetwork: () => "solana-devnet",
+      resolveSolanaNetwork: () => "solana-devnet",
+      resolveGasSponsored: () => false,
+      resolveGasPolicyId: () => undefined,
+      resolveSolanaFeeSponsored: () => false,
+      resolveSolanaFeePolicyId: () => undefined,
+      clientFromFlags: () => ({ network: "solana-devnet" }),
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      validateSolanaAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "SOL",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+    }));
+    vi.doMock("../../src/lib/solana-tx.js", () => ({
+      parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),
+      createSolanaSignerFromKeyBytes: async () => ({ address: "SoSignerAddr" }),
+      buildSolTransferInstruction: vi.fn(),
+      buildAndSendSolanaTransaction,
+      waitForSolanaConfirmation: vi.fn(),
+      SOL_DECIMALS: 9,
+    }));
+    vi.doMock("../../src/lib/solana-token.js", () => ({
+      fetchSplMintInfo: vi.fn().mockResolvedValue({
+        mint: "MintAddr",
+        decimals: 6,
+        tokenProgramAddress: "TokenProgram",
+      }),
+      deriveAssociatedTokenAccount: vi.fn()
+        .mockResolvedValueOnce("SourceAta")
+        .mockResolvedValueOnce("DestAta"),
+      fetchSplTokenAccountInfo: vi.fn()
+        .mockResolvedValueOnce({
+          address: "SourceAta",
+          mint: "MintAddr",
+          owner: "SoSignerAddr",
+          tokenProgramAddress: "TokenProgram",
+        })
+        .mockResolvedValueOnce({
+          address: "DestAta",
+          mint: "MintAddr",
+          owner: "SoRecipientAddr",
+          tokenProgramAddress: "TokenProgram",
+        }),
+      assertTokenAccountMatches: vi.fn(),
+      buildCreateAssociatedTokenAccountIdempotentInstruction: vi.fn(),
+      buildSplTokenTransferCheckedInstruction: vi.fn().mockReturnValue(transferIx),
+    }));
+    vi.doMock("@solana/kit", () => ({
+      address: (value: string) => value,
+    }));
+
+    const { performSolanaSend } = await import("../../src/commands/send-solana.js");
+    await performSolanaSend({} as Command, "SoRecipientAddr", "0.5", "MintAddr", {
+      dryRun: true,
+    });
+
+    expect(buildAndSendSolanaTransaction).not.toHaveBeenCalled();
+    expect(printJSON).toHaveBeenCalledWith({
+      dryRun: true,
+      action: "solana-send",
+      from: "SoSignerAddr",
+      to: "SoRecipientAddr",
+      amount: "0.5",
+      token: "MintAddr",
+      tokenAddress: "MintAddr",
+      network: "solana-devnet",
+      sponsored: false,
+      tokenProgramAddress: "TokenProgram",
+      sourceTokenAccount: "SourceAta",
+      destinationTokenAccount: "DestAta",
+      createdDestinationTokenAccount: false,
+      instructions: ["transferChecked"],
+    });
+  });
+
+  it("fails when recipient ATA is missing and automatic creation is disabled", async () => {
     vi.doUnmock("../../src/commands/send-solana.js");
 
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -672,20 +897,46 @@ describe("performSolanaSend", () => {
       successBadge: () => "✓",
     }));
     vi.doMock("../../src/lib/solana-tx.js", () => ({
-      parseSolanaKeyBytes: vi.fn(),
-      createSolanaSignerFromKeyBytes: vi.fn(),
+      parseSolanaKeyBytes: () => Uint8Array.from({ length: 64 }, (_, i) => i),
+      createSolanaSignerFromKeyBytes: async () => ({ address: "SoSignerAddr" }),
       buildSolTransferInstruction: vi.fn(),
       buildAndSendSolanaTransaction: vi.fn(),
       waitForSolanaConfirmation: vi.fn(),
       SOL_DECIMALS: 9,
+    }));
+    vi.doMock("../../src/lib/solana-token.js", () => ({
+      fetchSplMintInfo: vi.fn().mockResolvedValue({
+        mint: "MintAddr",
+        decimals: 6,
+        tokenProgramAddress: "TokenProgram",
+      }),
+      deriveAssociatedTokenAccount: vi.fn()
+        .mockResolvedValueOnce("SourceAta")
+        .mockResolvedValueOnce("DestAta"),
+      fetchSplTokenAccountInfo: vi.fn()
+        .mockResolvedValueOnce({
+          address: "SourceAta",
+          mint: "MintAddr",
+          owner: "SoSignerAddr",
+          tokenProgramAddress: "TokenProgram",
+        })
+        .mockResolvedValueOnce(null),
+      assertTokenAccountMatches: vi.fn(),
+      buildCreateAssociatedTokenAccountIdempotentInstruction: vi.fn(),
+      buildSplTokenTransferCheckedInstruction: vi.fn(),
     }));
     vi.doMock("@solana/kit", () => ({
       address: (value: string) => value,
     }));
 
     const { performSolanaSend } = await import("../../src/commands/send-solana.js");
-    await expect(performSolanaSend({} as Command, "SoRecipientAddr", "0.5", "SomeMint")).rejects.toMatchObject({
+    await expect(
+      performSolanaSend({} as Command, "SoRecipientAddr", "0.5", "MintAddr", {
+        failIfAssociatedTokenAccountMissing: true,
+      }),
+    ).rejects.toMatchObject({
       code: ErrorCode.INVALID_ARGS,
+      message: expect.stringContaining("does not exist"),
     });
   });
 
