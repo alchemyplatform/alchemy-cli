@@ -1,5 +1,11 @@
 # @alchemy/cli
 
+## 0.11.1
+
+### Patch Changes
+
+- [#71](https://github.com/OMGWINNING/alchemy-cli/pull/71) [`7b55266`](https://github.com/OMGWINNING/alchemy-cli/commit/7b55266d776b1e70d132c20e6ab221e43ae21260) Thanks [@lohnim](https://github.com/lohnim)! - Mask webhook HMAC signing keys and app RPC URLs in CLI JSON output, treat a single JSON array passed to `alchemy evm rpc` as the full JSON-RPC params array, and preserve NETWORK_ERROR classification for SDK-wrapped fetch failures.
+
 ## 0.11.0
 
 ### Minor Changes
