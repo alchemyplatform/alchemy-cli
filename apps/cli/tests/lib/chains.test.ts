@@ -18,6 +18,11 @@ describe("networkToChain", () => {
     expect(chain.id).toBe(42161);
   });
 
+  it("maps Monad networks", () => {
+    expect(networkToChain("monad-mainnet").id).toBe(143);
+    expect(networkToChain("monad-testnet").id).toBe(10143);
+  });
+
   it("throws for unsupported network", () => {
     expect(() => networkToChain("solana-mainnet")).toThrow(/not supported for wallet operations/);
   });
@@ -33,6 +38,8 @@ describe("supportedNetworks", () => {
     expect(networks.length).toBeGreaterThan(0);
     expect(networks).toContain("eth-mainnet");
     expect(networks).toContain("base-mainnet");
+    expect(networks).toContain("monad-mainnet");
+    expect(networks).toContain("monad-testnet");
     // Verify sorted
     const sorted = [...networks].sort();
     expect(networks).toEqual(sorted);

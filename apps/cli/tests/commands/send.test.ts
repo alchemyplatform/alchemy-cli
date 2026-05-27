@@ -246,6 +246,99 @@ describe("performEvmSend", () => {
     });
   });
 
+  it("previews a native Monad testnet transfer", async () => {
+    vi.doUnmock("../../src/commands/send-evm.js");
+    vi.doUnmock("../../src/lib/chains.js");
+    vi.doUnmock("../../src/lib/networks.js");
+    vi.doUnmock("../../src/lib/smart-wallet.js");
+
+    const createSmartWalletClient = vi.fn().mockReturnValue({
+      sendCalls: vi.fn(),
+      waitForCallsStatus: vi.fn(),
+    });
+    const printJSON = vi.fn();
+
+    vi.doMock("@alchemy/wallet-apis", () => ({
+      createSmartWalletClient,
+    }));
+    vi.doMock("viem/accounts", () => ({
+      privateKeyToAccount: vi.fn().mockReturnValue({
+        address: "0xfrom",
+      }),
+    }));
+    vi.doMock("../../src/lib/wallet-transport.js", () => ({
+      createAlchemyWalletTransport: () => "transport",
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ rpc: true }),
+      hasAuthLoginToken: () => false,
+      resolveAPIKey: () => "api-key",
+      resolveActiveSigner: () => undefined,
+      resolveAuthToken: () => undefined,
+      resolveGasPolicyId: () => undefined,
+      resolveGasSponsored: () => false,
+      resolveNetwork: () => "monad-testnet",
+      resolveWalletKey: () => "0xabc123",
+      resolveWalletSession: () => null,
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      getWalletSessionByChain: vi.fn(),
+      loadStoredSession: () => null,
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      resolveAddress: async () => "0x9f0d5Cf1804B10FADc48eA88a582783477BC885e",
+      validateAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON,
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+      dim: (s: string) => s,
+    }));
+
+    const { performEvmSend } = await import("../../src/commands/send-evm.js");
+    await performEvmSend(
+      {} as Command,
+      "0x9f0d5Cf1804B10FADc48eA88a582783477BC885e",
+      "2",
+      undefined,
+      { dryRun: true },
+    );
+
+    expect(createSmartWalletClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chain: expect.objectContaining({
+          id: 10143,
+          name: "Monad Testnet",
+        }),
+      }),
+    );
+    expect(printJSON).toHaveBeenCalledWith({
+      dryRun: true,
+      action: "evm-send",
+      from: "0xfrom",
+      to: "0x9f0d5Cf1804B10FADc48eA88a582783477BC885e",
+      amount: "2",
+      token: "MON",
+      tokenAddress: null,
+      network: "monad-testnet",
+      sponsored: false,
+      calls: [{
+        to: "0x9f0d5Cf1804B10FADc48eA88a582783477BC885e",
+        value: "2000000000000000000",
+      }],
+    });
+  });
+
   it("sends an ERC-20 transfer with sponsorship", async () => {
     vi.doUnmock("../../src/commands/send-evm.js");
 

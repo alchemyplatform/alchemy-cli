@@ -4,6 +4,7 @@ import type { ServerNotification, ServerRequest } from "@modelcontextprotocol/sd
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { listChains, type ChainNetwork } from "../clients/admin.js";
 import { requireAuth } from "../tools/helpers.js";
+import { fromAdminNetworkId } from "@alchemy/sdk/networks";
 
 type ResourceServer = Pick<McpServer, "registerResource">;
 
@@ -32,6 +33,7 @@ function networkUri(networkId: string): string {
 function formatNetwork(chain: ChainNetwork) {
   return {
     id: chain.id,
+    rpcNetworkId: fromAdminNetworkId(chain.id),
     name: chain.name,
     ecosystem: getEcosystem(chain),
     networkChainId: chain.networkChainId,

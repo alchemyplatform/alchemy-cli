@@ -30,6 +30,10 @@
     "./surfaces": {
       "types": "./src/surfaces/index.ts",
       "import": "./dist/surfaces/index.js"
+    },
+    "./networks": {
+      "types": "./src/networks/index.ts",
+      "import": "./dist/networks/index.js"
     }
   },
   "files": [

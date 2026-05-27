@@ -42,6 +42,18 @@ describe("RPC client", () => {
     );
   });
 
+  it("passes Monad network slugs through to the network gateway", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: "0x279f" }), {
+        status: 200,
+      }),
+    );
+
+    await expect(mcpRpcClient.networkRpcCall("monad-testnet", "key-123", "eth_chainId", [])).resolves.toBe("0x279f");
+
+    expect(fetchMock.mock.calls[0][0]).toBe("https://monad-testnet.g.example.com/v2/key-123");
+  });
+
   it("posts global JSON-RPC requests to the API gateway", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { ok: true } }), {

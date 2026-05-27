@@ -62,6 +62,21 @@ describe("Gas Manager tools", () => {
     expect(text(result)).not.toContain("policy_456");
   });
 
+  it("normalizes RPC slugs when filtering policies", async () => {
+    mcpAdminClient.listAllGasManagerPolicies.mockResolvedValueOnce([
+      POLICY,
+      { ...POLICY, policyId: "policy_456", networks: ["MONAD_TESTNET"] },
+    ]);
+
+    const result = await gasManagerTool("list_gas_policies")(
+      { app_id: "app_123", limit: 10, network: "monad-testnet" },
+      { authInfo: { token: "auth-token" } },
+    );
+
+    expect(text(result)).toContain("policy_456");
+    expect(text(result)).not.toContain("policy_123");
+  });
+
   it("creates sponsorship policies using flattened MCP inputs", async () => {
     mcpAdminClient.createGasManagerPolicy.mockResolvedValueOnce(POLICY);
 
@@ -88,6 +103,30 @@ describe("Gas Manager tools", () => {
       },
     });
     expect(text(result)).toContain("Created Gas Manager policy");
+  });
+
+  it("normalizes RPC slugs when creating policies", async () => {
+    mcpAdminClient.createGasManagerPolicy.mockResolvedValueOnce({
+      ...POLICY,
+      networks: ["MONAD_TESTNET"],
+    });
+
+    await gasManagerTool("create_gas_policy")(
+      {
+        app_id: "app_123",
+        policy_name: "Default Policy",
+        policy_type: "sponsorship",
+        networks: ["monad-testnet"],
+      },
+      { authInfo: { token: "auth-token" } },
+    );
+
+    expect(mcpAdminClient.createGasManagerPolicy).toHaveBeenCalledWith(
+      "auth-token",
+      expect.objectContaining({
+        networks: ["MONAD_TESTNET"],
+      }),
+    );
   });
 
   it("updates policy status", async () => {

@@ -4,6 +4,7 @@ import { getApp, listApps, createApp, updateApp } from "../clients/admin.js";
 import { getRedisClient } from "../redis.js";
 import { hashToken } from "../auth.js";
 import { requireAuth, toolResult, handleToolError, maskApiKey } from "./helpers.js";
+import { toAdminNetworkId } from "@alchemy/sdk/networks";
 
 const REDIS_APP_PREFIX = "app:";
 
@@ -99,17 +100,21 @@ export function registerAppTools(server: InstrumentedServer): void {
 
   server.tool(
     "create_app",
-    "Creates a new Alchemy app. Requires a name and at least one network ID. Use list_chains to discover valid network IDs.",
+    "Creates a new Alchemy app. Requires a name and at least one network ID. Accepts Admin network IDs like ETH_MAINNET or RPC slugs like eth-mainnet. Use list_chains to discover valid networks.",
     {
       name: z.string().describe("Name for the new app"),
-      chain_networks: z.array(z.string()).describe("Network IDs (e.g. ['ETH_MAINNET']). Use list_chains to find IDs."),
+      chain_networks: z.array(z.string()).describe("Network IDs or RPC slugs (e.g. ['ETH_MAINNET'] or ['eth-mainnet']). Use list_chains to find networks."),
       description: z.string().optional().describe("Optional app description"),
     },
     { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     async ({ name, chain_networks, description }, { authInfo }) => {
       try {
         const token = requireAuth(authInfo);
-        const app = await createApp(token, { name, networkAllowlist: chain_networks, description });
+        const app = await createApp(token, {
+          name,
+          networkAllowlist: chain_networks.map(toAdminNetworkId),
+          description,
+        });
         return toolResult(`Created app "${app.name}" (${app.id})\nAPI Key: ${maskApiKey(app.apiKey)} (view at https://dashboard.alchemy.com/apps/${app.id})`);
       } catch (err) {
         return handleToolError(err);

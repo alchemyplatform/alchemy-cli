@@ -2,7 +2,7 @@ alchemy-mcp-server:
   workloads:
   - name: alchemy-mcp-server-mcp
     image: 209202477790.dkr.ecr.us-east-1.amazonaws.com/alchemy-mcp-server
-    tag: 0.3.5
+    tag: 0.3.6
     imagePullPolicy: IfNotPresent
     workloadType: deployment
     rolloutEnabled: false

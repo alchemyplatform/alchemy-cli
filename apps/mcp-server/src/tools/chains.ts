@@ -1,6 +1,7 @@
 import type { InstrumentedServer } from "../server.js";
 import { listChains } from "../clients/admin.js";
 import { requireAuth, toolResult, handleToolError } from "./helpers.js";
+import { fromAdminNetworkId } from "@alchemy/sdk/networks";
 
 export function registerChainTools(server: InstrumentedServer): void {
   server.tool(
@@ -13,7 +14,7 @@ export function registerChainTools(server: InstrumentedServer): void {
         const token = requireAuth(authInfo);
         const chains = await listChains(token);
         const lines = chains.map(
-          (c) => `${c.id} — ${c.name}${c.isTestnet ? " (testnet)" : ""}${c.networkChainId ? ` [chainId: ${c.networkChainId}]` : ""}`,
+          (c) => `${c.id} (${fromAdminNetworkId(c.id)}) — ${c.name}${c.isTestnet ? " (testnet)" : ""}${c.networkChainId ? ` [chainId: ${c.networkChainId}]` : ""}`,
         );
         return toolResult(lines.join("\n"));
       } catch (err) {

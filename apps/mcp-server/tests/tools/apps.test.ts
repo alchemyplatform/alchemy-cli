@@ -110,6 +110,21 @@ describe("app tools", () => {
     expect(text(createResult)).not.toContain("abcdefghijklmnop");
   });
 
+  it("normalizes RPC network slugs when creating apps", async () => {
+    createApp.mockResolvedValueOnce(APP);
+
+    await appTool("create_app")(
+      { name: "Test App", chain_networks: ["monad-testnet"] },
+      { authInfo: { token: "user-token" } },
+    );
+
+    expect(createApp).toHaveBeenCalledWith("user-token", {
+      name: "Test App",
+      networkAllowlist: ["MONAD_TESTNET"],
+      description: undefined,
+    });
+  });
+
   it("updates apps with optional field payloads", async () => {
     updateApp.mockResolvedValueOnce({ ...APP, name: "Renamed" });
 

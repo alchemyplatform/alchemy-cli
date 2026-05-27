@@ -9,6 +9,7 @@ import {
   formatResult,
   AppNotSelectedError,
 } from "./helpers.js";
+import { toAdminNetworkId } from "@alchemy/sdk/networks";
 import type {
   CreateGasPolicyPayload,
   GasSponsorshipRules,
@@ -59,6 +60,10 @@ function formatPolicy(policy: GasPolicy): string {
     `App ID: ${policy.appId}`,
     `Networks: ${policy.networks.join(", ") || "(none)"}`,
   ].join("\n");
+}
+
+function normalizeNetworks(networks: string[]): string[] {
+  return networks.map(toAdminNetworkId);
 }
 
 function maybeString(value: string | undefined): string | undefined {
@@ -121,7 +126,7 @@ function buildCreatePayload(args: CreateGasPolicyToolArgs & { app_id: string }):
       policyName: args.policy_name,
       policyType: "solana",
       appId: args.app_id,
-      networks: args.networks,
+      networks: normalizeNetworks(args.networks),
       solanaRules: buildSolanaRules(args),
     };
   }
@@ -130,7 +135,7 @@ function buildCreatePayload(args: CreateGasPolicyToolArgs & { app_id: string }):
     policyName: args.policy_name,
     policyType: "sponsorship",
     appId: args.app_id,
-    networks: args.networks,
+    networks: normalizeNetworks(args.networks),
     rules: buildSponsorshipRules(args),
   };
 }
@@ -138,24 +143,25 @@ function buildCreatePayload(args: CreateGasPolicyToolArgs & { app_id: string }):
 export function registerGasManagerTools(server: InstrumentedServer): void {
   server.tool(
     "list_gas_policies",
-    "Lists Gas Manager policies for an app. Use select_app first or pass app_id. Filter by policy_type, status, or exact network ID from list_chains.",
+    "Lists Gas Manager policies for an app. Use select_app first or pass app_id. Filter by policy_type, status, or network using either an Admin network ID like ETH_MAINNET or an RPC slug like eth-mainnet.",
     {
       app_id: z.string().optional().describe("Alchemy app ID. If omitted, uses the selected app from select_app."),
       limit: z.number().int().positive().max(100).default(100).describe("Max policies per API page."),
       policy_type: z.enum(["sponsorship", "erc20", "solana"]).optional().describe("Optional policy type filter."),
       status: z.enum(["active", "inactive"]).optional().describe("Optional policy status filter."),
-      network: z.string().optional().describe("Optional exact admin network ID filter, e.g. ETH_MAINNET or SOLANA_MAINNET."),
+      network: z.string().optional().describe("Optional network filter, e.g. ETH_MAINNET, SOLANA_MAINNET, eth-mainnet, or solana-mainnet."),
     },
     READ_ONLY,
     async ({ app_id, limit, policy_type, status, network }, { authInfo }) => {
       try {
         const token = requireAuth(authInfo);
         const appId = await resolveAppId(authInfo, app_id);
+        const networkFilter = network ? toAdminNetworkId(network) : undefined;
         const policies = await mcpAdminClient.listAllGasManagerPolicies(token, { appId, limit });
         const filtered = policies.filter((policy) => {
           if (policy_type && policy.policyType !== policy_type) return false;
           if (status && policy.status !== status) return false;
-          if (network && !policy.networks.includes(network)) return false;
+          if (networkFilter && !policy.networks.includes(networkFilter)) return false;
           return true;
         });
         return toolResult(formatResult({ appId, policies: filtered }));
@@ -185,12 +191,12 @@ export function registerGasManagerTools(server: InstrumentedServer): void {
 
   server.tool(
     "create_gas_policy",
-    "Creates a Gas Manager policy for an app. Use list_chains for admin network IDs. Supports sponsorship and solana policy types.",
+    "Creates a Gas Manager policy for an app. Accepts Admin network IDs like ETH_MAINNET or RPC slugs like eth-mainnet. Supports sponsorship and solana policy types.",
     {
       app_id: z.string().optional().describe("Alchemy app ID. If omitted, uses the selected app from select_app."),
       policy_name: z.string().describe("Human-readable policy name."),
       policy_type: z.enum(["sponsorship", "solana"]).default("sponsorship").describe("Policy type to create."),
-      networks: z.array(z.string()).min(1).describe("Admin network IDs, e.g. ETH_MAINNET or SOLANA_MAINNET."),
+      networks: z.array(z.string()).min(1).describe("Admin network IDs or RPC slugs, e.g. ETH_MAINNET, SOLANA_MAINNET, eth-mainnet, or solana-mainnet."),
       start_time_unix: z.string().optional().describe("Optional Unix start time as a string."),
       end_time_unix: z.string().optional().describe("Optional Unix end time as a string."),
       sponsorship_expiry_ms: z.string().optional().describe("Sponsorship expiry window in milliseconds; sponsorship policies only."),

@@ -92,7 +92,7 @@ export function createMcpServer(): McpServer {
   const server = new McpServer(
     {
       name: "alchemy-mcp-server",
-      version: "0.3.5",
+      version: "0.3.6",
     },
     {
       instructions:
