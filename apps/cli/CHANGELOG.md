@@ -1,5 +1,11 @@
 # @alchemy/cli
 
+## 0.10.0
+
+### Minor Changes
+
+- [#65](https://github.com/OMGWINNING/alchemy-cli/pull/65) [`5b72ff2`](https://github.com/OMGWINNING/alchemy-cli/commit/5b72ff2d5c807e84736e5d4e993aae06140a20db) Thanks [@blakecduncan](https://github.com/blakecduncan)! - Add support for sending Solana SPL tokens, including dry-run previews and controls for recipient associated token account handling.
+
 ## 0.9.3
 
 ### Patch Changes
