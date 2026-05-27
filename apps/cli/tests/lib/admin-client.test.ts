@@ -40,7 +40,7 @@ class TestAdminClient extends AdminClient {
   private testHost: string;
 
   constructor(url: string) {
-    super("test-access-key");
+    super({ type: "auth_token", token: "test-auth-token" });
     this.testURL = url;
     this.testHost = new URL(url).hostname;
   }
@@ -102,26 +102,16 @@ describe("AdminClient", () => {
 
     const client = new TestAdminClient(url);
     await client.listChains();
-    expect(authHeader).toBe("Bearer test-access-key");
+    expect(authHeader).toBe("Bearer test-auth-token");
   });
 
-  it("rejects empty access key in constructor", () => {
+  it("rejects empty auth token in constructor", () => {
     try {
-      new AdminClient("   ");
+      new AdminClient({ type: "auth_token", token: "   " });
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(CLIError);
-      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
-    }
-  });
-
-  it("rejects access key containing whitespace", () => {
-    try {
-      new AdminClient("test access key");
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(CLIError);
-      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
+      expect((err as CLIError).code).toBe(ErrorCode.AUTH_REQUIRED);
     }
   });
 
@@ -132,7 +122,7 @@ describe("AdminClient", () => {
       }
     }
 
-    const client = new UnexpectedHostClient("test-access-key");
+    const client = new UnexpectedHostClient({ type: "auth_token", token: "test-auth-token" });
     try {
       await client.listChains();
       expect.fail("should have thrown");
@@ -153,7 +143,7 @@ describe("AdminClient", () => {
       }
     }
 
-    const client = new InsecureHostClient("test-access-key");
+    const client = new InsecureHostClient({ type: "auth_token", token: "test-auth-token" });
     try {
       await client.listChains();
       expect.fail("should have thrown");
@@ -171,7 +161,7 @@ describe("AdminClient", () => {
       }
     }
 
-    const client = new InspectableAdminClient("test-access-key");
+    const client = new InspectableAdminClient({ type: "auth_token", token: "test-auth-token" });
     expect(client.getBaseURL()).toBe("https://admin-api.alchemypreview.com");
   });
 
@@ -183,7 +173,7 @@ describe("AdminClient", () => {
       }
     }
 
-    const client = new InspectableAdminClient("test-access-key");
+    const client = new InspectableAdminClient({ type: "auth_token", token: "test-auth-token" });
     expect(() => client.getBaseURL()).toThrow(/must target localhost or one of: admin-api\.alchemypreview\.com/);
   });
 
@@ -347,7 +337,7 @@ describe("AdminClient", () => {
 
   // Error handling tests
 
-  it("throws INVALID_ACCESS_KEY on 401", async () => {
+  it("throws AUTH_REQUIRED on 401", async () => {
     const url = await createTestServer((_req, res) => {
       res.writeHead(401);
       res.end();
@@ -359,11 +349,11 @@ describe("AdminClient", () => {
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(CLIError);
-      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
+      expect((err as CLIError).code).toBe(ErrorCode.AUTH_REQUIRED);
     }
   });
 
-  it("throws INVALID_ACCESS_KEY on 403 with access denied message", async () => {
+  it("throws AUTH_REQUIRED on 403 with access denied message", async () => {
     const url = await createTestServer((_req, res) => {
       res.writeHead(403);
       res.end();
@@ -375,7 +365,7 @@ describe("AdminClient", () => {
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(CLIError);
-      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
+      expect((err as CLIError).code).toBe(ErrorCode.AUTH_REQUIRED);
       expect((err as CLIError).message).toContain("Access denied");
     }
   });
@@ -392,7 +382,7 @@ describe("AdminClient", () => {
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(CLIError);
-      expect((err as CLIError).code).toBe(ErrorCode.INVALID_ACCESS_KEY);
+      expect((err as CLIError).code).toBe(ErrorCode.AUTH_REQUIRED);
       expect((err as CLIError).message).toContain("Feature not available");
     }
   });

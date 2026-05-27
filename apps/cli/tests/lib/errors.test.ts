@@ -4,10 +4,9 @@ import {
   ErrorCode,
   EXIT_CODES,
   errAuthRequired,
-  errAccessKeyRequired,
+  errLoginRequired,
   errInvalidAPIKey,
   errNetworkNotEnabled,
-  errInvalidAccessKey,
   errAppRequired,
   errAdminAPI,
   errNetwork,
@@ -86,11 +85,10 @@ describe("CLIError", () => {
     }
   });
 
-  it("keeps access-key setup guidance aligned with supported config keys", () => {
-    const err = errAccessKeyRequired();
-
-    expect(err.message).toContain("ALCHEMY_ACCESS_KEY");
-    expect(err.message).toContain("alchemy config set access-key <key>");
+  it("points admin auth setup at browser login", () => {
+    const err = errLoginRequired();
+    expect(err.message).toContain("alchemy auth login");
+    expect(err.hint).toBe("alchemy auth login");
   });
 });
 
@@ -138,14 +136,9 @@ describe("convenience constructors", () => {
     },
     { name: "errRateLimited", fn: errRateLimited, code: ErrorCode.RATE_LIMITED },
     {
-      name: "errAccessKeyRequired",
-      fn: errAccessKeyRequired,
-      code: ErrorCode.ACCESS_KEY_REQUIRED,
-    },
-    {
-      name: "errInvalidAccessKey",
-      fn: errInvalidAccessKey,
-      code: ErrorCode.INVALID_ACCESS_KEY,
+      name: "errLoginRequired",
+      fn: errLoginRequired,
+      code: ErrorCode.AUTH_REQUIRED,
     },
     { name: "errAppRequired", fn: errAppRequired, code: ErrorCode.APP_REQUIRED },
     {

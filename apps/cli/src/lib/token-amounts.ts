@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { clientFromFlags } from "./resolve.js";
+import { apiKeyClientFromFlags } from "./resolve.js";
 import { errInvalidArgs } from "./errors.js";
 
 export function parseAmount(amount: string, decimals: number): bigint {
@@ -52,7 +52,7 @@ export async function fetchTokenDecimals(
   tokenAddress: string,
   opts?: { network?: string },
 ): Promise<{ decimals: number; symbol: string }> {
-  const client = clientFromFlags(
+  const client = apiKeyClientFromFlags(
     program,
     opts?.network ? { forceNetwork: opts.network } : undefined,
   );

@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import {
-  resolveNetwork,
+  resolveOptionalNetwork,
 } from "../lib/resolve.js";
 import { verbose, isJSONMode, printJSON } from "../lib/output.js";
 import { dim, green, printTable } from "../lib/ui.js";
@@ -19,7 +19,7 @@ export function registerNetwork(program: Command) {
     .action(async (opts: { mainnetOnly?: boolean; testnetOnly?: boolean; search?: string }) => {
       try {
         let display = getRPCNetworks();
-        const current = resolveNetwork(program);
+        const current = resolveOptionalNetwork(program);
 
         if (opts.mainnetOnly) {
           display = display.filter((n) => !n.isTestnet);
@@ -43,7 +43,7 @@ export function registerNetwork(program: Command) {
         }
 
         const rows = display.map((network) => {
-          const isCurrent = network.id === current;
+          const isCurrent = current !== undefined && network.id === current;
           const idCell = isCurrent ? green(network.id) : network.id;
           const nameCell = isCurrent ? green(network.name) : network.name;
           const testnetCell = network.isTestnet ? dim("yes") : "no";
@@ -52,7 +52,9 @@ export function registerNetwork(program: Command) {
 
         printTable(["Network ID", "Name", "Family", "Testnet"], rows);
 
-        console.log(`\n  Current: ${green(current)}`);
+        if (current) {
+          console.log(`\n  Current: ${green(current)}`);
+        }
         console.log(
           `  ${dim("Need Admin API chain identifiers (e.g. ETH_MAINNET)? See: app chains")}`,
         );
@@ -65,7 +67,7 @@ export function registerNetwork(program: Command) {
           printJSON({
             mode: "all",
             networks: display,
-            currentNetwork: current,
+            currentNetwork: current ?? null,
           });
         }
       } catch (err) {

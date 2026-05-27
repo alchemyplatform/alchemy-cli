@@ -181,9 +181,9 @@ export function registerTokens(program: Command) {
       "after",
       `
 Examples:
-  alchemy evm data tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-  alchemy evm data tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --metadata
-  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy evm data tokens balances`,
+  alchemy evm data tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 -n eth-mainnet
+  alchemy evm data tokens balances 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --metadata -n eth-mainnet
+  echo 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 | alchemy evm data tokens balances -n eth-mainnet`,
     )
     .action(async (addressArg: string | undefined, opts: { pageKey?: string; metadata?: boolean }) => {
       try {
@@ -309,7 +309,7 @@ Examples:
       "after",
       `
 Examples:
-  alchemy evm data tokens metadata 0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eB48`,
+  alchemy evm data tokens metadata 0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eB48 -n eth-mainnet`,
     )
     .action(async (contract: string) => {
       try {

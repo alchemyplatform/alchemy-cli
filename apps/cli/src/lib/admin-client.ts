@@ -1,7 +1,6 @@
 import {
-  errAuthRequired,
-  errInvalidAccessKey,
   errAccessDenied,
+  errLoginRequired,
   errNotFound,
   errRateLimited,
   errAdminAPI,
@@ -60,9 +59,7 @@ interface ListAppsResponse {
 
 // ── Client ───────────────────────────────────────────────────────────
 
-export type AdminCredential =
-  | { type: "access_key"; key: string }
-  | { type: "auth_token"; token: string };
+export type AdminCredential = { type: "auth_token"; token: string };
 
 export class AdminClient {
   private static get ADMIN_API_HOST(): string { return `admin-api.${getBaseDomain()}`; }
@@ -70,19 +67,11 @@ export class AdminClient {
   private static readonly ADMIN_API_BASE_URL_ENV = "ALCHEMY_ADMIN_API_BASE_URL";
   private credential: AdminCredential;
 
-  constructor(credential: string | AdminCredential) {
-    if (typeof credential === "string") {
-      // Legacy: treat as access key
-      this.validateAccessKey(credential);
-      this.credential = { type: "access_key", key: credential };
-    } else {
-      if (credential.type === "access_key") {
-        this.validateAccessKey(credential.key);
-      } else if (!credential.token.trim()) {
-        throw errAuthRequired();
-      }
-      this.credential = credential;
+  constructor(credential: AdminCredential) {
+    if (!credential.token.trim()) {
+      throw errLoginRequired();
     }
+    this.credential = credential;
   }
 
   protected baseURL(): string {
@@ -106,12 +95,6 @@ export class AdminClient {
     return parseBaseURLOverride(AdminClient.ADMIN_API_BASE_URL_ENV, {
       allowedHostnames: [STAGING_ADMIN_API_HOST],
     });
-  }
-
-  private validateAccessKey(accessKey: string): void {
-    if (!accessKey.trim() || /\s/.test(accessKey)) {
-      throw errInvalidAccessKey();
-    }
   }
 
   private assertSafeRequestTarget(url: string): void {
@@ -143,7 +126,7 @@ export class AdminClient {
       method,
       redirect: "error",
       headers: {
-        Authorization: `Bearer ${this.credential.type === "access_key" ? this.credential.key : this.credential.token}`,
+        Authorization: `Bearer ${this.credential.token}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -152,7 +135,7 @@ export class AdminClient {
 
     if (resp.status === 401) {
       debug(`401 Unauthorized from ${url}`);
-      throw errInvalidAccessKey();
+      throw errLoginRequired();
     }
     if (resp.status === 403) {
       const detail = await resp.text().catch(() => "");

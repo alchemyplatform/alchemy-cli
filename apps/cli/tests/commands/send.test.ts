@@ -127,18 +127,21 @@ describe("performEvmSend", () => {
       receipts: [{ transactionHash: "0xtxhash" }],
     });
     const printJSON = vi.fn();
+    const apiKeyClientFromFlags = vi.fn(() => ({ rpc: true }));
+    const buildWalletClient = vi.fn(() => ({
+      client: { sendCalls, waitForCallsStatus },
+      network: "eth-mainnet",
+      address: "0xfrom",
+      paymaster: undefined,
+    }));
 
     vi.doMock("../../src/lib/smart-wallet.js", () => ({
       ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
-      buildWalletClient: () => ({
-        client: { sendCalls, waitForCallsStatus },
-        network: "eth-mainnet",
-        address: "0xfrom",
-        paymaster: undefined,
-      }),
+      buildWalletClient,
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ rpc: true }),
+      apiKeyClientFromFlags,
+      resolveRequiredNetwork: () => "eth-mainnet",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       resolveAddress: async () => "0xto",
@@ -170,6 +173,12 @@ describe("performEvmSend", () => {
       calls: [{ to: "0xto", value: 1500000000000000000n }],
       capabilities: undefined,
     });
+    expect(buildWalletClient).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      networkOverride: "eth-mainnet",
+    }));
+    expect(apiKeyClientFromFlags).toHaveBeenCalledWith(expect.anything(), {
+      forceNetwork: "eth-mainnet",
+    });
     expect(printJSON).toHaveBeenCalledWith({
       from: "0xfrom",
       to: "0xto",
@@ -200,7 +209,8 @@ describe("performEvmSend", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ rpc: true }),
+      apiKeyClientFromFlags: () => ({ rpc: true }),
+      resolveRequiredNetwork: () => "eth-mainnet",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       resolveAddress: async () => "0xto",
@@ -273,7 +283,7 @@ describe("performEvmSend", () => {
       load: () => ({}),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ rpc: true }),
+      apiKeyClientFromFlags: () => ({ rpc: true }),
       hasAuthLoginToken: () => false,
       resolveAPIKey: () => "api-key",
       resolveActiveSigner: () => undefined,
@@ -281,6 +291,7 @@ describe("performEvmSend", () => {
       resolveGasPolicyId: () => undefined,
       resolveGasSponsored: () => false,
       resolveNetwork: () => "monad-testnet",
+      resolveRequiredNetwork: () => "monad-testnet",
       resolveWalletKey: () => "0xabc123",
       resolveWalletSession: () => null,
     }));
@@ -360,9 +371,10 @@ describe("performEvmSend", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
       }),
+      resolveRequiredNetwork: () => "base-mainnet",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
       resolveAddress: async () => "0xto",

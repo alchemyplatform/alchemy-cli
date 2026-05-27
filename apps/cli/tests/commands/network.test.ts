@@ -9,7 +9,7 @@ describe("network command", () => {
 
   function mockDeps(printJSON: ReturnType<typeof vi.fn>) {
     vi.doMock("../../src/lib/resolve.js", () => ({
-      resolveNetwork: () => "eth-mainnet",
+      resolveOptionalNetwork: () => undefined,
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,

@@ -14,10 +14,8 @@ export interface AppConfig {
 
 export interface Config {
   api_key?: string;
-  access_key?: string;
   webhook_api_key?: string;
   app?: AppConfig;
-  network?: string;
   verbose?: boolean;
   wallet_key_file?: string;
   wallet_address?: string;
@@ -41,11 +39,8 @@ export interface Config {
 export const KEY_MAP: Record<string, keyof Config> = {
   "api-key": "api_key",
   api_key: "api_key",
-  "access-key": "access_key",
-  access_key: "access_key",
   "webhook-api-key": "webhook_api_key",
   webhook_api_key: "webhook_api_key",
-  network: "network",
   verbose: "verbose",
   "wallet-key-file": "wallet_key_file",
   wallet_key_file: "wallet_key_file",
@@ -77,7 +72,6 @@ export const KEY_MAP: Record<string, keyof Config> = {
 };
 
 const SAFE_ID_RE = /^[A-Za-z0-9:_-]{1,128}$/;
-const SAFE_NETWORK_RE = /^[A-Za-z0-9:_-]{1,128}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_SECRET_LEN = 512;
 const MAX_APP_NAME_LEN = 128;
@@ -107,10 +101,8 @@ const MAX_PATH_LEN = 4096;
 const configSchema = z
   .object({
     api_key: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
-    access_key: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     webhook_api_key: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
     app: appConfigSchema.optional().catch(undefined),
-    network: z.string().regex(SAFE_NETWORK_RE).optional().catch(undefined),
     verbose: z.boolean().optional().catch(undefined),
     wallet_key_file: safeTextSchema(MAX_PATH_LEN).optional().catch(undefined),
     wallet_address: safeTextSchema(MAX_SECRET_LEN).optional().catch(undefined),
@@ -322,9 +314,7 @@ export function set(
 export function validKeys(): string[] {
   return [
     "api-key",
-    "access-key",
     "webhook-api-key",
-    "network",
     "verbose",
     "wallet-key-file",
     "x402",
@@ -338,10 +328,8 @@ export function validKeys(): string[] {
 export function toMap(cfg: Config): Record<string, string> {
   const m: Record<string, string> = {};
   if (cfg.api_key) m["api-key"] = maskIf(cfg.api_key);
-  if (cfg.access_key) m["access-key"] = maskIf(cfg.access_key);
   if (cfg.webhook_api_key) m["webhook-api-key"] = maskIf(cfg.webhook_api_key);
   if (cfg.app) m["app"] = `${cfg.app.name} (${cfg.app.id})`;
-  if (cfg.network) m["network"] = cfg.network;
   if (cfg.verbose !== undefined) m["verbose"] = String(cfg.verbose);
   if (cfg.wallet_key_file) m["wallet-key-file"] = cfg.wallet_key_file;
   if (cfg.wallet_address) m["wallet-address"] = cfg.wallet_address;

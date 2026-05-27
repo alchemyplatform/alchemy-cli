@@ -8,7 +8,14 @@ import { Client } from "./client.js";
 import { X402Client } from "./x402-client.js";
 import { AdminClient } from "./admin-client.js";
 import { GasManagerClient } from "./gas-manager-client.js";
-import { errAppRequired, errAuthRequired, errAccessKeyRequired, errInvalidArgs, errLoginRequired, errWalletKeyRequired } from "./errors.js";
+import {
+  errAppRequired,
+  errAuthRequired,
+  errInvalidArgs,
+  errLoginRequired,
+  errNetworkRequired,
+  errWalletKeyRequired,
+} from "./errors.js";
 import { isSolanaNetwork } from "./networks.js";
 import { debug } from "./output.js";
 import { loadSession, isSessionValid, type WalletSession } from "./wallet-session.js";
@@ -46,48 +53,32 @@ export function resolveAPIKey(program: Command, cfg?: Config): string | undefine
   return undefined;
 }
 
-export function resolveAccessKey(_program: Command, cfg?: Config): string | undefined {
-  if (process.env.ALCHEMY_ACCESS_KEY) return process.env.ALCHEMY_ACCESS_KEY;
-  const config = cfg ?? load();
-  if (config.access_key) return config.access_key;
-  return undefined;
+export function resolveOptionalNetwork(program: Command): string | undefined {
+  const opts = getCommandOptions(program);
+  return opts.network;
 }
 
-export function resolveNetwork(program: Command, cfg?: Config, defaultNetwork?: string): string {
-  const opts = getCommandOptions(program);
-  if (opts.network) return opts.network;
-  if (process.env.ALCHEMY_NETWORK) return process.env.ALCHEMY_NETWORK;
-  const config = cfg ?? load();
-  if (config.network) return config.network;
-  return defaultNetwork ?? "eth-mainnet";
+export function resolveNetwork(program: Command): string {
+  const network = resolveOptionalNetwork(program);
+  if (network) return network;
+  throw errNetworkRequired();
 }
 
-export function resolveSolanaNetwork(program: Command, cfg?: Config): string {
-  const opts = getCommandOptions(program);
-  if (opts.network) {
-    if (!isSolanaNetwork(opts.network)) {
-      throw errInvalidArgs(
-        `Network '${opts.network}' is not a Solana network. Use a solana-* network with the solana namespace.`,
-      );
-    }
-    return opts.network;
-  }
+export function resolveRequiredNetwork(program: Command): string {
+  return resolveNetwork(program);
+}
 
-  if (process.env.ALCHEMY_NETWORK) {
-    if (!isSolanaNetwork(process.env.ALCHEMY_NETWORK)) {
-      throw errInvalidArgs(
-        `ALCHEMY_NETWORK='${process.env.ALCHEMY_NETWORK}' is not a Solana network. Use a solana-* network with the solana namespace.`,
-      );
-    }
-    return process.env.ALCHEMY_NETWORK;
+export function resolveSolanaNetwork(program: Command): string {
+  const network = resolveOptionalNetwork(program);
+  if (!network) {
+    throw errNetworkRequired("alchemy solana network list");
   }
-
-  const config = cfg ?? load();
-  if (config.network && isSolanaNetwork(config.network)) {
-    return config.network;
+  if (!isSolanaNetwork(network)) {
+    throw errInvalidArgs(
+      `Network '${network}' is not a Solana network. Use a solana-* network with the solana namespace.`,
+    );
   }
-
-  return "solana-mainnet";
+  return network;
 }
 
 export function resolveAppId(program: Command, cfg?: Config): string | undefined {
@@ -113,20 +104,14 @@ export function resolveAuthToken(cfg?: Config): string | undefined {
 
 export function adminClientFromFlags(program: Command): AdminClient {
   const cfg = load();
-  const accessKey = resolveAccessKey(program, cfg);
-  if (accessKey) return new AdminClient(accessKey);
-
   const authToken = resolveAuthToken(cfg);
   if (authToken) return new AdminClient({ type: "auth_token", token: authToken });
 
-  throw errAccessKeyRequired();
+  throw errLoginRequired();
 }
 
 /**
  * True when the user has an active `alchemy auth login` session.
- * Gas Manager flows intentionally do NOT accept access keys — only the
- * login auth token is honoured. This is narrower than `adminClientFromFlags`
- * by design (per product direction).
  */
 export function hasAuthLoginToken(cfg?: Config): boolean {
   return Boolean(resolveAuthToken(cfg));
@@ -154,7 +139,7 @@ export function resolveX402Client(program: Command): X402Client | null {
   // from `alchemy wallet` is tracked in a sibling workstream — see AX-232.
   const walletKey = resolveWalletKey(program, cfg);
   if (!walletKey) return null;
-  return new X402Client(walletKey, resolveNetwork(program, cfg));
+  return new X402Client(walletKey, resolveNetwork(program));
 }
 
 export function resolveWalletKey(program: Command, cfg?: Config): string | undefined {
@@ -292,12 +277,36 @@ export function resolveDelegatedMode(program: Command, cfg?: Config): boolean {
   return resolveActiveSigner(program, cfg) === "session";
 }
 
-export function clientFromFlags(
+interface ClientNetworkOptions {
+  forceNetwork?: string;
+}
+
+function resolveClientNetwork(
   program: Command,
-  opts?: { defaultNetwork?: string; forceNetwork?: string },
+  opts?: ClientNetworkOptions,
+): string {
+  return opts?.forceNetwork ?? resolveNetwork(program);
+}
+
+export function apiKeyClientFromFlags(
+  program: Command,
+  opts?: ClientNetworkOptions,
 ): AlchemyClient {
   const cfg = load();
-  const network = opts?.forceNetwork ?? resolveNetwork(program, cfg, opts?.defaultNetwork);
+  const network = resolveClientNetwork(program, opts);
+  debug(`using network=${network}`);
+
+  const apiKey = resolveAPIKey(program, cfg);
+  if (!apiKey) throw errAuthRequired();
+  return new Client(apiKey, network);
+}
+
+export function clientFromFlags(
+  program: Command,
+  opts?: ClientNetworkOptions,
+): AlchemyClient {
+  const cfg = load();
+  const network = resolveClientNetwork(program, opts);
   debug(`using network=${network}`);
 
   if (resolveX402(program, cfg)) {

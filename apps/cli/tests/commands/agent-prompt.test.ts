@@ -143,8 +143,7 @@ describe("agent-prompt command", () => {
       "Run alchemy --json --no-interactive update-check when you need to detect available CLI upgrades",
     );
     expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
-    expect(payload.examples).toContain("ALCHEMY_ACCESS_KEY=ak_xxx alchemy --json --no-interactive app list");
-    expect(payload.examples).not.toContain("ALCHEMY_ACCESS_KEY=$ALCHEMY_ACCESS_KEY alchemy --json --no-interactive app list");
+    expect(payload.examples).toContain("alchemy --json --no-interactive app list");
   });
 
   it("includes runtime discovery guidance for latest published CLI help", async () => {
@@ -214,14 +213,14 @@ describe("agent-prompt command", () => {
       (a: { method: string }) => a.method,
     );
     expect(methods).toContain("API key");
-    expect(methods).toContain("Access key");
+    expect(methods).toContain("Alchemy login");
     expect(methods).toContain("Webhook API key");
     expect(methods).toContain("x402 wallet");
     expect(methods).toContain("Wallet session signer (recommended)");
     expect(methods).toContain("Local wallet + API key");
   });
 
-  it("describes access key auth without a fake command-line flag", async () => {
+  it("describes app admin auth as browser login", async () => {
     const printHuman = vi.fn();
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -241,14 +240,15 @@ describe("agent-prompt command", () => {
 
     const formatted = printHuman.mock.calls[0][0] as string;
     const payload = printHuman.mock.calls[0][1];
-    const accessKeyEntry = payload.auth.find(
-      (a: { method: string }) => a.method === "Access key",
+    const loginEntry = payload.auth.find(
+      (a: { method: string }) => a.method === "Alchemy login",
     );
 
-    expect(accessKeyEntry).not.toHaveProperty("flag");
-    expect(accessKeyEntry.configKey).toBe("access-key");
-    expect(accessKeyEntry.notes).toContain("No command-line flag exists");
-    expect(formatted).toContain("config:   alchemy config set access-key <value>");
+    expect(loginEntry).not.toHaveProperty("flag");
+    expect(loginEntry).not.toHaveProperty("envVar");
+    expect(loginEntry.setup).toBe("alchemy auth login");
+    expect(loginEntry.notes).toContain("browser login session");
+    expect(formatted).toContain("setup:    alchemy auth login");
     expect(formatted).not.toContain("flag:     env only");
   });
 

@@ -14,13 +14,16 @@ describe("onboarding setup predicates", () => {
     expect(status.capabilities.admin_api.complete).toBe(false);
   });
 
-  it("is complete with access key and app", () => {
+  it("is complete with auth token", () => {
     const status = getSetupStatus({
-      access_key: "access_test",
-      app: { id: "app_1", name: "Main App", apiKey: "api_from_app" },
+      auth_token: "auth_test",
     });
     expect(status.complete).toBe(true);
-    expect(status.satisfiedBy).toBe("access_key_app");
+    expect(status.satisfiedBy).toBe("auth_token");
+    expect(status.capabilities.admin_api).toMatchObject({
+      complete: true,
+      satisfiedBy: "auth_token",
+    });
   });
 
   it("is complete with x402 enabled and wallet key file", () => {
@@ -41,8 +44,6 @@ describe("onboarding setup predicates", () => {
       complete: false,
       missing: ["webhook API key"],
     });
-    expect(status.nextCommands).toContain(
-      "alchemy config set access-key <key> && alchemy config set app <app-id>",
-    );
+    expect(status.nextCommands).toContain("alchemy auth");
   });
 });

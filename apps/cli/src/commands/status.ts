@@ -83,10 +83,10 @@ export function registerStatus(
       "after",
       `
 Examples:
-  alchemy evm status call-123                               EVM smart wallet operation
+  alchemy evm status call-123 -n eth-mainnet                EVM smart wallet operation
   alchemy evm status 0xTxHash... -n eth-mainnet             Raw EVM transaction
   alchemy solana status 5wHu1qwD7q... -n solana-devnet      Solana transaction
-  echo "call-123" | alchemy evm status
+  echo "call-123" | alchemy evm status -n eth-mainnet
 
 Tip: use an EVM network for operation IDs and tx hashes, or a Solana network for signatures.`,
     )

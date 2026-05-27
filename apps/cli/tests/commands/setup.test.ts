@@ -55,7 +55,6 @@ describe("config status command", () => {
     }));
     vi.doMock("../../src/lib/errors.js", () => ({
       errNotFound: vi.fn(),
-      errAccessKeyRequired: vi.fn(),
       errInvalidArgs: vi.fn(),
       exitWithError: vi.fn(),
     }));

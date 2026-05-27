@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { encodeFunctionData, type Address as EvmAddress, erc20Abi } from "viem";
 import { buildWalletClient, ensureGasPolicyResolved } from "../lib/smart-wallet.js";
-import { clientFromFlags } from "../lib/resolve.js";
+import { apiKeyClientFromFlags, resolveRequiredNetwork } from "../lib/resolve.js";
 import { resolveAddress, validateAddress } from "../lib/validators.js";
 import { nativeTokenSymbol } from "../lib/networks.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
@@ -40,13 +40,17 @@ export function registerEvmSend(program: Command) {
     .addHelpText(
       "after",
       `
+Omit --token to send the native token for the selected network.
+Network is required via -n/--network.
+
 Examples:
-  alchemy evm send 0xAbC...123 1.5                          Send 1.5 ETH
-  alchemy evm send vitalik.eth 0.1 -n base-mainnet          Send 0.1 ETH on Base
-  alchemy evm send 0xAbC...123 100 --token 0xA0b8...USDC    Send 100 USDC
-  alchemy evm send 0xAbC...123 1.5 --dry-run                Preview without signing or sending
-  alchemy evm send 0xAbC...123 1 --gas-sponsored --gas-policy-id <id>
-  alchemy evm send 0xAbC...123 1.5 --signer local           Force the local wallet`,
+  alchemy evm send 0xAbC...123 1.5 -n eth-mainnet                         Send 1.5 ETH
+  alchemy evm send vitalik.eth 0.1 -n base-mainnet                         Send 0.1 ETH on Base
+  alchemy evm send 0xAbC...123 1 -n monad-testnet                          Send 1 MON
+  alchemy evm send 0xAbC...123 100 --token 0xA0b8...USDC -n eth-mainnet     Send 100 USDC
+  alchemy evm send 0xAbC...123 1.5 --dry-run -n eth-mainnet                Preview without signing or sending
+  alchemy evm send 0xAbC...123 1 -n base-mainnet --gas-sponsored --gas-policy-id <id>
+  alchemy evm send 0xAbC...123 1.5 --signer local -n eth-mainnet           Force the local wallet`,
     )
     .action(async (toArg: string, amountArg: string, _opts: unknown, cmd: Command) => {
       try {
@@ -73,20 +77,28 @@ export async function performEvmSend(
     validateAddress(tokenAddress);
   }
 
-  const gasPolicyIdOverride = await ensureGasPolicyResolved(program);
-  const { client, network, address: from, paymaster } = buildWalletClient(program, {
+  const network = resolveRequiredNetwork(program);
+  const gasPolicyIdOverride = await ensureGasPolicyResolved(program, {
+    networkOverride: network,
+  });
+  const { client, address: from, paymaster } = buildWalletClient(program, {
     signer: opts.signer,
+    networkOverride: network,
     ...(gasPolicyIdOverride && { gasPolicyIdOverride }),
   });
 
-  const rpcClient = clientFromFlags(program);
+  const rpcClient = apiKeyClientFromFlags(program, {
+    forceNetwork: network,
+  });
   const to = await resolveAddress(toArg, rpcClient) as EvmAddress;
 
   let decimals: number;
   let symbol: string;
 
   if (tokenAddress) {
-    const meta = await fetchTokenDecimals(program, tokenAddress);
+    const meta = await fetchTokenDecimals(program, tokenAddress, {
+      network,
+    });
     decimals = meta.decimals;
     symbol = meta.symbol;
   } else {

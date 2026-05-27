@@ -1,7 +1,4 @@
 import {
-  errAuthRequired,
-  errInvalidAccessKey,
-  errAccessDenied,
   errLoginRequired,
   errNotFound,
   errRateLimited,
@@ -98,9 +95,7 @@ interface ListPoliciesOpts {
 
 // ── Client ───────────────────────────────────────────────────────────
 
-export type GasManagerCredential =
-  | { type: "access_key"; key: string }
-  | { type: "auth_token"; token: string };
+export type GasManagerCredential = { type: "auth_token"; token: string };
 
 export class GasManagerClient {
   private static get HOST(): string {
@@ -112,18 +107,11 @@ export class GasManagerClient {
 
   private credential: GasManagerCredential;
 
-  constructor(credential: string | GasManagerCredential) {
-    if (typeof credential === "string") {
-      this.validateAccessKey(credential);
-      this.credential = { type: "access_key", key: credential };
-    } else {
-      if (credential.type === "access_key") {
-        this.validateAccessKey(credential.key);
-      } else if (!credential.token.trim()) {
-        throw errAuthRequired();
-      }
-      this.credential = credential;
+  constructor(credential: GasManagerCredential) {
+    if (!credential.token.trim()) {
+      throw errLoginRequired();
     }
+    this.credential = credential;
   }
 
   protected baseURL(): string {
@@ -147,12 +135,6 @@ export class GasManagerClient {
     return parseBaseURLOverride(GasManagerClient.BASE_URL_ENV);
   }
 
-  private validateAccessKey(accessKey: string): void {
-    if (!accessKey.trim() || /\s/.test(accessKey)) {
-      throw errInvalidAccessKey();
-    }
-  }
-
   private assertSafeRequestTarget(url: string): void {
     let parsed: URL;
     try {
@@ -174,12 +156,11 @@ export class GasManagerClient {
     const url = `${this.baseURL()}${path}`;
     debug(`${method} ${url}`);
     this.assertSafeRequestTarget(url);
-    const token = this.credential.type === "access_key" ? this.credential.key : this.credential.token;
     const resp = await fetchWithTimeout(url, {
       method,
       redirect: "error",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${this.credential.token}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -187,9 +168,7 @@ export class GasManagerClient {
     });
 
     if (resp.status === 401) {
-      throw this.credential.type === "auth_token"
-        ? errLoginRequired()
-        : errInvalidAccessKey();
+      throw errLoginRequired();
     }
     if (resp.status === 403) {
       const detail = await resp.text().catch(() => "");
@@ -200,17 +179,12 @@ export class GasManagerClient {
       } catch {
         reason = detail || undefined;
       }
-      if (this.credential.type === "auth_token") {
-        // Auth-token users can't fix this by editing an access key; point them
-        // back at the login flow with the upstream reason inline.
-        const tail = reason ? ` (${reason})` : "";
-        throw new CLIError(
-          ErrorCode.AUTH_REQUIRED,
-          `Access denied for this Alchemy account or app${tail}. Re-authenticate with 'alchemy auth login' or check that the default app is one you have permission to manage.`,
-          "alchemy auth login",
-        );
-      }
-      throw errAccessDenied(typeof reason === "string" ? reason : undefined);
+      const tail = reason ? ` (${reason})` : "";
+      throw new CLIError(
+        ErrorCode.AUTH_REQUIRED,
+        `Access denied for this Alchemy account or app${tail}. Re-authenticate with 'alchemy auth login' or check that the default app is one you have permission to manage.`,
+        "alchemy auth login",
+      );
     }
     if (resp.status === 404) {
       const text = await resp.text().catch(() => "");

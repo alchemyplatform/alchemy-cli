@@ -48,13 +48,13 @@ applicable. The native gas token (ETH, POL, BNB, AVAX, …) resolves to the
 EIP-7528 native sentinel 0xEeee…EEeE.
 
 Examples:
-  alchemy evm token ETH                          # uses current network
+  alchemy evm token ETH -n eth-mainnet
   alchemy evm token USDC -n base-mainnet
   alchemy evm token USDC.e -n arb-mainnet
-  alchemy evm token USDC --address-only           # prints just the 0x address
-  alchemy --json evm token USDC | jq -r .address
+  alchemy evm token USDC --address-only -n base-mainnet
+  alchemy --json evm token USDC -n base-mainnet | jq -r .address
 
-  alchemy evm token list                          # list tokens on current network
+  alchemy evm token list -n eth-mainnet
   alchemy evm token list --all                    # list tokens across all networks`,
     )
     .action(async (symbol: string | undefined, opts: LookupOpts) => {
@@ -62,7 +62,7 @@ Examples:
         if (!symbol) {
           if (opts.addressOnly) {
             throw errInvalidArgs(
-              "--address-only requires a symbol. Example: alchemy evm token USDC --address-only",
+              "--address-only requires a symbol. Example: alchemy evm token USDC --address-only -n base-mainnet",
             );
           }
           await runList(program, {});
@@ -154,7 +154,7 @@ async function runList(program: Command, opts: ListOpts): Promise<void> {
       printTokenTable(tokens);
     }
     console.log(
-      `\n  ${dim("Tip: pass -n/--network <net> to scope a lookup. Use 'alchemy evm token <SYMBOL>' to fetch a single address.")}`,
+      `\n  ${dim("Tip: pass -n/--network <net> to scope a lookup. Use 'alchemy evm token <SYMBOL> -n <net>' to fetch a single address.")}`,
     );
     return;
   }
@@ -177,7 +177,7 @@ async function runList(program: Command, opts: ListOpts): Promise<void> {
   console.log(`  ${green(network)}  ${dim(`(${tokens.length} tokens)`)}`);
   printTokenTable(tokens);
   console.log(
-    `\n  ${dim("Tip: 'alchemy evm token <SYMBOL>' resolves one symbol. Add --all to see every network.")}`,
+    `\n  ${dim("Tip: 'alchemy evm token <SYMBOL> -n <net>' resolves one symbol. Add --all to see every network.")}`,
   );
 }
 

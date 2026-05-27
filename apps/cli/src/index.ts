@@ -157,7 +157,7 @@ program
   .option("--api-key <key>", "Alchemy API key (env: ALCHEMY_API_KEY)")
   .option(
     "-n, --network <network>",
-    "Target network (default: eth-mainnet) (env: ALCHEMY_NETWORK)",
+    "Target network for networked commands",
   )
   .option("--x402", "Use x402 wallet-based gateway auth")
   .option(
@@ -336,9 +336,9 @@ program
       `${hBrand("◆")} ${hBold("Quick Start")}`,
       `  ${hDim("────────────────────────────────────")}`,
       `  ${hBrand("alchemy")}                              ${hDim("Interactive mode with guided setup")}`,
-      `  ${hBrand("alchemy evm data balance")} ${hDim("<address>")}    ${hDim("Get native token balance")}`,
-      `  ${hBrand("alchemy evm block latest")}              ${hDim("Latest block summary")}`,
-      `  ${hBrand("alchemy evm rpc eth_chainId")}           ${hDim("Raw JSON-RPC call")}`,
+      `  ${hBrand("alchemy evm data balance")} ${hDim("<address> -n eth-mainnet")} ${hDim("Get native token balance")}`,
+      `  ${hBrand("alchemy evm block latest")} ${hDim("-n eth-mainnet")}           ${hDim("Latest block summary")}`,
+      `  ${hBrand("alchemy evm rpc eth_chainId")} ${hDim("-n eth-mainnet")}        ${hDim("Raw JSON-RPC call")}`,
       `  ${hBrand("alchemy config list")}                   ${hDim("View current configuration")}`,
       "",
       `${hBrand("◆")} ${hBold("Exit Codes")}`,

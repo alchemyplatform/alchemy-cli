@@ -70,13 +70,12 @@ function doctorSetupStatus(setup: SetupStatus): DoctorSetupStatus {
       ? null
       : (setup.satisfiedBy as DoctorSetupMethod | null),
     missing: x402OnlySetup
-      ? ["Provide one auth path: alchemy auth OR api-key OR ALCHEMY_ACCESS_KEY+app"]
+      ? ["Provide one auth path: alchemy auth OR api-key"]
       : removeX402SetupMissing(setup.missing),
     nextCommands: x402OnlySetup
       ? [
           "alchemy auth",
           "alchemy config set app",
-          "alchemy config set access-key <key> && alchemy config set app <app-id>",
         ]
       : removeX402NextCommands(setup.nextCommands),
     capabilities: sanitizedCapabilities,

@@ -13,9 +13,9 @@ export function registerGas(program: Command) {
       "after",
       `
 Examples:
-  alchemy evm gas
+  alchemy evm gas -n eth-mainnet
   alchemy evm gas -n polygon-mainnet
-  alchemy evm gas --json`,
+  alchemy evm gas --json -n eth-mainnet`,
     )
     .action(async () => {
       try {

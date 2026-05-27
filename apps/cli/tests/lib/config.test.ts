@@ -14,14 +14,6 @@ describe("config set/get", () => {
     expect(config.get(updated, "api_key")).toBe("test123");
   });
 
-  it("sets and gets access-key", () => {
-    const cfg: config.Config = {};
-    const { ok, config: updated } = config.set(cfg, "access-key", "ak_test");
-    expect(ok).toBe(true);
-    expect(config.get(updated, "access-key")).toBe("ak_test");
-    expect(config.get(updated, "access_key")).toBe("ak_test");
-  });
-
   it("rejects app as a set key", () => {
     const { ok } = config.set({}, "app", "app-123");
     expect(ok).toBe(false);
@@ -34,11 +26,10 @@ describe("config set/get", () => {
     expect(config.get(cfg, "app")).toBe("Demo App (app-123)");
   });
 
-  it("sets and gets network", () => {
-    const cfg: config.Config = {};
-    const { ok, config: updated } = config.set(cfg, "network", "polygon-mainnet");
-    expect(ok).toBe(true);
-    expect(config.get(updated, "network")).toBe("polygon-mainnet");
+  it("rejects network as an implicit config key", () => {
+    const { ok, config: updated } = config.set({}, "network", "polygon-mainnet");
+    expect(ok).toBe(false);
+    expect(config.get(updated, "network")).toBeUndefined();
   });
 
   it("sets and gets verbose", () => {
@@ -105,21 +96,17 @@ describe("config toMap", () => {
   it("returns populated map with masked secrets", () => {
     const m = config.toMap({
       api_key: "test-api-key-1234",
-      access_key: "ak",
       app: { id: "app-1", name: "My App", apiKey: "ak-123" },
-      network: "eth-mainnet",
       verbose: true,
     });
     // api_key is > 8 chars so first 4 + bullets + last 4
     expect(m["api-key"]).toMatch(/^test.*1234$/);
     expect(m["api-key"]).toContain("\u2022");
-    // access_key is ≤ 8 chars so fully masked
-    expect(m["access-key"]).toBe("\u2022\u2022");
     expect(m).toMatchObject({
       app: "My App (app-1)",
-      network: "eth-mainnet",
       verbose: "true",
     });
+    expect(m["network"]).toBeUndefined();
   });
 
   it("does not expose legacy delegated-wallet in toMap output", () => {
@@ -209,15 +196,24 @@ describe("config save/load", () => {
   it("saves and loads config", () => {
     const cfg: config.Config = {
       api_key: "testkey",
-      network: "eth-sepolia",
       verbose: true,
     };
     config.save(cfg);
 
     const loaded = config.load();
     expect(loaded.api_key).toBe("testkey");
-    expect(loaded.network).toBe("eth-sepolia");
     expect(loaded.verbose).toBe(true);
+  });
+
+  it("strips legacy network config on save", () => {
+    config.save({ api_key: "testkey", network: "eth-sepolia" } as unknown as config.Config);
+
+    const loaded = config.load();
+    const p = join(tmpDir, ".config", "alchemy", "config.json");
+    const onDisk = JSON.parse(readFileSync(p, "utf-8")) as Record<string, unknown>;
+
+    expect((loaded as Record<string, unknown>).network).toBeUndefined();
+    expect(onDisk.network).toBeUndefined();
   });
 
   it("saves with 0600 permissions", () => {
@@ -277,10 +273,8 @@ describe("config save/load", () => {
   });
 
   it("sanitizes invalid persisted fields", () => {
-    const unsafe: config.Config = {
+    const unsafe = {
       api_key: "ok-api-key",
-      access_key: "ok-access-key",
-      network: "../etc/passwd",
       verbose: true,
       app: {
         id: "app-123",
@@ -293,7 +287,6 @@ describe("config save/load", () => {
     const loaded = config.load();
     expect(loaded).toEqual({
       api_key: "ok-api-key",
-      access_key: "ok-access-key",
       verbose: true,
     });
   });
@@ -350,13 +343,13 @@ describe("config save/load", () => {
     const { writeFileSync } = require("node:fs") as typeof import("node:fs");
     writeFileSync(p, JSON.stringify({ api_key: "k", delegated_wallet: true }), { mode: 0o600 });
 
-    // Simulate any user action that triggers load+save (e.g. `config set network`).
+    // Simulate any user action that triggers load+save (e.g. `config set verbose`).
     const loaded = config.load();
-    config.save({ ...loaded, network: "eth-sepolia" });
+    config.save({ ...loaded, verbose: true });
 
     const onDisk = JSON.parse(readFileSync(p, "utf-8")) as Record<string, unknown>;
     expect(onDisk.active_signer).toBe("session");
     expect(onDisk.delegated_wallet).toBeUndefined();
-    expect(onDisk.network).toBe("eth-sepolia");
+    expect(onDisk.verbose).toBe(true);
   });
 });

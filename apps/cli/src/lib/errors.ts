@@ -4,8 +4,6 @@ export const ErrorCode = {
   AUTH_REQUIRED: "AUTH_REQUIRED",
   INVALID_API_KEY: "INVALID_API_KEY",
   NETWORK_NOT_ENABLED: "NETWORK_NOT_ENABLED",
-  INVALID_ACCESS_KEY: "INVALID_ACCESS_KEY",
-  ACCESS_KEY_REQUIRED: "ACCESS_KEY_REQUIRED",
   APP_REQUIRED: "APP_REQUIRED",
   ADMIN_API_ERROR: "ADMIN_API_ERROR",
   NETWORK_ERROR: "NETWORK_ERROR",
@@ -30,8 +28,6 @@ export const EXIT_CODES: Record<ErrorCodeType, number> = {
   AUTH_REQUIRED: 3,
   INVALID_API_KEY: 3,
   NETWORK_NOT_ENABLED: 3,
-  INVALID_ACCESS_KEY: 3,
-  ACCESS_KEY_REQUIRED: 3,
   APP_REQUIRED: 3,
   INVALID_ARGS: 2,
   NOT_FOUND: 4,
@@ -94,19 +90,6 @@ export function errAuthRequired(): CLIError {
   );
 }
 
-export function errAccessKeyRequired(): CLIError {
-  return new CLIError(
-    ErrorCode.ACCESS_KEY_REQUIRED,
-    "Access key required. Set ALCHEMY_ACCESS_KEY or run 'alchemy config set access-key <key>'.",
-    "Get an access key: https://www.alchemy.com/docs/reference/admin-api/overview",
-  );
-}
-
-/**
- * Reserved for surfaces that require an interactive `alchemy auth login`
- * session — Gas Manager being the first. Distinct from `errAccessKeyRequired`
- * because those flows intentionally do NOT accept access keys.
- */
 export function errLoginRequired(): CLIError {
   return new CLIError(
     ErrorCode.AUTH_REQUIRED,
@@ -145,6 +128,16 @@ export function errNetwork(detail: string): CLIError {
   );
 }
 
+export function errNetworkRequired(
+  networkListCommand = "alchemy evm network list",
+): CLIError {
+  return new CLIError(
+    ErrorCode.INVALID_ARGS,
+    "Network required. Pass -n/--network <network>.",
+    networkListCommand,
+  );
+}
+
 const RPC_ERROR_HINTS: Record<number, string> = {
   [-32700]: "Parse error. The request JSON is malformed.",
   [-32600]: "Invalid request. Check the JSON-RPC request format.",
@@ -174,22 +167,14 @@ export function errRateLimited(): CLIError {
   );
 }
 
-export function errInvalidAccessKey(): CLIError {
-  return new CLIError(
-    ErrorCode.INVALID_ACCESS_KEY,
-    "Invalid access key. Check your key and try again.",
-    "Get an access key: https://www.alchemy.com/docs/reference/admin-api/overview",
-  );
-}
-
 export function errAccessDenied(detail?: string): CLIError {
   const message = detail
     ? `Access denied: ${detail}`
-    : "Access denied. Your access key may not have permission for this operation.";
+    : "Access denied. Check that your Alchemy account has permission for this operation.";
   return new CLIError(
-    ErrorCode.INVALID_ACCESS_KEY,
+    ErrorCode.AUTH_REQUIRED,
     message,
-    "Check your account tier and feature access at https://dashboard.alchemy.com/",
+    "Run 'alchemy auth login' or check your account access at https://dashboard.alchemy.com/",
   );
 }
 
@@ -204,8 +189,16 @@ export function errAppRequired(): CLIError {
 export function errWalletKeyRequired(): CLIError {
   return new CLIError(
     ErrorCode.AUTH_REQUIRED,
-    "Wallet key required for x402. Set ALCHEMY_WALLET_KEY, run 'alchemy wallet connect --mode local', or use --wallet-key-file.",
+    "No local wallet configured. Run 'alchemy wallet connect --mode local', set ALCHEMY_WALLET_KEY, or use --wallet-key-file.",
     "alchemy wallet connect --mode local",
+  );
+}
+
+export function errWalletRequired(): CLIError {
+  return new CLIError(
+    ErrorCode.AUTH_REQUIRED,
+    "No wallet connected. Run 'alchemy wallet connect' to connect a session wallet, or run 'alchemy wallet connect --mode local' to use a local wallet.",
+    "alchemy wallet connect",
   );
 }
 

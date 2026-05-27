@@ -8,7 +8,7 @@ import {
   type Address,
 } from "viem";
 import { buildWalletClient, ensureGasPolicyResolved } from "../lib/smart-wallet.js";
-import { clientFromFlags, resolveNetwork } from "../lib/resolve.js";
+import { apiKeyClientFromFlags, clientFromFlags, resolveNetwork } from "../lib/resolve.js";
 import { resolveAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, ErrorCode, exitWithError, errInvalidArgs } from "../lib/errors.js";
@@ -279,11 +279,11 @@ export function registerContract(program: Command) {
       "after",
       `
 Examples:
-  alchemy evm contract read 0xA0b8...USDC "balanceOf(address)(uint256)" --args '["0xHolder"]'
-  alchemy evm contract read 0xA0b8...USDC "name()(string)"
-  alchemy evm contract read 0xA0b8...USDC "decimals()(uint8)"
-  alchemy evm contract read 0xContract balanceOf --abi-file ./erc20.json --args '["0xHolder"]'
-  alchemy evm contract read 0xPool "quote((address,uint256))(uint256)" --args '[["0xToken", "1000000"]]' --block 12345678`,
+  alchemy evm contract read 0xA0b8...USDC "balanceOf(address)(uint256)" --args '["0xHolder"]' -n eth-mainnet
+  alchemy evm contract read 0xA0b8...USDC "name()(string)" -n eth-mainnet
+  alchemy evm contract read 0xA0b8...USDC "decimals()(uint8)" -n eth-mainnet
+  alchemy evm contract read 0xContract balanceOf --abi-file ./erc20.json --args '["0xHolder"]' -n eth-mainnet
+  alchemy evm contract read 0xPool "quote((address,uint256))(uint256)" --args '[["0xToken", "1000000"]]' --block 12345678 -n eth-mainnet`,
     )
     .action(async (addressArg: string, functionArg: string, opts: ContractOpts) => {
       try {
@@ -312,9 +312,9 @@ Examples:
       "after",
       `
 Examples:
-  alchemy evm contract call 0xToken "approve(address,uint256)" --args '["0xSpender", "1000000"]'
-  alchemy evm contract call 0xToken "transfer(address,uint256)" --args '["0xTo", "1000000"]'
-  alchemy evm contract call 0xContract deposit --abi-file ./contract.json --value 0.1`,
+  alchemy evm contract call 0xToken "approve(address,uint256)" --args '["0xSpender", "1000000"]' -n eth-mainnet
+  alchemy evm contract call 0xToken "transfer(address,uint256)" --args '["0xTo", "1000000"]' -n eth-mainnet
+  alchemy evm contract call 0xContract deposit --abi-file ./contract.json --value 0.1 -n eth-mainnet`,
     )
     .action(async (addressArg: string, functionArg: string, _opts: unknown, cmd: Command) => {
       try {
@@ -407,7 +407,7 @@ export async function performContractCall(
     ...(gasPolicyIdOverride && { gasPolicyIdOverride }),
   });
 
-  const rpcClient = clientFromFlags(program);
+  const rpcClient = apiKeyClientFromFlags(program, { forceNetwork: network });
   const contractAddress = await resolveAddress(addressArg, rpcClient) as Address;
 
   const data = encodeFunctionData({ abi, functionName, args });

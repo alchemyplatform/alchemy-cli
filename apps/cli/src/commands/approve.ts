@@ -7,7 +7,7 @@ import {
   type Address,
 } from "viem";
 import { buildWalletClient, ensureGasPolicyResolved } from "../lib/smart-wallet.js";
-import { clientFromFlags } from "../lib/resolve.js";
+import { apiKeyClientFromFlags } from "../lib/resolve.js";
 import type { AlchemyClient } from "../lib/client-interface.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 import { validateAddress } from "../lib/validators.js";
@@ -217,11 +217,11 @@ export function registerApprove(program: Command) {
       "after",
       `
 Examples:
-  alchemy evm approve 0xRouter --token-address 0xUSDC --amount 100
-  alchemy evm approve 0xRouter --token-address 0xUSDC --amount 100 --reset-first
-  alchemy evm approve 0xRouter --token-address 0xUSDC --unlimited
-  alchemy evm approve 0xRouter --token-address 0xUSDC --unlimited --yes
-  alchemy evm approve 0xRouter --token-address 0xUSDC --revoke`,
+  alchemy evm approve 0xRouter --token-address 0xUSDC --amount 100 -n eth-mainnet
+  alchemy evm approve 0xRouter --token-address 0xUSDC --amount 100 --reset-first -n eth-mainnet
+  alchemy evm approve 0xRouter --token-address 0xUSDC --unlimited -n eth-mainnet
+  alchemy evm approve 0xRouter --token-address 0xUSDC --unlimited --yes -n eth-mainnet
+  alchemy evm approve 0xRouter --token-address 0xUSDC --revoke -n eth-mainnet`,
     )
     .action(async (spenderArg: string, _opts: unknown, cmd: Command) => {
       try {
@@ -252,8 +252,8 @@ async function performApprove(
     signer,
     ...(gasPolicyIdOverride && { gasPolicyIdOverride }),
   });
-  const rpcClient = clientFromFlags(program);
-  const tokenMeta = await fetchTokenDecimals(program, opts.tokenAddress);
+  const rpcClient = apiKeyClientFromFlags(program, { forceNetwork: network });
+  const tokenMeta = await fetchTokenDecimals(program, opts.tokenAddress, { network });
   const approval = buildApprovalRequest(opts, tokenMeta);
 
   if (!await confirmUnlimitedApproval(program, tokenMeta.symbol, spenderArg, opts)) {

@@ -42,16 +42,34 @@ describe("resolve.ts precedence", () => {
     expect(resolveAPIKey2(makeProgram({}))).toBe("app-fallback-key");
   });
 
-  it("resolveAccessKey order: env > config", async () => {
+  it("adminClientFromFlags uses auth token", async () => {
+    const adminCtor = vi.fn();
     vi.doMock("../../src/lib/config.js", () => ({
-      load: () => ({ access_key: "cfg-access" }),
+      load: () => ({ auth_token: "cfg-auth" }),
     }));
-    const { resolveAccessKey } = await import("../../src/lib/resolve.js");
+    vi.doMock("../../src/lib/admin-client.js", () => ({
+      AdminClient: class {
+        constructor(...args: unknown[]) {
+          adminCtor(...args);
+        }
+      },
+    }));
+    const { adminClientFromFlags } = await import("../../src/lib/resolve.js");
 
-    process.env.ALCHEMY_ACCESS_KEY = "env-access";
-    expect(resolveAccessKey(makeProgram({}))).toBe("env-access");
-    delete process.env.ALCHEMY_ACCESS_KEY;
-    expect(resolveAccessKey(makeProgram({}))).toBe("cfg-access");
+    adminClientFromFlags(makeProgram({}));
+
+    expect(adminCtor).toHaveBeenCalledWith({ type: "auth_token", token: "cfg-auth" });
+  });
+
+  it("adminClientFromFlags requires auth token", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({}),
+    }));
+    const { adminClientFromFlags } = await import("../../src/lib/resolve.js");
+
+    expect(() => adminClientFromFlags(makeProgram({}))).toThrow(
+      expect.objectContaining({ code: ErrorCode.AUTH_REQUIRED }),
+    );
   });
 
   it("resolveAPIKey reads root flags from nested commands", async () => {
@@ -63,6 +81,60 @@ describe("resolve.ts precedence", () => {
     expect(
       resolveAPIKey(makeProgram({}, { apiKey: "root-flag-key" })),
     ).toBe("root-flag-key");
+  });
+
+  it("resolveRequiredNetwork requires a flag", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ network: "cfg-network" }),
+    }));
+    const { resolveNetwork, resolveRequiredNetwork } = await import("../../src/lib/resolve.js");
+
+    expect(resolveNetwork(makeProgram({ network: "flag-network" }))).toBe("flag-network");
+    expect(resolveRequiredNetwork(makeProgram({ network: "flag-network" }))).toBe("flag-network");
+    expect(resolveRequiredNetwork(makeProgram({}, { network: "root-network" }))).toBe("root-network");
+    expect(() => resolveRequiredNetwork(makeProgram({}))).toThrow(
+      expect.objectContaining({
+        code: ErrorCode.INVALID_ARGS,
+        message: expect.stringContaining("Network required"),
+      }),
+    );
+  });
+
+  it("resolveRequiredNetwork does not fall back to eth-mainnet", async () => {
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ network: "cfg-network" }),
+    }));
+    const { resolveRequiredNetwork } = await import("../../src/lib/resolve.js");
+
+    let thrown: unknown;
+    try {
+      resolveRequiredNetwork(makeProgram({}));
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown).toMatchObject({
+      code: ErrorCode.INVALID_ARGS,
+      message: expect.stringContaining("Network required"),
+    });
+  });
+
+  it("resolveSolanaNetwork requires a flag with a Solana network-list hint", async () => {
+    const { resolveSolanaNetwork } = await import("../../src/lib/resolve.js");
+
+    expect(resolveSolanaNetwork(makeProgram({ network: "solana-mainnet" }))).toBe(
+      "solana-mainnet",
+    );
+    expect(resolveSolanaNetwork(makeProgram({}, { network: "solana-devnet" }))).toBe(
+      "solana-devnet",
+    );
+    expect(() => resolveSolanaNetwork(makeProgram({}))).toThrow(
+      expect.objectContaining({
+        code: ErrorCode.INVALID_ARGS,
+        message: expect.stringContaining("Network required"),
+        hint: "alchemy solana network list",
+      }),
+    );
   });
 
   it("resolveWalletKey order: --wallet-key-file > env > config wallet_key_file", async () => {
@@ -123,6 +195,34 @@ describe("resolve.ts precedence", () => {
 
     expect(x402Ctor).toHaveBeenCalledWith("wallet-key-from-file", "base-mainnet");
     expect(clientCtor).not.toHaveBeenCalled();
+  });
+
+  it("apiKeyClientFromFlags uses API-key auth even when x402 is enabled", async () => {
+    const x402Ctor = vi.fn();
+    const clientCtor = vi.fn();
+    vi.doMock("../../src/lib/config.js", () => ({
+      load: () => ({ x402: true, api_key: "cfg-api-key" }),
+    }));
+    vi.doMock("../../src/lib/x402-client.js", () => ({
+      X402Client: class {
+        constructor(...args: unknown[]) {
+          x402Ctor(...args);
+        }
+      },
+    }));
+    vi.doMock("../../src/lib/client.js", () => ({
+      Client: class {
+        constructor(...args: unknown[]) {
+          clientCtor(...args);
+        }
+      },
+    }));
+
+    const { apiKeyClientFromFlags } = await import("../../src/lib/resolve.js");
+    apiKeyClientFromFlags(makeProgram({ network: "base-mainnet" }));
+
+    expect(clientCtor).toHaveBeenCalledWith("cfg-api-key", "base-mainnet");
+    expect(x402Ctor).not.toHaveBeenCalled();
   });
 
   it("clientFromFlags chooses Client when x402 disabled", async () => {
@@ -311,7 +411,7 @@ describe("resolve.ts precedence", () => {
     }));
     const { clientFromFlags } = await import("../../src/lib/resolve.js");
 
-    await expect(async () => clientFromFlags(makeProgram({}))).rejects.toMatchObject({
+    await expect(async () => clientFromFlags(makeProgram({ network: "eth-mainnet" }))).rejects.toMatchObject({
       code: ErrorCode.AUTH_REQUIRED,
     });
   });

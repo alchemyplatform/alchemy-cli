@@ -72,7 +72,6 @@ const COMMAND_NAMES = [
   "config",
   "config set",
   "config set app",
-  "config set network",
   "config set verbose",
   "config set wallet-key-file",
   "config set x402",
@@ -110,7 +109,6 @@ const REPL_HISTORY_MAX = 100;
 function formatSetupMethodLabel(): string {
   const method = getSetupMethod(loadConfig());
   if (method === "api_key") return "API key";
-  if (method === "access_key_app") return "Access key + app";
   if (method === "x402_wallet") return "SIWx wallet";
   if (method === "auth_token") return "Auth token";
   return "Not configured";

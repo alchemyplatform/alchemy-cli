@@ -44,7 +44,7 @@ async function resolveTokenInfo(
   }
 
   try {
-    return await fetchTokenDecimals(program, tokenAddress);
+    return await fetchTokenDecimals(program, tokenAddress, { network });
   } catch (err) {
     if (err instanceof CLIError && err.code === "INVALID_ARGS") {
       throw err;
@@ -168,14 +168,14 @@ export function registerSwap(program: Command) {
     .addHelpText(
       "after",
       `
-Tip: use 'alchemy evm token <SYMBOL>' to resolve common token addresses
+Tip: use 'alchemy evm token <SYMBOL> -n <net>' to resolve common token addresses
 (ETH, USDC, WETH, USDT, DAI, …). Example:
-  --from $(alchemy evm token ETH --address-only) \\
+  --from $(alchemy evm token ETH --address-only -n eth-mainnet) \\
   --to $(alchemy evm token USDC --address-only -n eth-mainnet)
 
 Examples:
   alchemy evm swap quote --from 0xEeee...EEeE --to 0xA0b8...USDC --amount 1.0 -n eth-mainnet
-  alchemy evm swap quote --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0`,
+  alchemy evm swap quote --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0 -n eth-mainnet`,
     )
     .action(async (opts: SwapOpts) => {
       try {
@@ -201,14 +201,14 @@ Examples:
     .addHelpText(
       "after",
       `
-Tip: use 'alchemy evm token <SYMBOL>' to resolve common token addresses
-(ETH, USDC, WETH, USDT, DAI, …). Run 'alchemy evm token list' to discover
-known symbols on the current network.
+Tip: use 'alchemy evm token <SYMBOL> -n <net>' to resolve common token addresses
+(ETH, USDC, WETH, USDT, DAI, …). Run 'alchemy evm token list -n <net>' to discover
+known symbols on that network.
 
 Examples:
   alchemy evm swap execute --from 0xEeee...EEeE --to 0xA0b8...USDC --amount 1.0 -n eth-mainnet
-  alchemy evm swap execute --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0
-  alchemy evm swap execute --from 0xEeee...EEeE --to 0xUSDC --amount 0.1 --gas-sponsored --gas-policy-id <id>`,
+  alchemy evm swap execute --from 0xUSDC --to 0xDAI --amount 100 --slippage 1.0 -n eth-mainnet
+  alchemy evm swap execute --from 0xEeee...EEeE --to 0xUSDC --amount 0.1 --gas-sponsored --gas-policy-id <id> -n eth-mainnet`,
     )
     .action(async (_opts: unknown, cmd: Command) => {
       try {

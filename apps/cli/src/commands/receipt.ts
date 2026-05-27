@@ -24,10 +24,10 @@ export function registerReceipt(program: Command) {
       "after",
       `
 Examples:
-  alchemy evm receipt 0xabc123...
-  echo 0xabc123... | alchemy evm receipt
+  alchemy evm receipt 0xabc123... -n eth-mainnet
+  echo 0xabc123... | alchemy evm receipt -n eth-mainnet
 
-Tip: use 'alchemy evm tx <hash>' for transaction details (value, block, nonce). Receipt provides execution results (status, gas used, logs).`,
+Tip: use 'alchemy evm tx <hash> -n <net>' for transaction details (value, block, nonce). Receipt provides execution results (status, gas used, logs).`,
     )
     .action(async (hashArg?: string) => {
       try {

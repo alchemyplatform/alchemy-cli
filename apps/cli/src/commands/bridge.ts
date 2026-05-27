@@ -198,7 +198,7 @@ export function registerBridge(program: Command) {
 Source network comes from the global -n/--network flag. Use --to-network for the destination chain.
 For same-chain token exchanges, use 'alchemy evm swap'.
 
-Tip: use 'alchemy evm token <SYMBOL>' to resolve common token addresses
+Tip: use 'alchemy evm token <SYMBOL> -n <net>' to resolve common token addresses
 (ETH, USDC, WETH, USDT, DAI, …) per chain.
 
 Examples:
@@ -233,7 +233,7 @@ Examples:
 Source network comes from the global -n/--network flag. Use --to-network for the destination chain.
 For same-chain token exchanges, use 'alchemy evm swap'.
 
-Tip: use 'alchemy evm token <SYMBOL>' to resolve common token addresses
+Tip: use 'alchemy evm token <SYMBOL> -n <net>' to resolve common token addresses
 (ETH, USDC, WETH, USDT, DAI, …) per chain.
 
 Examples:

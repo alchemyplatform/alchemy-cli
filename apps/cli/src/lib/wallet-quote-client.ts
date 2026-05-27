@@ -2,7 +2,6 @@ import type { BaseWalletClient } from "@alchemy/wallet-apis";
 import { createClient, type Address, type Chain } from "viem";
 import { parseAccount } from "viem/accounts";
 import type { Command } from "commander";
-import { load as loadConfig, type Config } from "./config.js";
 import {
   resolveAPIKey,
   resolveNetwork,
@@ -26,8 +25,7 @@ export function buildWalletQuoteClient(
   const apiKey = resolveAPIKey(program);
   if (!apiKey) throw errAuthRequired();
 
-  const cfg: Config = loadConfig();
-  const network = resolveNetwork(program, cfg);
+  const network = resolveNetwork(program);
   const chain = networkToChain(network);
 
   const client = createClient({

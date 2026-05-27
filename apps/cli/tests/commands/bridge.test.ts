@@ -30,7 +30,7 @@ describe("bridge command", () => {
     });
     const sourceCall = vi.fn();
     const destinationCall = vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDbC" });
-    const clientFromFlags = vi.fn((_program: Command, opts?: { forceNetwork?: string }) => ({
+    const apiKeyClientFromFlags = vi.fn((_program: Command, opts?: { forceNetwork?: string }) => ({
       call: opts?.forceNetwork === "base-mainnet" ? destinationCall : sourceCall,
     }));
 
@@ -52,7 +52,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags,
+      apiKeyClientFromFlags,
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -89,7 +89,9 @@ describe("bridge command", () => {
       toChainId: 8453,
       account: QUOTE_FROM,
     }));
-    expect(clientFromFlags).toHaveBeenCalledWith(expect.any(Command), { forceNetwork: "base-mainnet" });
+    expect(apiKeyClientFromFlags).toHaveBeenCalledWith(expect.any(Command), {
+      forceNetwork: "base-mainnet",
+    });
     expect(destinationCall).toHaveBeenCalledWith("alchemy_getTokenMetadata", [BASE_USDC]);
     expect(sourceCall).not.toHaveBeenCalled();
     expect(printJSON).toHaveBeenCalledWith(expect.objectContaining({
@@ -117,7 +119,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn(() => ({
+      apiKeyClientFromFlags: vi.fn(() => ({
         call: vi.fn().mockResolvedValue({ decimals: 18, symbol: "ETH" }),
       })),
     }));
@@ -175,7 +177,7 @@ describe("bridge command", () => {
       data: {},
       feePayment: { sponsored: false, tokenAddress: ETH_USDC, maxAmount: 0n },
     });
-    const clientFromFlags = vi.fn((_program: Command, opts?: { forceNetwork?: string }) => ({
+    const apiKeyClientFromFlags = vi.fn((_program: Command, opts?: { forceNetwork?: string }) => ({
       call: vi.fn().mockResolvedValue(
         opts?.forceNetwork === "base-mainnet"
           ? { decimals: 6, symbol: "USDbC" }
@@ -193,7 +195,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags,
+      apiKeyClientFromFlags,
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
@@ -275,7 +277,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn(() => ({
+      apiKeyClientFromFlags: vi.fn(() => ({
         call: vi.fn().mockResolvedValue({ decimals: 18, symbol: "ETH" }),
       })),
     }));
@@ -356,7 +358,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn(() => ({
+      apiKeyClientFromFlags: vi.fn(() => ({
         call: vi.fn().mockResolvedValue({ decimals: 18, symbol: "ETH" }),
       })),
     }));
@@ -504,7 +506,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn((_program: Command, opts?: { forceNetwork?: string }) => ({
+      apiKeyClientFromFlags: vi.fn((_program: Command, opts?: { forceNetwork?: string }) => ({
         call: vi.fn().mockResolvedValue(
           opts?.forceNetwork === "base-mainnet"
             ? { decimals: 6, symbol: "USDbC" }
@@ -565,7 +567,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn(() => ({ call: vi.fn() })),
+      apiKeyClientFromFlags: vi.fn(() => ({ call: vi.fn() })),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -627,7 +629,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn((_program: Command, opts?: { forceNetwork?: string }) => ({
+      apiKeyClientFromFlags: vi.fn((_program: Command, opts?: { forceNetwork?: string }) => ({
         call: vi.fn().mockResolvedValue(
           opts?.forceNetwork === "base-mainnet"
             ? { decimals: 6, symbol: "USDbC" }
@@ -689,7 +691,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn(() => ({ call: vi.fn() })),
+      apiKeyClientFromFlags: vi.fn(() => ({ call: vi.fn() })),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -739,7 +741,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn(() => ({ call: vi.fn() })),
+      apiKeyClientFromFlags: vi.fn(() => ({ call: vi.fn() })),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -794,7 +796,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn(() => ({ call: vi.fn() })),
+      apiKeyClientFromFlags: vi.fn(() => ({ call: vi.fn() })),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -847,7 +849,7 @@ describe("bridge command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: vi.fn(() => ({ call: vi.fn() })),
+      apiKeyClientFromFlags: vi.fn(() => ({ call: vi.fn() })),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,

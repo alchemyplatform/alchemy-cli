@@ -3,7 +3,7 @@ import type { Command } from "commander";
 import { isInteractiveAllowed } from "./interaction.js";
 import { resolveAuthToken, resolveWalletSession } from "./resolve.js";
 
-export type SetupMethod = "api_key" | "access_key_app" | "x402_wallet" | "auth_token";
+export type SetupMethod = "api_key" | "x402_wallet" | "auth_token";
 export type SetupCapability =
   | "rpc_data"
   | "admin_api"
@@ -48,10 +48,6 @@ function hasAPIKey(cfg: Config): boolean {
   return Boolean(cfg.api_key?.trim());
 }
 
-function hasAccessKeyAndApp(cfg: Config): boolean {
-  return Boolean(cfg.access_key?.trim() && cfg.app?.id && cfg.app.apiKey);
-}
-
 function hasX402Wallet(cfg: Config): boolean {
   return cfg.x402 === true && Boolean(cfg.wallet_key_file?.trim());
 }
@@ -71,7 +67,7 @@ function capabilityStatus(args: {
 
 export function getSetupCapabilities(cfg: Config): SetupCapabilities {
   const hasConfiguredAPIKey = hasAPIKey(cfg) || Boolean(cfg.app?.apiKey?.trim());
-  const hasAdminAuth = Boolean(cfg.access_key?.trim()) || hasAuthToken(cfg);
+  const hasAdminAuth = hasAuthToken(cfg);
   const hasNotifyAuth = Boolean(
     cfg.webhook_api_key?.trim() || cfg.app?.webhookApiKey?.trim(),
   );
@@ -92,15 +88,9 @@ export function getSetupCapabilities(cfg: Config): SetupCapabilities {
     }),
     admin_api: capabilityStatus({
       complete: hasAdminAuth,
-      satisfiedBy: cfg.access_key?.trim()
-        ? "access_key"
-        : hasAuthToken(cfg)
-          ? "auth_token"
-          : null,
-      missing: hasAdminAuth ? [] : ["access-key or auth token"],
-      nextCommands: hasAdminAuth
-        ? []
-        : ["alchemy auth", "alchemy config set access-key <key>"],
+      satisfiedBy: hasAdminAuth ? "auth_token" : null,
+      missing: hasAdminAuth ? [] : ["auth token"],
+      nextCommands: hasAdminAuth ? [] : ["alchemy auth"],
     }),
     notify_webhooks: capabilityStatus({
       complete: hasNotifyAuth,
@@ -142,7 +132,6 @@ export function getSetupCapabilities(cfg: Config): SetupCapabilities {
 
 export function getSetupMethod(cfg: Config): SetupMethod | null {
   if (hasAPIKey(cfg)) return "api_key";
-  if (hasAccessKeyAndApp(cfg)) return "access_key_app";
   if (hasX402Wallet(cfg)) return "x402_wallet";
   if (hasAuthToken(cfg)) return "auth_token";
   return null;
@@ -168,11 +157,10 @@ export function getSetupStatus(cfg: Config): SetupStatus {
   return {
     complete: false,
     satisfiedBy: null,
-    missing: ["Provide one auth path: alchemy auth OR api-key OR ALCHEMY_ACCESS_KEY+app OR SIWx wallet"],
+    missing: ["Provide one auth path: alchemy auth OR api-key OR SIWx wallet"],
     nextCommands: [
       "alchemy auth",
       "alchemy config set app",
-      "alchemy config set access-key <key> && alchemy config set app <app-id>",
       "alchemy wallet connect --mode local && alchemy config set x402 true",
     ],
     capabilities,

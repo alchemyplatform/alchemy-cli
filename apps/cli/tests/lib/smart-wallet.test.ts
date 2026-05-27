@@ -231,7 +231,7 @@ describe("buildWalletClient", () => {
     expect(ctx.address).toBe("0x2222222222222222222222222222222222222222");
   });
 
-  it("throws errWalletKeyRequired when neither session nor local is configured", async () => {
+  it("asks the user to connect a wallet when neither session nor local is configured", async () => {
     doMockDeps({
       validSession: null,
       storedSession: null,
@@ -239,7 +239,23 @@ describe("buildWalletClient", () => {
     });
 
     const { buildWalletClient } = await import("../../src/lib/smart-wallet.js");
-    expect(() => buildWalletClient(makeProgram())).toThrow();
+    expect(() => buildWalletClient(makeProgram())).toThrow(
+      "No wallet connected. Run 'alchemy wallet connect'",
+    );
+  });
+
+  it("asks for a local wallet when local signing is explicitly selected", async () => {
+    doMockDeps({
+      validSession: null,
+      storedSession: null,
+      localKey: undefined,
+      activeSigner: "local",
+    });
+
+    const { buildWalletClient } = await import("../../src/lib/smart-wallet.js");
+    expect(() => buildWalletClient(makeProgram())).toThrow(
+      "No local wallet configured.",
+    );
   });
 
   it("throws when session metadata is incomplete", async () => {

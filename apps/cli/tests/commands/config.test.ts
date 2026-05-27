@@ -11,12 +11,9 @@ useCommandTestReset();
 const KEY_MAP = {
   "api-key": "api_key",
   api_key: "api_key",
-  "access-key": "access_key",
-  access_key: "access_key",
   "webhook-api-key": "webhook_api_key",
   webhook_api_key: "webhook_api_key",
   app: "app",
-  network: "network",
   verbose: "verbose",
   "wallet-key-file": "wallet_key_file",
   wallet_key_file: "wallet_key_file",
@@ -86,6 +83,7 @@ describe("config command", () => {
     const setSubcommandNames = setCommand?.commands.map((command) => command.name()) ?? [];
 
     expect(setSubcommandNames).not.toContain("api-key");
+    expect(setSubcommandNames).not.toContain("network");
     expect(setSubcommandNames).toContain("app");
   });
 
@@ -119,9 +117,9 @@ describe("config command", () => {
 
   it("lists config map in JSON mode", async () => {
     const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
-    const map = { "api-key": "masked", network: "eth-mainnet" };
+    const map = { "api-key": "masked" };
     mockConfigModule({
-      load: vi.fn().mockReturnValue({ api_key: "key", network: "eth-mainnet" }),
+      load: vi.fn().mockReturnValue({ api_key: "key" }),
       toMap: vi.fn().mockReturnValue(map),
     });
     mockConfigDependencies({ interactive: false });
@@ -137,13 +135,13 @@ describe("config command", () => {
     const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
     const save = vi.fn();
     mockConfigModule({
-      load: vi.fn().mockReturnValue({ api_key: "k", network: "eth-mainnet" }),
+      load: vi.fn().mockReturnValue({ api_key: "k", verbose: true }),
       save,
     });
     mockConfigDependencies({ interactive: false });
 
     const { registerConfig } = await import("../../src/commands/config.js");
-    await runRegisteredCommand(registerConfig, ["config", "reset", "network"]);
+    await runRegisteredCommand(registerConfig, ["config", "reset", "verbose"]);
 
     expect(save).toHaveBeenCalledWith({ api_key: "k" });
     expect(exitWithError).not.toHaveBeenCalled();
@@ -191,7 +189,7 @@ describe("config command", () => {
     const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
     const save = vi.fn();
     mockConfigModule({
-      load: vi.fn().mockReturnValue({ api_key: "k", access_key: "ak" }),
+      load: vi.fn().mockReturnValue({ api_key: "k" }),
       save,
     });
     const { promptConfirm } = mockConfigDependencies({ interactive: true });
@@ -219,8 +217,8 @@ describe("config command", () => {
     expect(exitWithError.mock.calls[0][0]).toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("returns effective default for network when not explicitly set", async () => {
-    const { exitWithError, printHuman } = installBaseCommandMocks({ jsonMode: false });
+  it("returns NOT_FOUND for network because it has no implicit default", async () => {
+    const { exitWithError } = installBaseCommandMocks({ jsonMode: false });
     mockConfigModule({
       load: vi.fn().mockReturnValue({}),
       get: vi.fn().mockReturnValue(undefined),
@@ -230,12 +228,8 @@ describe("config command", () => {
     const { registerConfig } = await import("../../src/commands/config.js");
     await runRegisteredCommand(registerConfig, ["config", "get", "network"]);
 
-    expect(exitWithError).not.toHaveBeenCalled();
-    expect(printHuman).toHaveBeenCalledTimes(1);
-    // Human text should contain the default value
-    expect(printHuman.mock.calls[0][0]).toContain("eth-mainnet");
-    // JSON payload should indicate it's a default
-    expect(printHuman.mock.calls[0][1]).toMatchObject({ key: "network", value: "eth-mainnet", default: true });
+    expect(exitWithError).toHaveBeenCalledTimes(1);
+    expect(exitWithError.mock.calls[0][0]).toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("returns effective default for verbose when not explicitly set", async () => {

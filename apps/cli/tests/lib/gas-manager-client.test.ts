@@ -35,7 +35,7 @@ class TestGasManagerClient extends GasManagerClient {
   private testHost: string;
 
   constructor(url: string) {
-    super("test-access-key");
+    super({ type: "auth_token", token: "test-auth-token" });
     this.testURL = url;
     this.testHost = new URL(url).hostname;
   }
@@ -85,7 +85,7 @@ describe("GasManagerClient", () => {
     const client = new TestGasManagerClient(url);
     const result = await client.listPolicies({ appId: "app-1", limit: 10, after: "cursor-1" });
 
-    expect(capturedAuth).toBe("Bearer test-access-key");
+    expect(capturedAuth).toBe("Bearer test-auth-token");
     expect(capturedUrl).toContain("/api/gasManager/policies");
     expect(capturedUrl).toContain("appId=app-1");
     expect(capturedUrl).toContain("limit=10");
@@ -171,14 +171,14 @@ describe("GasManagerClient", () => {
     expect(updated.status).toBe("active");
   });
 
-  it("401 maps to INVALID_ACCESS_KEY", async () => {
+  it("401 maps to AUTH_REQUIRED", async () => {
     const url = await createTestServer((_req, res) => {
       res.writeHead(401);
       res.end();
     });
     const client = new TestGasManagerClient(url);
     await expect(client.getPolicy("0xabc")).rejects.toMatchObject({
-      code: "INVALID_ACCESS_KEY",
+      code: "AUTH_REQUIRED",
     });
   });
 

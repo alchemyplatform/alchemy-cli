@@ -33,7 +33,7 @@ interface AgentPrompt {
   };
   auth: Array<{
     method: string;
-    envVar: string;
+    envVar?: string;
     flag?: string;
     configKey?: string;
     setup?: string;
@@ -58,14 +58,10 @@ const ERROR_RECOVERY: Record<ErrorCodeType, string> = {
     "Check your API key and select a valid app: alchemy config set app",
   NETWORK_NOT_ENABLED:
     "Enable the target network for your app at dashboard.alchemy.com",
-  INVALID_ACCESS_KEY:
-    "Check your access key: https://dashboard.alchemy.com/",
-  ACCESS_KEY_REQUIRED:
-    "Set ALCHEMY_ACCESS_KEY env var or run: alchemy config set access-key <key>",
   APP_REQUIRED:
     "Select an app: alchemy config set app <app-id>",
   ADMIN_API_ERROR:
-    "Check the error message for details; verify access key permissions",
+    "Check the error message for details; verify account permissions",
   NETWORK_ERROR:
     "Check internet connection and retry",
   RPC_ERROR:
@@ -209,12 +205,11 @@ function buildAgentPrompt(program: Command): AgentPrompt {
         ],
       },
       {
-        method: "Access key",
-        envVar: "ALCHEMY_ACCESS_KEY",
-        configKey: "access-key",
-        commandFamilies: ["app", "evm network"],
+        method: "Alchemy login",
+        setup: "alchemy auth login",
+        commandFamilies: ["app", "evm network", "gas-manager"],
         notes:
-          "No command-line flag exists for access-key auth; use the env var or saved config.",
+          "Admin surfaces use the browser login session stored by `alchemy auth login`.",
       },
       {
         method: "Webhook API key",
@@ -271,15 +266,15 @@ function buildAgentPrompt(program: Command): AgentPrompt {
     examples: [
       "alchemy --json --no-interactive config status",
       "alchemy --json --no-interactive update-check",
-      "alchemy --json --no-interactive evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
-      "ALCHEMY_ACCESS_KEY=ak_xxx alchemy --json --no-interactive app list",
-      "alchemy --json --no-interactive evm rpc eth_blockNumber --api-key $ALCHEMY_API_KEY",
+      "alchemy --json --no-interactive evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY -n eth-mainnet",
+      "alchemy --json --no-interactive app list",
+      "alchemy --json --no-interactive evm rpc eth_blockNumber --api-key $ALCHEMY_API_KEY -n eth-mainnet",
       "alchemy --json --no-interactive evm network list",
       "alchemy --json --no-interactive evm send 0xRecipient 0.001 --dry-run -n eth-sepolia",
       "alchemy --json --no-interactive evm contract read 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 \"balanceOf(address)(uint256)\" --args '[\"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045\"]' -n eth-mainnet",
       "alchemy --json --no-interactive evm swap quote --from 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE --to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --amount 1.0 --from-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 -n eth-mainnet",
-      "alchemy --json --no-interactive evm logs --from-block latest --limit 25",
-      "alchemy --json --no-interactive evm block latest --summary",
+      "alchemy --json --no-interactive evm logs --from-block latest --limit 25 -n eth-mainnet",
+      "alchemy --json --no-interactive evm block latest --summary -n eth-mainnet",
       "alchemy --json --no-interactive evm status 0xCallId -n eth-mainnet",
     ],
     docs: "https://www.alchemy.com/docs",
@@ -321,7 +316,9 @@ function formatAsSystemPrompt(payload: AgentPrompt): string {
   lines.push("Auth methods:");
   for (const auth of payload.auth) {
     lines.push(`  ${auth.method}:`);
-    lines.push(`    env:      ${auth.envVar}`);
+    if (auth.envVar) {
+      lines.push(`    env:      ${auth.envVar}`);
+    }
     if (auth.flag) {
       lines.push(`    flag:     ${auth.flag}`);
     }

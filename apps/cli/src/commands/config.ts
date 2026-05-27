@@ -240,19 +240,6 @@ export function registerConfig(program: Command) {
     });
 
   setCmd
-    .command("network <network>")
-    .description("Set the default network (e.g. eth-mainnet, polygon-mainnet)")
-    .action((network: string) => {
-      try {
-        const cfg = config.load();
-        config.save({ ...cfg, network });
-        printHuman(`${green("✓")} Set network to ${network}\n`, { key: "network", value: network, status: "set" });
-      } catch (err) {
-        exitWithError(err);
-      }
-    });
-
-  setCmd
     .command("verbose <enabled>")
     .description("Set default verbose output (true|false)")
     .action((enabled: string) => {
@@ -433,7 +420,7 @@ export function registerConfig(program: Command) {
 
   cmd
     .command("get <key>")
-    .description("Get a config value (api-key, app, network, verbose, wallet-key-file, x402)")
+    .description("Get a config value (api-key, app, verbose, wallet-key-file, x402)")
     .action((key: string) => {
       const cfg = config.load();
       let value = config.get(cfg, key);
@@ -442,7 +429,6 @@ export function registerConfig(program: Command) {
       // Return effective defaults for keys that have well-known defaults
       if (value === undefined) {
         const defaults: Record<string, string> = {
-          network: "eth-mainnet",
           verbose: "false",
           x402: "false",
           evm_gas_sponsored: "false",
@@ -506,7 +492,6 @@ export function registerConfig(program: Command) {
             ? `${cfg.app.name} ${dim(`(${cfg.app.id})`)}`
             : dim("(not set) — set automatically via 'alchemy auth' or 'config set app'"),
         ],
-        ["network", cfg.network || dim("(not set, defaults to eth-mainnet)")],
         [
           "verbose",
           cfg.verbose !== undefined

@@ -20,6 +20,7 @@ import { networkToChain } from "./chains.js";
 import {
   errAuthRequired,
   errWalletKeyRequired,
+  errWalletRequired,
   errInvalidArgs,
   errSessionExpired,
   errNoActiveSession,
@@ -48,6 +49,7 @@ import { createAlchemyWalletTransport } from "./wallet-transport.js";
  */
 export async function ensureGasPolicyResolved(
   program: Command,
+  options: { networkOverride?: string } = {},
 ): Promise<string | undefined> {
   const cfg = loadConfig();
   if (!resolveGasSponsored(program, cfg)) return undefined;
@@ -62,7 +64,7 @@ export async function ensureGasPolicyResolved(
     throw errNotLoggedInForPolicyLookup();
   }
 
-  const network = resolveNetwork(program, cfg);
+  const network = options.networkOverride ?? resolveNetwork(program);
   const policyId = await selectOrCreatePolicy({
     flavor: "sponsorship",
     network,
@@ -93,6 +95,7 @@ export interface WalletContext {
 
 export interface BuildWalletClientOptions {
   signer?: "session" | "local";
+  networkOverride?: string;
   /**
    * If provided, takes precedence over `resolveGasPolicyId` for this build.
    * Used by `ensureGasPolicyResolved` to thread the prompted policy ID into
@@ -155,7 +158,7 @@ export function buildWalletClient(
   if (!apiKey) throw errAuthRequired();
 
   const cfg: Config = loadConfig();
-  const network = resolveNetwork(program, cfg);
+  const network = options.networkOverride ?? resolveNetwork(program);
   const chain = networkToChain(network);
   const gasSponsored = resolveGasSponsored(program, cfg);
   const gasPolicyId = options.gasPolicyIdOverride ?? resolveGasPolicyId(program, cfg);
@@ -207,7 +210,9 @@ export function buildWalletClient(
       };
     }
 
-    if (!localKey) throw errWalletKeyRequired();
+    if (!localKey) {
+      throw pref === "local" ? errWalletKeyRequired() : errWalletRequired();
+    }
     const account = privateKeyToAccount(normalizeKey(localKey));
     return {
       signer: account as Parameters<typeof createSmartWalletClient>[0]["signer"],

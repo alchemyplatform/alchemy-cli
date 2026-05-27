@@ -813,7 +813,7 @@ describe("wallet command", () => {
 
     expect(printJSON).not.toHaveBeenCalled();
     expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
-      message: expect.stringContaining("Wallet key required"),
+      message: expect.stringContaining("No local wallet configured"),
     }));
   });
 

@@ -50,7 +50,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => rpcClient,
+      apiKeyClientFromFlags: () => rpcClient,
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -111,7 +111,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(50000000n),
+      apiKeyClientFromFlags: () => mockRpcClient(50000000n),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -162,7 +162,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(),
+      apiKeyClientFromFlags: () => mockRpcClient(),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -219,7 +219,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => rpcClient,
+      apiKeyClientFromFlags: () => rpcClient,
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -279,7 +279,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(0n),
+      apiKeyClientFromFlags: () => mockRpcClient(0n),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
@@ -342,7 +342,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(0n),
+      apiKeyClientFromFlags: () => mockRpcClient(0n),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => false,
@@ -402,7 +402,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => rpcClient,
+      apiKeyClientFromFlags: () => rpcClient,
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -466,7 +466,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => rpcClient,
+      apiKeyClientFromFlags: () => rpcClient,
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -524,7 +524,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(0n),
+      apiKeyClientFromFlags: () => mockRpcClient(0n),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -580,7 +580,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(),
+      apiKeyClientFromFlags: () => mockRpcClient(),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -630,7 +630,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(),
+      apiKeyClientFromFlags: () => mockRpcClient(),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -682,7 +682,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(),
+      apiKeyClientFromFlags: () => mockRpcClient(),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,
@@ -734,7 +734,7 @@ describe("approve command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => mockRpcClient(),
+      apiKeyClientFromFlags: () => mockRpcClient(),
     }));
     vi.doMock("../../src/lib/output.js", () => ({
       isJSONMode: () => true,

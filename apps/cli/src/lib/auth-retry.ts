@@ -43,10 +43,7 @@ export async function withAuthRetry<T>(
 
 function is401(err: unknown): boolean {
   if (err instanceof CLIError) {
-    return (
-      err.code === ErrorCode.AUTH_REQUIRED ||
-      err.code === ErrorCode.INVALID_ACCESS_KEY
-    );
+    return err.code === ErrorCode.AUTH_REQUIRED;
   }
   if (err && typeof err === "object" && "status" in err) {
     return (err as { status: number }).status === 401;

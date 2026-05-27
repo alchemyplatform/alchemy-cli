@@ -2,7 +2,7 @@
 
 Alchemy CLI is a command-line tool for querying blockchain data and managing Alchemy apps/configuration.
 It supports both human-friendly terminal output and JSON output for automation.
-You can use browser login, API keys, access keys, or x402 wallet auth depending on the command.
+You can use browser login, API keys, or x402 wallet auth depending on the command.
 
 ## Installation
 
@@ -67,7 +67,7 @@ Quick usage examples:
 alchemy
 
 # Agent/script-friendly command
-alchemy evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --json --no-interactive
+alchemy evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 -n eth-mainnet --json --no-interactive
 
 # Agent checks whether a newer CLI version is available
 alchemy update-check --json --no-interactive
@@ -95,22 +95,22 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 | Command | What it does | Example |
 |---|---|---|
-| `evm rpc <method> [params...]` | Makes raw Ethereum JSON-RPC calls | `alchemy evm rpc eth_blockNumber` |
-| `evm data balance [address]` | Gets native token balance for an address | `alchemy evm data balance 0x...` |
-| `evm data tokens balances [address]` | Lists ERC-20 balances for an address | `alchemy evm data tokens balances 0x...` |
-| `evm data nfts [address]` | Lists NFTs owned by an address | `alchemy evm data nfts 0x...` |
-| `evm data history [address]` | Gets transfer history (`alchemy_getAssetTransfers`) | `alchemy evm data history 0x... --category erc20,erc721` |
+| `evm rpc <method> [params...]` | Makes raw Ethereum JSON-RPC calls | `alchemy evm rpc eth_blockNumber -n eth-mainnet` |
+| `evm data balance [address]` | Gets native token balance for an address | `alchemy evm data balance 0x... -n eth-mainnet` |
+| `evm data tokens balances [address]` | Lists ERC-20 balances for an address | `alchemy evm data tokens balances 0x... -n eth-mainnet` |
+| `evm data nfts [address]` | Lists NFTs owned by an address | `alchemy evm data nfts 0x... -n eth-mainnet` |
+| `evm data history [address]` | Gets transfer history (`alchemy_getAssetTransfers`) | `alchemy evm data history 0x... --category erc20,erc721 -n eth-mainnet` |
 | `evm data price symbol <symbols>` | Gets current token prices by symbol | `alchemy evm data price symbol ETH,USDC` |
 | `evm data portfolio tokens --body <json>` | Gets token portfolio data | `alchemy evm data portfolio tokens --body '{...}'` |
-| `evm send <to> <amount>` | Sends native tokens or ERC-20 tokens | `alchemy evm send vitalik.eth 0.1 -n base-mainnet` |
-| `evm contract read/call` | Reads or writes smart contracts | `alchemy evm contract read 0x... "balanceOf(address)(uint256)" --args '["0x..."]'` |
-| `evm swap quote/execute` | Swaps tokens on the same chain | `alchemy evm swap quote --from 0xEeee... --to 0xA0b8... --amount 1` |
-| `evm approve <spender_address>` | Approves an ERC-20 token allowance | `alchemy evm approve 0x... --token-address 0x... --amount 10` |
-| `evm status [id]` | Checks transaction or operation status | `alchemy evm status 0x...` |
+| `evm send <to> <amount>` | Sends native tokens for `--network`, or ERC-20 tokens with `--token` | `alchemy evm send vitalik.eth 0.1 -n base-mainnet` |
+| `evm contract read/call` | Reads or writes smart contracts | `alchemy evm contract read 0x... "balanceOf(address)(uint256)" --args '["0x..."]' -n eth-mainnet` |
+| `evm swap quote/execute` | Swaps tokens on the same chain | `alchemy evm swap quote --from 0xEeee... --to 0xA0b8... --amount 1 -n eth-mainnet` |
+| `evm approve <spender_address>` | Approves an ERC-20 token allowance | `alchemy evm approve 0x... --token-address 0x... --amount 10 -n eth-mainnet` |
+| `evm status [id]` | Checks transaction or operation status | `alchemy evm status 0x... -n eth-mainnet` |
 | `evm network list` | Lists RPC network IDs for use with `--network` | `alchemy evm network list --search base` |
-| `evm tx/receipt/block/gas/logs` | Fetches common node resources | `alchemy evm block latest` |
-| `evm trace/debug` | Calls Trace and Debug API methods | `alchemy evm trace call '{"to":"0x..."}' '["trace"]' latest` |
-| `evm simulate *` | Calls simulation APIs | `alchemy evm simulate execution --tx '{"to":"0x..."}'` |
+| `evm tx/receipt/block/gas/logs` | Fetches common node resources | `alchemy evm block latest -n eth-mainnet` |
+| `evm trace/debug` | Calls Trace and Debug API methods | `alchemy evm trace call '{"to":"0x..."}' '["trace"]' latest -n eth-mainnet` |
+| `evm simulate *` | Calls simulation APIs | `alchemy evm simulate execution --tx '{"to":"0x..."}' -n eth-mainnet` |
 
 ### Wallets
 
@@ -134,14 +134,14 @@ Per-command override: pass `--signer <session\|local>` to `evm send`, `evm appro
 
 | Command | What it does | Example |
 |---|---|---|
-| `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"'` |
-| `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}'` |
+| `solana rpc <method> [params...]` | Calls Solana JSON-RPC methods | `alchemy solana rpc getBalance '"<pubkey>"' -n solana-mainnet` |
+| `solana das <method> [params...]` | Calls Solana DAS methods | `alchemy solana das getAssetsByOwner '{"ownerAddress":"<pubkey>"}' -n solana-mainnet` |
 | `solana network list` | Lists networks from the Solana namespace | `alchemy solana network list --search solana` |
-| `solana send <to> <amount>` | Sends SOL or SPL tokens to an address | `alchemy solana send <pubkey> 0.1` |
-| `solana send <to> <amount> --token <mint>` | Sends an SPL token and creates the recipient ATA if needed | `alchemy solana send <pubkey> 10 --token <mint>` |
-| `solana program accounts/account/show` | Inspects Solana program accounts and account metadata | `alchemy solana program accounts <program-id>` |
-| `solana delegate approve/revoke` | Approves or revokes SPL token delegates | `alchemy solana delegate approve --token-account <addr> --mint <mint> --delegate <addr> --amount 1 --decimals 6` |
-| `solana status [id]` | Checks Solana transaction or operation status | `alchemy solana status <signature>` |
+| `solana send <to> <amount>` | Sends SOL or SPL tokens to an address | `alchemy solana send <pubkey> 0.1 -n solana-mainnet` |
+| `solana send <to> <amount> --token <mint>` | Sends an SPL token and creates the recipient ATA if needed | `alchemy solana send <pubkey> 10 --token <mint> -n solana-mainnet` |
+| `solana program accounts/account/show` | Inspects Solana program accounts and account metadata | `alchemy solana program accounts <program-id> -n solana-mainnet` |
+| `solana delegate approve/revoke` | Approves or revokes SPL token delegates | `alchemy solana delegate approve --token-account <addr> --mint <mint> --delegate <addr> --amount 1 --decimals 6 -n solana-mainnet` |
+| `solana status [id]` | Checks Solana transaction or operation status | `alchemy solana status <signature> -n solana-mainnet` |
 | `xchain bridge quote/execute` | Bridges tokens across chains | `alchemy xchain bridge quote --from 0xEeee... --to 0xEeee... --amount 0.1 --to-network base-mainnet -n eth-mainnet` |
 
 ### CLI Admin
@@ -175,7 +175,7 @@ Per-command override: pass `--signer <session\|local>` to `evm send`, `evm appro
 | `install skills` | Installs bundled Alchemy skills | `alchemy install skills --client cursor --dry-run` |
 | `update-check` | Checks whether a newer CLI version is available | `alchemy update-check --json --no-interactive` |
 | `config set ...` | Sets config values | `alchemy config set app <app-id>` |
-| `config get <key>` | Gets one config value | `alchemy config get network` |
+| `config get <key>` | Gets one config value | `alchemy config get verbose` |
 | `config list` | Lists all config values | `alchemy config list` |
 | `config reset [key]` | Resets one or all config values | `alchemy config reset --yes` |
 | `completions <shell>` | Generates shell completion scripts (bash/zsh/fish) | `eval "$(alchemy completions zsh)"` |
@@ -193,7 +193,7 @@ These apply to all commands.
 | Flag | Env var | Description |
 |---|---|---|
 | `--api-key <key>` | `ALCHEMY_API_KEY` | API key for blockchain query commands |
-| `-n, --network <network>` | `ALCHEMY_NETWORK` | Target network (default: `eth-mainnet`) |
+| `-n, --network <network>` | — | Target network for networked commands |
 | `--x402` | — | Enable x402 wallet-based gateway auth |
 | `--wallet-key-file <path>` | — | EVM wallet private key file for x402 auth and local signing |
 | `--solana-wallet-key-file <path>` | — | Solana wallet private key file for local signing |
@@ -221,7 +221,6 @@ Additional env vars:
 | Env var | Description |
 |---|---|
 | `ALCHEMY_CONFIG` | Custom path to config file |
-| `ALCHEMY_ACCESS_KEY` | Access key for Admin API operations |
 | `ALCHEMY_WALLET_KEY` | EVM wallet private key for x402 auth and local signing |
 | `ALCHEMY_SOLANA_WALLET_KEY` | Solana wallet private key |
 | `ALCHEMY_ACTIVE_SIGNER` | Active EVM signer override (`session` or `local`) |
@@ -245,7 +244,7 @@ Additional env vars:
 | `evm data price historical` | `--body <json>` (required) |
 | `evm data portfolio *` | `--body <json>` (required per subcommand) |
 | `evm simulate *` | `--tx <json>` or `--txs <json>` (required) |
-| `evm send` | `--token <address>`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |
+| `evm send` | `-n, --network <network>` (required), `--token <address>`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |
 | `evm contract call` | `--args <json>`, `--abi-file <path>`, `--abi <json>`, `--value <ether>`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |
 | `evm swap quote` | `--from <token_address>`, `--to <token_address>`, `--amount <number>`, `--slippage <percent>`, `--signer <session\|local>` |
 | `evm swap execute` | `--from <token_address>`, `--to <token_address>`, `--amount <number>`, `--slippage <percent>`, `--gas-sponsored`, `--gas-policy-id <id>`, `--signer <session\|local>` |

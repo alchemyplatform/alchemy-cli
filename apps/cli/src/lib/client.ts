@@ -114,6 +114,10 @@ export class Client implements AlchemyClient {
     return null;
   }
 
+  private isFetchFailureError(err: RpcApiError): boolean {
+    return err.status === undefined && err.message.trim().toLowerCase() === "fetch failed";
+  }
+
   private verboseLog(message: string): void {
     if (isVerbose) {
       process.stderr.write(`[verbose] ${message}\n`);
@@ -151,6 +155,9 @@ export class Client implements AlchemyClient {
         }
         if (err.status !== undefined) {
           throw errNetwork(`HTTP ${err.status}: ${err.message}`);
+        }
+        if (this.isFetchFailureError(err)) {
+          throw errNetwork(err.message);
         }
         throw errRPC(err.code, err.message);
       }

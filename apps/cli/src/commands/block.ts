@@ -40,9 +40,9 @@ export function registerBlock(program: Command) {
       "after",
       `
 Examples:
-  alchemy evm block latest
-  alchemy evm block 17000000
-  alchemy evm block 0x1`,
+  alchemy evm block latest -n eth-mainnet
+  alchemy evm block 17000000 -n eth-mainnet
+  alchemy evm block 0x1 -n eth-mainnet`,
     )
     .action(async (blockId: string, opts: { summary?: boolean }) => {
       try {

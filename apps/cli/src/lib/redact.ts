@@ -3,8 +3,6 @@ import { getBaseDomain } from "./client-utils.js";
 export const SENSITIVE_ERROR_CODES = new Set([
   "AUTH_REQUIRED",
   "INVALID_API_KEY",
-  "INVALID_ACCESS_KEY",
-  "ACCESS_KEY_REQUIRED",
 ]);
 
 export function getAlchemyKeyPathMarkers(): string[] {

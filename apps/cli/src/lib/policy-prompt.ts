@@ -251,7 +251,7 @@ export function errSponsorshipNeedsPolicy(flavor: PolicyFlavor): CLIError {
 /**
  * Returns a typed error indicating that the prompt would have run but the
  * user is not signed in via `alchemy auth login`. Gas Manager flows do
- * NOT accept access keys; this is intentional.
+ * Requires the login auth token; this is intentional.
  */
 export function errNotLoggedInForPolicyLookup(): CLIError {
   return errLoginRequired();

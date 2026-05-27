@@ -222,7 +222,7 @@ describe("registerContract", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ rpc: true }),
+      apiKeyClientFromFlags: () => ({ rpc: true }),
       resolveNetwork: () => "base-mainnet",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -286,7 +286,7 @@ describe("performContractCall", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ rpc: true }),
+      apiKeyClientFromFlags: () => ({ rpc: true }),
       resolveNetwork: () => "eth-mainnet",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({
@@ -332,7 +332,7 @@ describe("performContractCall", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ rpc: true }),
+      apiKeyClientFromFlags: () => ({ rpc: true }),
       resolveNetwork: () => "eth-mainnet",
     }));
     vi.doMock("../../src/lib/validators.js", () => ({

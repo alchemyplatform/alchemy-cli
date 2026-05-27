@@ -45,7 +45,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
       }),
       resolveNetwork: () => "eth-mainnet",
@@ -138,7 +138,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
       }),
       resolveNetwork: () => "eth-mainnet",
@@ -341,7 +341,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
       }),
       resolveNetwork: () => "eth-mainnet",
@@ -443,7 +443,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
       }),
       resolveNetwork: () => "eth-mainnet",
@@ -593,7 +593,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
       }),
       resolveNetwork: () => "eth-mainnet",
@@ -646,7 +646,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ call: vi.fn() }),
+      apiKeyClientFromFlags: () => ({ call: vi.fn() }),
       resolveNetwork: () => "eth-mainnet",
     }));
     vi.doMock("../../src/lib/output.js", () => ({
@@ -699,7 +699,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ call: tokenMetadataCall }),
+      apiKeyClientFromFlags: () => ({ call: tokenMetadataCall }),
       resolveNetwork: () => "eth-sepolia",
     }));
     vi.doMock("../../src/lib/output.js", () => ({
@@ -750,7 +750,7 @@ describe("swap command", () => {
       buildWalletClient,
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ call: vi.fn() }),
+      apiKeyClientFromFlags: () => ({ call: vi.fn() }),
       resolveNetwork: () => "solana-mainnet",
     }));
     vi.doMock("../../src/lib/output.js", () => ({
@@ -823,7 +823,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
       }),
       resolveNetwork: () => "eth-mainnet",
@@ -908,7 +908,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({ call }),
+      apiKeyClientFromFlags: () => ({ call }),
       resolveNetwork: () => "eth-mainnet",
     }));
     vi.doMock("../../src/lib/output.js", () => ({
@@ -975,7 +975,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockResolvedValue({ decimals: 6, symbol: "USDC" }),
       }),
       resolveNetwork: () => "eth-mainnet",
@@ -1028,7 +1028,7 @@ describe("swap command", () => {
       }),
     }));
     vi.doMock("../../src/lib/resolve.js", () => ({
-      clientFromFlags: () => ({
+      apiKeyClientFromFlags: () => ({
         call: vi.fn().mockRejectedValue(new Error("RPC offline")),
       }),
       resolveNetwork: () => "eth-mainnet",

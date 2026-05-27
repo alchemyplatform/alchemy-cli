@@ -30,6 +30,13 @@ function rpcResult(id: unknown, result: unknown): Record<string, unknown> {
   return { jsonrpc: "2.0", id, result };
 }
 
+function createAuthConfig(token = "test-auth-token"): string {
+  const dir = mkdtempSync(join(tmpdir(), "alchemy-cli-auth-"));
+  const path = join(dir, "config.json");
+  writeFileSync(path, JSON.stringify({ auth_token: token }), { mode: 0o600 });
+  return path;
+}
+
 function rpcError(id: unknown, code: number, message: string): Record<string, unknown> {
   return { jsonrpc: "2.0", id, error: { code, message } };
 }
@@ -154,7 +161,17 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--api-key", "test-api-key", "evm", "data", "balance", ADDRESS],
+      [
+        "--json",
+        "--api-key",
+        "test-api-key",
+        "--network",
+        "eth-mainnet",
+        "evm",
+        "data",
+        "balance",
+        ADDRESS,
+      ],
       { ALCHEMY_RPC_BASE_URL: server.baseURL },
     );
 
@@ -175,7 +192,7 @@ describe("CLI mock E2E", () => {
     });
 
     const result = await runCLI(
-      ["--json", "--api-key", "test-api-key", "evm", "tx", HASH],
+      ["--json", "--api-key", "test-api-key", "--network", "eth-mainnet", "evm", "tx", HASH],
       { ALCHEMY_RPC_BASE_URL: server.baseURL },
     );
 
@@ -202,7 +219,7 @@ describe("CLI mock E2E", () => {
 
     const result = await runCLI(
       ["--json", "app", "list"],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_CONFIG: createAuthConfig() },
     );
 
     expect(result.exitCode).toBe(0);
@@ -216,7 +233,7 @@ describe("CLI mock E2E", () => {
     });
     expect(server.requests).toHaveLength(1);
     expect(server.requests[0].headers.authorization).toBe(
-      "Bearer test-access-key",
+      "Bearer test-auth-token",
     );
   });
 
@@ -266,7 +283,7 @@ describe("CLI mock E2E", () => {
 
     const result = await runCLI(
       ["--json", "app", "list", "--all"],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_CONFIG: createAuthConfig() },
     );
 
     expect(result.exitCode).toBe(0);
@@ -284,7 +301,7 @@ describe("CLI mock E2E", () => {
     });
     expect(server.requests).toHaveLength(2);
     expect(server.requests[0].headers.authorization).toBe(
-      "Bearer test-access-key",
+      "Bearer test-auth-token",
     );
     expect(server.requests[1].query.get("cursor")).toBe("cursor_2");
   });
@@ -335,7 +352,7 @@ describe("CLI mock E2E", () => {
 
     const result = await runCLI(
       ["--json", "app", "list", "--search", "target"],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_CONFIG: createAuthConfig() },
     );
 
     expect(result.exitCode).toBe(0);
@@ -352,7 +369,7 @@ describe("CLI mock E2E", () => {
     expect(server.requests).toHaveLength(2);
   });
 
-  it("returns INVALID_ACCESS_KEY contract on admin auth failures", async () => {
+  it("returns AUTH_REQUIRED contract on admin auth failures", async () => {
     server = await startMockServer((request) => {
       if (request.path === "/v1/apps") {
         return { status: 401, text: "unauthorized" };
@@ -362,13 +379,13 @@ describe("CLI mock E2E", () => {
 
     const result = await runCLI(
       ["--json", "app", "list"],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_CONFIG: createAuthConfig() },
     );
 
     expect(result.exitCode).toBe(3);
     expect(parseJSON(result.stderr)).toMatchObject({
       error: {
-        code: "INVALID_ACCESS_KEY",
+        code: "AUTH_REQUIRED",
       },
     });
   });
@@ -384,7 +401,7 @@ describe("CLI mock E2E", () => {
     expect(payload.some((network) => network.id === "base-mainnet")).toBe(true);
   });
 
-  it("lists configured app network slugs with access key mode", async () => {
+  it("lists configured app network slugs with auth token", async () => {
     server = await startMockServer((request) => {
       if (request.path === "/v1/apps/app-123") {
         return {
@@ -425,7 +442,7 @@ describe("CLI mock E2E", () => {
         "--app-id",
         "app-123",
       ],
-      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_ACCESS_KEY: "test-access-key" },
+      { ALCHEMY_ADMIN_API_BASE_URL: server.baseURL, ALCHEMY_CONFIG: createAuthConfig() },
     );
 
     expect(result.exitCode).toBe(0);
@@ -437,7 +454,7 @@ describe("CLI mock E2E", () => {
     });
     expect(server.requests).toHaveLength(1);
     expect(server.requests[0].headers.authorization).toBe(
-      "Bearer test-access-key",
+      "Bearer test-auth-token",
     );
   });
 
@@ -528,7 +545,7 @@ describe("CLI mock E2E", () => {
     expect(payload.checks.setup).toMatchObject({
       complete: false,
       satisfiedBy: null,
-      missing: ["Provide one auth path: alchemy auth OR api-key OR ALCHEMY_ACCESS_KEY+app"],
+      missing: ["Provide one auth path: alchemy auth OR api-key"],
     });
     expect(payload.checks.setup.nextCommands.join("\n")).not.toMatch(/x402|siwx/i);
     expect(payload.checks.setup.capabilities.rpc_data).toMatchObject({
@@ -562,11 +579,21 @@ describe("CLI mock E2E", () => {
     });
 
     const full = await runCLI(
-      ["--json", "--api-key", "test-api-key", "evm", "block", "latest"],
+      ["--json", "--api-key", "test-api-key", "--network", "eth-mainnet", "evm", "block", "latest"],
       { ALCHEMY_RPC_BASE_URL: server.baseURL },
     );
     const summary = await runCLI(
-      ["--json", "--api-key", "test-api-key", "evm", "block", "latest", "--summary"],
+      [
+        "--json",
+        "--api-key",
+        "test-api-key",
+        "--network",
+        "eth-mainnet",
+        "evm",
+        "block",
+        "latest",
+        "--summary",
+      ],
       { ALCHEMY_RPC_BASE_URL: server.baseURL },
     );
 
@@ -623,6 +650,8 @@ describe("CLI mock E2E", () => {
         "--json",
         "--api-key",
         "test-api-key",
+        "--network",
+        "eth-mainnet",
         "evm",
         "logs",
         "--from-block",
@@ -770,6 +799,8 @@ describe("CLI mock E2E", () => {
         "--json",
         "--api-key",
         "test-api-key",
+        "--network",
+        "eth-mainnet",
         "evm",
         "swap",
         "quote",
@@ -863,6 +894,8 @@ describe("CLI mock E2E", () => {
         "--json",
         "--api-key",
         "test-api-key",
+        "--network",
+        "eth-mainnet",
         "xchain",
         "bridge",
         "quote",
@@ -901,6 +934,8 @@ describe("CLI mock E2E", () => {
         RECIPIENT,
         "0.5",
         "--dry-run",
+        "-n",
+        "eth-mainnet",
       ],
       { ALCHEMY_WALLET_KEY: TEST_PRIVATE_KEY },
     );
@@ -917,6 +952,77 @@ describe("CLI mock E2E", () => {
       network: "eth-mainnet",
       sponsored: false,
       calls: [{ to: RECIPIENT, value: "500000000000000000" }],
+    });
+  });
+
+  it("networked commands require --network instead of using hidden defaults", async () => {
+    const cases: Array<{
+      argv: string[];
+      env?: Record<string, string>;
+    }> = [
+      {
+        argv: ["--json", "--api-key", "test-api-key", "evm", "data", "balance", ADDRESS],
+      },
+      {
+        argv: [
+          "--json",
+          "--api-key",
+          "test-api-key",
+          "evm",
+          "send",
+          RECIPIENT,
+          "0.5",
+          "--dry-run",
+        ],
+        env: { ALCHEMY_WALLET_KEY: TEST_PRIVATE_KEY },
+      },
+      {
+        argv: ["--json", "--api-key", "test-api-key", "solana", "rpc", "getHealth"],
+      },
+    ];
+
+    for (const testCase of cases) {
+      const result = await runCLI(testCase.argv, testCase.env);
+
+      expect(result.exitCode).toBe(2);
+      expect(parseJSON(result.stderr)).toMatchObject({
+        error: {
+          code: "INVALID_ARGS",
+          message: expect.stringContaining("Network required"),
+        },
+      });
+    }
+  });
+
+  it("evm send ignores saved config network and still requires --network", async () => {
+    const configDir = mkdtempSync(join(tmpdir(), "alchemy-cli-send-network-"));
+    const configPath = join(configDir, "config.json");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(configPath, JSON.stringify({ network: "monad-testnet" }));
+
+    const result = await runCLI(
+      [
+        "--json",
+        "--api-key",
+        "test-api-key",
+        "evm",
+        "send",
+        RECIPIENT,
+        "0.5",
+        "--dry-run",
+      ],
+      {
+        ALCHEMY_CONFIG: configPath,
+        ALCHEMY_WALLET_KEY: TEST_PRIVATE_KEY,
+      },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(parseJSON(result.stderr)).toMatchObject({
+      error: {
+        code: "INVALID_ARGS",
+        message: expect.stringContaining("Network required"),
+      },
     });
   });
 
@@ -944,6 +1050,8 @@ describe("CLI mock E2E", () => {
         "--token",
         USDC,
         "--dry-run",
+        "-n",
+        "eth-mainnet",
       ],
       {
         ALCHEMY_RPC_BASE_URL: server.baseURL,
@@ -1003,7 +1111,7 @@ describe("CLI mock E2E", () => {
     });
     expect(payload.examples).toContain("alchemy --json --no-interactive update-check");
     expect(payload.examples).toContain(
-      "alchemy --json --no-interactive evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY",
+      "alchemy --json --no-interactive evm data balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --api-key $ALCHEMY_API_KEY -n eth-mainnet",
     );
   });
 
