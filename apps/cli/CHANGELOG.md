@@ -1,5 +1,11 @@
 # @alchemy/cli
 
+## 0.9.3
+
+### Patch Changes
+
+- [#67](https://github.com/OMGWINNING/alchemy-cli/pull/67) [`6eee5f9`](https://github.com/OMGWINNING/alchemy-cli/commit/6eee5f9dc29ddd83da3b8b1e876f41373a301339) Thanks [@lohnim](https://github.com/lohnim)! - Add Monad mainnet and testnet support for EVM wallet operations, and display MON as the native token symbol for Monad networks.
+
 ## 0.9.2
 
 ### Patch Changes
