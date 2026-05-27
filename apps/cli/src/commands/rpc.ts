@@ -1,7 +1,8 @@
 import { Command } from "commander";
 import { clientFromFlags } from "../lib/resolve.js";
-import { isJSONMode, debug } from "../lib/output.js";
+import { debug } from "../lib/output.js";
 import { exitWithError } from "../lib/errors.js";
+import { parseCLIParams } from "../lib/params.js";
 import { withSpinner, printSyntaxJSON } from "../lib/ui.js";
 import { registerEvmRpcSurfaceCommands } from "./surface-parity.js";
 
@@ -27,13 +28,7 @@ Examples:
 
         const client = clientFromFlags(program);
 
-        const parsed = params.map((p) => {
-          try {
-            return JSON.parse(p);
-          } catch {
-            return p;
-          }
-        });
+        const parsed = parseRPCParams(params);
 
         debug(`rpc ${method} %o`, parsed);
 
@@ -48,6 +43,14 @@ Examples:
     });
 
   registerEvmRpcSurfaceCommands(program, cmd);
+}
+
+function parseRPCParams(params: string[]): unknown[] {
+  const parsed = parseCLIParams(params);
+  if (parsed.length === 1 && Array.isArray(parsed[0])) {
+    return parsed[0] as unknown[];
+  }
+  return parsed;
 }
 
 function outputRpcHelp(cmd: Command, method: string, params: string[]): boolean {

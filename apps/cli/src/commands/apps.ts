@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { adminClientFromFlags, resolveAppId } from "../lib/resolve.js";
 import type { App } from "../lib/admin-client.js";
 import { errInvalidArgs, errAppRequired, exitWithError } from "../lib/errors.js";
-import { verbose, isJSONMode, printJSON } from "../lib/output.js";
+import { verbose, isJSONMode, isRevealMode, printJSON } from "../lib/output.js";
 import * as config from "../lib/config.js";
 import { promptAutocomplete, promptSelect, promptConfirm } from "../lib/terminal-ui.js";
 import {
@@ -14,15 +14,39 @@ import {
   emptyState,
   maskIf,
 } from "../lib/ui.js";
+import { redactSensitiveText } from "../lib/redact.js";
 import { splitCommaList } from "../lib/validators.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
 
-function maskAppSecrets<T extends { apiKey?: string; webhookApiKey?: string }>(app: T): T {
-  return {
+type AppWithPotentialSecrets = {
+  apiKey?: string;
+  webhookApiKey?: string;
+  chainNetworks?: Array<{
+    rpcUrl?: string;
+    wsUrl?: string;
+    grpcUrl?: string;
+  }>;
+};
+
+function redactAppUrl(value: string): string {
+  return isRevealMode() ? value : redactSensitiveText(value);
+}
+
+function maskAppSecrets<T extends AppWithPotentialSecrets>(app: T): T {
+  const masked = {
     ...app,
     ...(app.apiKey !== undefined && { apiKey: maskIf(app.apiKey) }),
     ...(app.webhookApiKey !== undefined && { webhookApiKey: maskIf(app.webhookApiKey) }),
   };
+  if (app.chainNetworks !== undefined) {
+    masked.chainNetworks = app.chainNetworks.map((network) => ({
+      ...network,
+      ...(network.rpcUrl !== undefined && { rpcUrl: redactAppUrl(network.rpcUrl) }),
+      ...(network.wsUrl !== undefined && { wsUrl: redactAppUrl(network.wsUrl) }),
+      ...(network.grpcUrl !== undefined && { grpcUrl: redactAppUrl(network.grpcUrl) }),
+    }));
+  }
+  return masked as T;
 }
 
 function printFetchSummary(

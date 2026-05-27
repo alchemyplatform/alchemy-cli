@@ -102,6 +102,16 @@ export class Client implements AlchemyClient {
     return errInvalidAPIKey(detail || undefined);
   }
 
+  private isWrappedNetworkFailure(err: RpcApiError): boolean {
+    return (
+      err.status === undefined &&
+      err.code === -32000 &&
+      /\b(fetch failed|failed to fetch|network error|econnrefused|enotfound|etimedout|eai_again|socket hang up)\b/i.test(
+        err.message,
+      )
+    );
+  }
+
   private tryParseRPCError(text: string): CLIError | null {
     try {
       const parsed = JSON.parse(text);
@@ -156,7 +166,7 @@ export class Client implements AlchemyClient {
         if (err.status !== undefined) {
           throw errNetwork(`HTTP ${err.status}: ${err.message}`);
         }
-        if (this.isFetchFailureError(err)) {
+        if (this.isWrappedNetworkFailure(err)) {
           throw errNetwork(err.message);
         }
         throw errRPC(err.code, err.message);

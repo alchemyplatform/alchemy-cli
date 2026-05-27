@@ -7,6 +7,7 @@ import { parseRequiredJSON } from "../lib/params.js";
 import { load as loadConfig } from "../lib/config.js";
 import { promptConfirm } from "../lib/terminal-ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
+import { maskIf } from "../lib/secrets.js";
 
 function resolveWebhookApiKey(
   opts?: { notifyToken?: string; webhookApiKey?: string },
@@ -20,6 +21,31 @@ function resolveWebhookApiKey(
     cfg.webhook_api_key ||
     cfg.app?.webhookApiKey
   );
+}
+
+function isWebhookSigningKey(key: string): boolean {
+  const normalized = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  return (normalized.includes("signing") || normalized.includes("hmac")) &&
+    (normalized.includes("key") || normalized.includes("secret"));
+}
+
+function maskWebhookSecrets(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(maskWebhookSecrets);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [
+        key,
+        isWebhookSigningKey(key) && typeof nested === "string"
+          ? maskIf(nested)
+          : maskWebhookSecrets(nested),
+      ]),
+    );
+  }
+
+  return value;
 }
 
 export function registerWebhooks(program: Command) {
@@ -37,8 +63,9 @@ export function registerWebhooks(program: Command) {
         const result = await withSpinner("Fetching webhooks…", "Webhooks fetched", () =>
           callNotify(token, "/team-webhooks"),
         );
-        if (isJSONMode()) printJSON(result);
-        else printSyntaxJSON(result);
+        const output = maskWebhookSecrets(result);
+        if (isJSONMode()) printJSON(output);
+        else printSyntaxJSON(output);
       } catch (err) {
         exitWithError(err);
       }

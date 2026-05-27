@@ -50,6 +50,42 @@ describe("app command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("redacts API keys embedded in app RPC URLs in JSON mode", async () => {
+    const { printJSON } = installBaseCommandMocks({ jsonMode: true });
+    const listApps = vi.fn().mockResolvedValue({
+      apps: [
+        {
+          ...APP_ONE,
+          chainNetworks: [
+            {
+              id: "ETH_MAINNET",
+              name: "Ethereum",
+              rpcUrl: "https://eth-mainnet.g.alchemy.com/v2/api-key-1",
+              wsUrl: "wss://eth-mainnet.g.alchemy.com/v2/api-key-1",
+            },
+          ],
+        },
+      ],
+    });
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    await runRegisteredCommand(registerApps, ["app", "list"]);
+
+    const payload = printJSON.mock.calls[0][0] as {
+      apps: Array<{ chainNetworks: Array<{ rpcUrl: string; wsUrl: string }> }>;
+    };
+    expect(JSON.stringify(payload)).not.toContain("/api-key-1");
+    expect(payload.apps[0].chainNetworks[0].rpcUrl).toBe(
+      "https://eth-mainnet.g.alchemy.com/v2/[REDACTED]",
+    );
+    expect(payload.apps[0].chainNetworks[0].wsUrl).toBe(
+      "wss://eth-mainnet.g.alchemy.com/v2/[REDACTED]",
+    );
+  });
+
   it("returns all pages in --all mode", async () => {
     const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
     const listAllApps = vi.fn().mockResolvedValue({ apps: [APP_ONE, APP_TWO], pages: 2 });

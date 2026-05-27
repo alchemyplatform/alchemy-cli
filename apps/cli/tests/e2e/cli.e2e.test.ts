@@ -223,7 +223,11 @@ describe("CLI mock E2E", () => {
     );
 
     expect(result.exitCode).toBe(0);
-    expect(parseJSON(result.stdout)).toMatchObject({
+    const payload = parseJSON(result.stdout) as {
+      apps: Array<{ chainNetworks: Array<{ rpcUrl: string }> }>;
+    };
+    expect(result.stdout).not.toContain("api-key-123");
+    expect(payload).toMatchObject({
       apps: [
         {
           id: "app-123",
@@ -231,6 +235,9 @@ describe("CLI mock E2E", () => {
         },
       ],
     });
+    expect(payload.apps[0].chainNetworks[0].rpcUrl).toBe(
+      "https://eth-mainnet.g.alchemy.com/v2/[REDACTED]",
+    );
     expect(server.requests).toHaveLength(1);
     expect(server.requests[0].headers.authorization).toBe(
       "Bearer test-auth-token",

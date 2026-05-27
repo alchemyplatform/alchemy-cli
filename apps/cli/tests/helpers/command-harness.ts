@@ -23,6 +23,7 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
 
   vi.doMock("../../src/lib/output.js", () => ({
     isJSONMode: () => jsonMode,
+    isRevealMode: () => false,
     printJSON,
     printHuman,
     verbose: false,

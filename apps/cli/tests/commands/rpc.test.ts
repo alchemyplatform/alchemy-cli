@@ -43,6 +43,39 @@ describe("rpc command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("rpc treats a single JSON array argument as the full params array", async () => {
+    const call = vi.fn().mockResolvedValue({ ok: true });
+    const printSyntaxJSON = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      debug: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (
+        _start: string,
+        _end: string,
+        fn: () => Promise<unknown>,
+      ) => fn(),
+      printSyntaxJSON,
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError: vi.fn() }));
+
+    const { registerRPC } = await import("../../src/commands/rpc.js");
+    const program = new Command();
+    registerRPC(program);
+
+    await program.parseAsync(
+      ["node", "test", "rpc", "eth_getBlockByNumber", '["0x1", false]'],
+      { from: "node" },
+    );
+
+    expect(call).toHaveBeenCalledWith("eth_getBlockByNumber", ["0x1", false]);
+    expect(printSyntaxJSON).toHaveBeenCalledWith({ ok: true });
+  });
+
   it("rpc help prints CLI help instead of calling a help RPC method", async () => {
     const clientFromFlags = vi.fn();
     let stdout = "";
