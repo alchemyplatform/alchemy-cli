@@ -1,5 +1,13 @@
 # @alchemy/cli
 
+## 0.12.0
+
+### Minor Changes
+
+- [#56](https://github.com/OMGWINNING/alchemy-cli/pull/56) [`c25a2b0`](https://github.com/OMGWINNING/alchemy-cli/commit/c25a2b02b37063e42db145ebc6ca0186bb7eecb3) Thanks [@blakecduncan](https://github.com/blakecduncan)! - Default `alchemy wallet connect` to session wallets and require explicit `--mode local` when users need to create or import local wallet keys.
+
+  Scripts that previously used `alchemy wallet connect --import <path>` should now use `alchemy wallet connect --mode local --import <path>`.
+
 ## 0.11.1
 
 ### Patch Changes
