@@ -114,10 +114,7 @@ export function getSetupCapabilities(cfg: Config): SetupCapabilities {
       missing: hasLocalWallet || hasSessionWallet ? [] : ["wallet signer"],
       nextCommands: hasLocalWallet || hasSessionWallet
         ? []
-        : [
-            "alchemy wallet connect",
-            "alchemy wallet connect --mode local",
-          ],
+        : ["alchemy wallet connect"],
     }),
     x402: capabilityStatus({
       complete: x402Ready,

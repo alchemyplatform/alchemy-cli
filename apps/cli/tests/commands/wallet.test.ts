@@ -245,6 +245,51 @@ describe("wallet command", () => {
     expect(exitWithError).toHaveBeenCalledTimes(1);
   });
 
+  it("wallet connect --import requires explicit local mode", async () => {
+    const exitWithError = vi.fn();
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: vi.fn(),
+      resolveWalletSession: () => null,
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("viem/accounts", () => ({
+      generatePrivateKey: vi.fn(),
+      privateKeyToAccount: vi.fn(),
+    }));
+    vi.doMock("@solana/kit", () => ({
+      createKeyPairSignerFromPrivateKeyBytes: vi.fn(),
+      createKeyPairSignerFromBytes: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(["node", "test", "wallet", "connect", "--import", "/tmp/key"], {
+      from: "node",
+    });
+
+    expect(exitWithError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "`--import` is only valid with `--mode local`.",
+      }),
+    );
+  });
+
   it("wallet connect no longer accepts a chain creation flag", async () => {
     const { registerWallet } = await import("../../src/commands/wallet.js");
     const program = new Command();
@@ -965,10 +1010,11 @@ describe("wallet command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
-  it("wallet connect creates, approves, and stores a delegated session", async () => {
+  it("wallet connect defaults to creating a delegated session", async () => {
     const printJSON = vi.fn();
     const exitWithError = vi.fn();
     const openBrowser = vi.fn();
+    const promptSelect = vi.fn();
     const createRemoteWalletSessionRequest = vi.fn().mockResolvedValue({
       sessionId: "connection-request",
       approvalUrl: "https://dashboard.alchemy.com/approve",
@@ -1012,7 +1058,6 @@ describe("wallet command", () => {
     const updateSession = vi.fn();
     const getOrCreateWalletClientInstance = vi.fn(() => ({
       id: "11111111-1111-4111-8111-111111111111",
-      name: "Office Mac",
     }));
 
     vi.doMock("../../src/lib/resolve.js", () => ({
@@ -1066,7 +1111,7 @@ describe("wallet command", () => {
       isSessionValid: vi.fn(),
     }));
     vi.doMock("../../src/lib/terminal-ui.js", () => ({
-      promptSelect: vi.fn(),
+      promptSelect,
       promptConfirm: vi.fn(),
       promptText: vi.fn(),
     }));
@@ -1085,10 +1130,6 @@ describe("wallet command", () => {
         "test",
         "wallet",
         "connect",
-        "--mode",
-        "session",
-        "--instance-name",
-        "Office Mac",
       ],
       {
         from: "node",
@@ -1096,8 +1137,9 @@ describe("wallet command", () => {
     );
 
     expect(getOrCreateWalletClientInstance).toHaveBeenCalledWith({
-      instanceName: "Office Mac",
+      instanceName: undefined,
     });
+    expect(promptSelect).not.toHaveBeenCalled();
     expect(createRemoteWalletSessionRequest).toHaveBeenCalledWith("auth-token", expect.objectContaining({
       requestSignerVersion: "v1",
       chains: ["evm", "solana"],
@@ -1113,7 +1155,6 @@ describe("wallet command", () => {
       },
       environment: expect.objectContaining({
         clientInstanceId: "11111111-1111-4111-8111-111111111111",
-        clientInstanceName: "Office Mac",
       }),
     }));
     expect(getRemoteWalletSessionRequest).toHaveBeenCalledWith("auth-token", "connection-request");
@@ -1161,6 +1202,98 @@ describe("wallet command", () => {
       }),
     }));
     expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("wallet connect --mode session passes through instance name", async () => {
+    const exitWithError = vi.fn();
+    const stopError = new Error("stop");
+    const getOrCreateWalletClientInstance = vi.fn(() => ({
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Office Mac",
+    }));
+
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      resolveWalletKey: vi.fn(),
+      resolveSolanaWalletKey: vi.fn(),
+      resolveAuthToken: () => "auth-token",
+      resolveWalletSession: () => null,
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      green: (s: string) => s,
+      dim: (s: string) => s,
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/auth.js", () => ({
+      openBrowser: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/wallet-api.js", () => ({
+      createRemoteWalletSession: vi.fn(),
+      createRemoteWalletSessionRequest: vi.fn().mockRejectedValue(stopError),
+      disconnectRemoteWalletSession: vi.fn(),
+      getRemoteWalletSession: vi.fn(),
+      getRemoteWalletSessionRequest: vi.fn(),
+      getWalletApiBaseUrl: () => "https://dashboard.alchemy.com/api",
+    }));
+    vi.doMock("../../src/lib/config.js", () => ({
+      getOrCreateWalletClientInstance,
+      getOrCreateWalletClientInstanceId: () => "11111111-1111-4111-8111-111111111111",
+      load: () => ({}),
+      save: vi.fn(),
+      configDir: () => "/tmp/alchemy",
+    }));
+    vi.doMock("../../src/lib/wallet-session.js", () => ({
+      createPendingSession: () => ({
+        sessionId: "local-session",
+        status: "pending",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        expiresAt: "2026-04-21T00:00:00.000Z",
+        envelopeVersion: "v1",
+        publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+        privateKeyPem: "pem",
+      }),
+      loadSession: () => null,
+      clearSession: vi.fn(),
+      updateSession: vi.fn(),
+      isSessionValid: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/terminal-ui.js", () => ({
+      promptSelect: vi.fn(),
+      promptConfirm: vi.fn(),
+      promptText: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/errors.js", async () => ({
+      ...(await vi.importActual("../../src/lib/errors.js")),
+      exitWithError,
+    }));
+
+    const { registerWallet } = await import("../../src/commands/wallet.js");
+    const program = new Command();
+    registerWallet(program);
+
+    await program.parseAsync(
+      [
+        "node",
+        "test",
+        "wallet",
+        "connect",
+        "--mode",
+        "session",
+        "--instance-name",
+        "Office Mac",
+      ],
+      { from: "node" },
+    );
+
+    expect(getOrCreateWalletClientInstance).toHaveBeenCalledWith({
+      instanceName: "Office Mac",
+    });
+    expect(exitWithError).toHaveBeenCalledWith(stopError);
   });
 
   it("wallet connect waits for Enter before opening the browser in interactive mode", async () => {

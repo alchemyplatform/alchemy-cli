@@ -1026,30 +1026,12 @@ async function runConnectFlow(
     mode = "session";
   }
 
-  if (importPath) {
-    if (mode === "session") {
-      throw errInvalidArgs("`--import` is only valid with `--mode local`.");
-    }
-    mode = "local";
+  if (importPath && mode !== "local") {
+    throw errInvalidArgs("`--import` is only valid with `--mode local`.");
   }
 
-  // Prompt for mode if unset and interactive.
   if (!mode) {
-    if (!isInteractiveAllowed(program)) {
-      mode = "session";
-    } else {
-      const choice = await promptSelect<WalletSource>({
-        message: "Choose a wallet to connect",
-        options: [
-          { value: "session", label: "Session wallet", hint: "Recommended — Alchemy-managed, more secure" },
-          { value: "local", label: "Local wallet", hint: "Private key stored on this machine" },
-        ],
-        initialValue: "session",
-        cancelMessage: "Wallet connect cancelled.",
-      });
-      if (choice === null) throw new WalletConnectInterruptedError();
-      mode = choice;
-    }
+    mode = "session";
   }
 
   if (mode === "session") {
@@ -1266,8 +1248,8 @@ export function registerWallets(program: Command) {
   // `alchemy wallet connect` is the single entry point.
   cmd
     .command("connect")
-    .description("Connect a wallet for onchain actions (session or local)")
-    .option("--mode <mode>", "session | local")
+    .description("Connect a session wallet for onchain actions")
+    .option("--mode <mode>", "session | local (default: session; local must be explicit)")
     .option("--import <path>", "For --mode local: import an EVM key from file instead of creating both wallets")
     .option("--instance-name <name>", "For --mode session: name this CLI instance")
     .option("--force", "Replace the existing signer")

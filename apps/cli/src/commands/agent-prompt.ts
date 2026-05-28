@@ -258,7 +258,7 @@ function buildAgentPrompt(program: Command): AgentPrompt {
           "evm approve",
           "xchain bridge",
         ],
-        notes: "`--signer local` only selects the local signer. You still need a local EVM key via env, flag, or saved config.",
+        notes: "Use only when you explicitly need a local private key. `--signer local` selects the local signer but still requires a local EVM key via env, flag, or saved config.",
       },
     ],
     commands,

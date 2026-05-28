@@ -44,6 +44,9 @@ describe("onboarding setup predicates", () => {
       complete: false,
       missing: ["webhook API key"],
     });
+    expect(status.capabilities.wallet_signing.nextCommands).toEqual([
+      "alchemy wallet connect",
+    ]);
     expect(status.nextCommands).toContain("alchemy auth");
   });
 });

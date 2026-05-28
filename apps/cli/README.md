@@ -118,8 +118,8 @@ Use `alchemy help` or `alchemy help <command>` for generated command help.
 
 | Command | What it does | Example |
 |---|---|---|
-| `wallet connect` | Interactive: choose a session wallet (recommended) or a local wallet. For scripts, pass `--mode <session\|local>`. | `alchemy wallet connect` |
-| `wallet connect --mode local --chain evm` | Create a new local EVM key (non-interactive). `--chain` accepts `evm`, `solana`, or `both`. | `alchemy wallet connect --mode local --chain both` |
+| `wallet connect` | Connects a session wallet by default. Pass `--mode local` only when you explicitly need local keys. | `alchemy wallet connect` |
+| `wallet connect --mode local` | Create new local EVM and Solana keys. | `alchemy wallet connect --mode local` |
 | `wallet connect --mode local --import <path>` | Import an existing EVM private key from a file. | `alchemy wallet connect --mode local --import ./key.txt` |
 | `wallet connect --mode session --instance-name <name>` | Connect a named session wallet instance. | `alchemy wallet connect --mode session --instance-name laptop` |
 | `wallet status [--verify]` | Reports session, local EVM, local Solana, and the active signer. `--verify` reconciles the session with the backend. | `alchemy wallet status --verify` |
