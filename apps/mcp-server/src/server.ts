@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAllResources } from "./resources/index.js";
 import { registerAllTools } from "./tools/index.js";
+import { toolTitle } from "./tools/titles.js";
 import {
   resourceReadDuration,
   resourceReadsTotal,
@@ -73,7 +74,17 @@ export function createInstrumentedServer(server: McpServer) {
       const toolName = args[0] as string;
       const handlerIdx = args.length - 1;
       const original = args[handlerIdx] as (...a: any[]) => Promise<any>;
-      args[handlerIdx] = instrumentHandler(toolName, original);
+      args[handlerIdx] = instrumentHandler(toolName, original) as any;
+
+      // The Claude Connectors Directory requires every tool to expose a
+      // human-readable `title` alongside its read/destructive hints. Inject it
+      // centrally so each registration only declares behavioral hints.
+      const annotationsIdx = handlerIdx - 1;
+      const annotations = args[annotationsIdx];
+      if (isToolAnnotations(annotations) && typeof annotations.title !== "string") {
+        args[annotationsIdx] = { ...annotations, title: toolTitle(toolName) } as any;
+      }
+
       return (server.tool as any)(...args);
     },
     registerResource: ((...args: any[]) => {
@@ -84,6 +95,26 @@ export function createInstrumentedServer(server: McpServer) {
       return (server.registerResource as any)(...args);
     }) as McpServer["registerResource"],
   };
+}
+
+const ANNOTATION_HINT_KEYS = [
+  "readOnlyHint",
+  "destructiveHint",
+  "idempotentHint",
+  "openWorldHint",
+  "title",
+] as const;
+
+/**
+ * Heuristic to identify a `ToolAnnotations` argument among `server.tool` args.
+ * Annotations always carry at least one behavioral hint (or a title), which a
+ * Zod parameter shape never does — so this won't misfire on the schema arg.
+ */
+function isToolAnnotations(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  return ANNOTATION_HINT_KEYS.some((key) => key in value);
 }
 
 export type InstrumentedServer = ReturnType<typeof createInstrumentedServer>;
