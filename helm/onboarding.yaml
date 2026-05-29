@@ -1,3 +1,5 @@
+# Publish this onboarding file from OMGWINNING/alchemy-cli so app-of-apps
+# points ArgoCD at the migrated repository instead of alchemy-mcp-server.
 applications:
 - name: alchemy-mcp-server
   team: agent-experience

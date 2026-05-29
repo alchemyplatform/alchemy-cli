@@ -8,6 +8,10 @@ permissions:
   pull-requests: write
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - "helm/onboarding.yaml"
   workflow_dispatch:
 
 jobs:
