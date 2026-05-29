@@ -1,6 +1,6 @@
 {
   "name": "@alchemy/mcp-server",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Alchemy MCP server with Streamable HTTP transport",
   "private": true,
   "type": "module",
