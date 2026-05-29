@@ -27,7 +27,12 @@ commands:
             - v1-pnpm-
       - run:
           name: Enable pnpm
-          command: corepack enable
+          command: |
+            mkdir -p "$HOME/.local/bin"
+            corepack enable --install-directory "$HOME/.local/bin"
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
+            source "$BASH_ENV"
+            pnpm --version
       - run:
           name: Install dependencies
           command: pnpm install --frozen-lockfile
