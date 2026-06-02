@@ -3,7 +3,7 @@
   "name": "com.alchemy/mcp",
   "title": "Alchemy MCP Server",
   "description": "Blockchain data across 100+ chains: token prices, NFTs, transfers, simulation, traces, Solana DAS",
-  "version": "0.3.5",
+  "version": "0.3.7",
   "websiteUrl": "https://docs.alchemy.com/docs/alchemy-mcp-server",
   "icons": [
     {
