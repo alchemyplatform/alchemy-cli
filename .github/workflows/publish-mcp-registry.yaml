@@ -1,6 +1,10 @@
 name: Publish MCP Registry Entry
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - "server.json"
   workflow_dispatch:
 
 permissions:
@@ -22,7 +26,13 @@ jobs:
       - name: Login with DNS verification
         env:
           MCP_PUBLISHER_PRIVATE_KEY: ${{ secrets.MCP_PUBLISHER_PRIVATE_KEY }}
-        run: ./mcp-publisher login dns --domain alchemy.com --private-key "$MCP_PUBLISHER_PRIVATE_KEY"
+        run: |
+          if [ -z "$MCP_PUBLISHER_PRIVATE_KEY" ]; then
+            echo "MCP_PUBLISHER_PRIVATE_KEY is not configured for this repository." >&2
+            exit 1
+          fi
+
+          ./mcp-publisher login dns --domain alchemy.com --private-key "$MCP_PUBLISHER_PRIVATE_KEY"
 
       - name: Publish server
         run: ./mcp-publisher publish server.json
