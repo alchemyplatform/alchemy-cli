@@ -1,5 +1,11 @@
 # @alchemy/cli
 
+## 0.13.0
+
+### Minor Changes
+
+- [#76](https://github.com/OMGWINNING/alchemy-cli/pull/76) [`36d1923`](https://github.com/OMGWINNING/alchemy-cli/commit/36d1923eac7be047415e8a741f79020055387008) Thanks [@blakecduncan](https://github.com/blakecduncan)! - Compact app list JSON output by default, add a full sanitized app payload mode, and send app network updates with the Admin API's `networkAllowlist` field.
+
 ## 0.12.0
 
 ### Minor Changes
