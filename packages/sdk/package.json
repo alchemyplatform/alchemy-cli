@@ -34,6 +34,10 @@
     "./networks": {
       "types": "./src/networks/index.ts",
       "import": "./dist/networks/index.js"
+    },
+    "./solana": {
+      "types": "./src/solana/index.ts",
+      "import": "./dist/solana/index.js"
     }
   },
   "files": [

@@ -5,6 +5,7 @@ import {
   deleteWebhook,
   listGasManagerPolicies,
   listWebhooks,
+  updateNetworkAllowlist,
 } from "../src/admin/index.js";
 
 const POLICY = {
@@ -31,6 +32,7 @@ describe("SDK Admin API extended clients", () => {
     vi.restoreAllMocks();
     delete process.env.ALCHEMY_GAS_MANAGER_BASE_URL;
     delete process.env.ALCHEMY_NOTIFY_API_BASE_URL;
+    delete process.env.ALCHEMY_ADMIN_API_BASE_URL;
   });
 
   it("routes Gas Manager policy requests with auth headers", async () => {
@@ -114,6 +116,29 @@ describe("SDK Admin API extended clients", () => {
 
     expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
       "x-alchemy-client-breadcrumb": "request-client",
+    });
+  });
+
+  it("updates app networks using the Admin API networkAllowlist body shape", async () => {
+    process.env.ALCHEMY_ADMIN_API_BASE_URL = "https://admin.example.com/";
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        data: {
+          id: "app_123",
+          name: "Test App",
+          apiKey: "key",
+          webhookApiKey: "whsec",
+          chainNetworks: [],
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      }), { status: 200 }),
+    );
+
+    await updateNetworkAllowlist("auth-token", "app_123", ["ETH_MAINNET"]);
+
+    expect(fetchMock.mock.calls[0][0]).toBe("https://admin.example.com/v1/apps/app_123/networks");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({
+      networkAllowlist: ["ETH_MAINNET"],
     });
   });
 });

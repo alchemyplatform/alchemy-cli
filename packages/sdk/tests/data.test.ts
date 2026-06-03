@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAlchemyDataClient, createAlchemyDataClientFactory } from "../src/data/index.js";
+import {
+  createAlchemyDataClient,
+  createAlchemyDataClientFactory,
+  limitPortfolioPayload,
+  normalizePortfolioOutput,
+} from "../src/data/index.js";
 
 describe("SDK Data API client", () => {
   const fetchMock = vi.fn();
@@ -88,6 +93,40 @@ describe("SDK Data API client", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.g.example.com/prices/v1/key-123/tokens/by-symbol?symbols=ETH");
     expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
       "x-alchemy-client-breadcrumb": "request-client",
+    });
+  });
+
+  it("normalizes portfolio hex balances and recursively limits arrays", () => {
+    const payload = {
+      data: [
+        {
+          balance: "0x0de0b6b3a7640000",
+          tokenMetadata: { decimals: 18 },
+          nested: [{ rawTokenBalance: "0x0a", metadata: { decimals: "1" } }, { balance: "0x01" }],
+        },
+        { balance: "0x02", decimals: 0 },
+      ],
+      untouched: "0x1234",
+    };
+
+    expect(normalizePortfolioOutput(limitPortfolioPayload(payload, 1))).toEqual({
+      data: [
+        {
+          balance: "0x0de0b6b3a7640000",
+          balanceDecimal: "1000000000000000000",
+          balanceFormatted: "1",
+          tokenMetadata: { decimals: 18 },
+          nested: [
+            {
+              rawTokenBalance: "0x0a",
+              rawTokenBalanceDecimal: "10",
+              rawTokenBalanceFormatted: "1",
+              metadata: { decimals: "1" },
+            },
+          ],
+        },
+      ],
+      untouched: "0x1234",
     });
   });
 });

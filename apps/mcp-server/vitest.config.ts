@@ -6,6 +6,7 @@ export default defineConfig({
       "@alchemy/sdk/admin": new URL("../../packages/sdk/src/admin/index.ts", import.meta.url).pathname,
       "@alchemy/sdk/data": new URL("../../packages/sdk/src/data/index.ts", import.meta.url).pathname,
       "@alchemy/sdk/evm": new URL("../../packages/sdk/src/evm/index.ts", import.meta.url).pathname,
+      "@alchemy/sdk/solana": new URL("../../packages/sdk/src/solana/index.ts", import.meta.url).pathname,
     },
   },
   test: {

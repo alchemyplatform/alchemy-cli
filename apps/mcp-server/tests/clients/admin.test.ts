@@ -85,7 +85,7 @@ describe("Admin API client", () => {
     await updateAddressAllowlist("auth-token", "app_123", [{ value: "0xabc", name: "Owner" }]);
 
     expect(fetchMock.mock.calls[0][0]).toBe("https://admin.example.com/v1/apps/app_123/networks");
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ chainNetworks: ["ETH_MAINNET"] });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ networkAllowlist: ["ETH_MAINNET"] });
     expect(fetchMock.mock.calls[1][0]).toBe("https://admin.example.com/v1/apps/app_123/address-allowlist");
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
       addressAllowlist: [{ value: "0xabc", name: "Owner" }],

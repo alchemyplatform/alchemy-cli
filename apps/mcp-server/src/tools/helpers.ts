@@ -66,6 +66,17 @@ export class WebhookApiKeyUnavailableError extends Error {
   }
 }
 
+export class SolanaDasPaywallError extends Error {
+  constructor(
+    message: string,
+    public readonly hint: string,
+    public readonly details?: string,
+  ) {
+    super(message);
+    this.name = "SolanaDasPaywallError";
+  }
+}
+
 export function maskApiKey(key: string): string {
   if (key.length <= 8) return "*".repeat(key.length);
   return key.slice(0, 4) + "*".repeat(key.length - 8) + key.slice(-4);
@@ -103,6 +114,9 @@ export function handleToolError(err: unknown) {
   }
   if (err instanceof WebhookApiKeyUnavailableError) {
     return toolError(err.message);
+  }
+  if (err instanceof SolanaDasPaywallError) {
+    return toolError(`${err.message} ${err.hint}`);
   }
   if (err instanceof AdminApiError) {
     if (err.status === 404) return toolError(`Not found: ${err.message}`);

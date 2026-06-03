@@ -1,25 +1,18 @@
+import {
+  classifySolanaDasPaywallError,
+  type SolanaRpcFamily as SharedSolanaRpcFamily,
+} from "@alchemy/sdk/solana";
 import { CLIError, ErrorCode } from "./errors.js";
 import { debug } from "./output.js";
+
+export {
+  solanaRpcFamilyForMethod,
+  type SolanaRpcFamily,
+} from "@alchemy/sdk/solana";
 
 type SolanaClient = {
   call(method: string, params: unknown): Promise<unknown>;
 };
-
-export type SolanaRpcFamily = "rpc" | "das";
-
-const SOLANA_DAS_METHODS = new Set([
-  "getAsset",
-  "getAssetsByOwner",
-  "searchAssets",
-  "getTokenAccounts",
-  "getAssets",
-  "getAssetProof",
-  "getAssetsByAuthority",
-  "getAssetsByGroup",
-  "getAssetsByCreator",
-  "getAssetSignatures",
-  "getNftEditions",
-]);
 
 function errorText(err: unknown): string {
   if (err instanceof CLIError) {
@@ -31,31 +24,27 @@ function errorText(err: unknown): string {
   return String(err);
 }
 
-export function solanaRpcFamilyForMethod(method: string): SolanaRpcFamily {
-  return SOLANA_DAS_METHODS.has(method) ? "das" : "rpc";
-}
-
 export function normalizeSolanaDasPaywallError(err: unknown): CLIError | null {
   if (err instanceof CLIError && err.code === ErrorCode.PAYMENT_REQUIRED) {
     return err;
   }
 
-  const detail = errorText(err);
-  if (!/\b(free tier|payg|paid tier|paid plan|upgrade|plan does not|current plan|not available on your plan)\b/i.test(detail)) {
+  const paywall = classifySolanaDasPaywallError(err);
+  if (!paywall) {
     return null;
   }
 
   return new CLIError(
     ErrorCode.PAYMENT_REQUIRED,
-    "Solana DAS request requires a paid Alchemy plan.",
-    "Upgrade your app to PAYG or use a plan with Solana DAS access at https://dashboard.alchemy.com/.",
-    detail || undefined,
+    paywall.message,
+    paywall.hint,
+    paywall.details,
   );
 }
 
 export async function callSolana(
   client: SolanaClient,
-  family: SolanaRpcFamily,
+  family: SharedSolanaRpcFamily,
   method: string,
   params: unknown,
 ): Promise<unknown> {

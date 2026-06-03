@@ -284,7 +284,7 @@ export async function updateNetworkAllowlist(
     "PUT",
     `/v1/apps/${appId}/networks`,
     authToken,
-    { chainNetworks },
+    { networkAllowlist: chainNetworks },
     options,
   );
   return resp.data;

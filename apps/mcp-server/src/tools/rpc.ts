@@ -1,10 +1,25 @@
 import type { InstrumentedServer } from "../server.js";
 import { z } from "zod";
+import { classifySolanaDasPaywallError } from "@alchemy/sdk/solana";
 import { mcpRpcClient } from "../clients/rpc.js";
-import { getApiKey, toolResult, handleToolError, formatResult } from "./helpers.js";
+import {
+  getApiKey,
+  toolResult,
+  handleToolError,
+  formatResult,
+  SolanaDasPaywallError,
+} from "./helpers.js";
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true };
+
+function handleSolanaDasToolError(err: unknown) {
+  const paywall = classifySolanaDasPaywallError(err);
+  if (paywall) {
+    return handleToolError(new SolanaDasPaywallError(paywall.message, paywall.hint, paywall.details));
+  }
+  return handleToolError(err);
+}
 
 export function registerRpcTools(server: InstrumentedServer): void {
   // ──────────────────────────────────────────
@@ -966,7 +981,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAsset", { id });
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -989,7 +1004,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetsByOwner", params);
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1017,7 +1032,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "searchAssets", params);
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1040,7 +1055,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getTokenAccounts", params);
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1063,7 +1078,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssets", { ids });
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1082,7 +1097,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetProof", { id });
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1105,7 +1120,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetsByAuthority", params);
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1129,7 +1144,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetsByGroup", params);
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1152,7 +1167,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetsByCreator", params);
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1175,7 +1190,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getAssetSignatures", params);
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );
@@ -1198,7 +1213,7 @@ export function registerRpcTools(server: InstrumentedServer): void {
         const result = await mcpRpcClient.networkRpcCall(network, apiKey, "getNftEditions", params);
         return toolResult(formatResult(result));
       } catch (err) {
-        return handleToolError(err);
+        return handleSolanaDasToolError(err);
       }
     },
   );

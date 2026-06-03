@@ -1,9 +1,14 @@
 import type { InstrumentedServer } from "../server.js";
 import { z } from "zod";
+import {
+  limitPortfolioPayload,
+  normalizePortfolioOutput,
+} from "@alchemy/sdk/data";
 import { mcpDataClient } from "../clients/data.js";
 import { getApiKey, toolResult, handleToolError, formatResult } from "./helpers.js";
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
+const PORTFOLIO_LIMIT = z.number().int().positive().optional().describe("Optionally limit arrays in the formatted response");
 
 export function registerDataTools(server: InstrumentedServer): void {
   // ──────────────────────────────────────────
@@ -586,15 +591,16 @@ export function registerDataTools(server: InstrumentedServer): void {
     {
       address: z.string().describe("Wallet address"),
       networks: z.array(z.string()).optional().describe("Network identifiers to query (e.g. ['eth-mainnet', 'base-mainnet']). If omitted, queries all supported networks."),
+      limit: PORTFOLIO_LIMIT,
     },
     READ_ONLY,
-    async ({ address, networks }, { authInfo }) => {
+    async ({ address, networks, limit }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
         const entry = { address, ...(networks && { networks }) };
         const body = { addresses: [entry] };
         const result = await mcpDataClient.create(apiKey).portfolio.getTokensByAddress(body);
-        return toolResult(formatResult(result));
+        return toolResult(formatPortfolioResult(result, limit));
       } catch (err) {
         return handleToolError(err);
       }
@@ -607,15 +613,16 @@ export function registerDataTools(server: InstrumentedServer): void {
     {
       address: z.string().describe("Wallet address"),
       networks: z.array(z.string()).optional().describe("Network identifiers to query (e.g. ['eth-mainnet', 'base-mainnet']). If omitted, queries all supported networks."),
+      limit: PORTFOLIO_LIMIT,
     },
     READ_ONLY,
-    async ({ address, networks }, { authInfo }) => {
+    async ({ address, networks, limit }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
         const entry = { address, ...(networks && { networks }) };
         const body = { addresses: [entry] };
         const result = await mcpDataClient.create(apiKey).portfolio.getTokenBalancesByAddress(body);
-        return toolResult(formatResult(result));
+        return toolResult(formatPortfolioResult(result, limit));
       } catch (err) {
         return handleToolError(err);
       }
@@ -628,15 +635,16 @@ export function registerDataTools(server: InstrumentedServer): void {
     {
       address: z.string().describe("Wallet address"),
       networks: z.array(z.string()).optional().describe("Network identifiers to query (e.g. ['eth-mainnet', 'base-mainnet']). If omitted, queries all supported networks."),
+      limit: PORTFOLIO_LIMIT,
     },
     READ_ONLY,
-    async ({ address, networks }, { authInfo }) => {
+    async ({ address, networks, limit }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
         const entry = { address, ...(networks && { networks }) };
         const body = { addresses: [entry] };
         const result = await mcpDataClient.create(apiKey).portfolio.getNFTsByAddress(body);
-        return toolResult(formatResult(result));
+        return toolResult(formatPortfolioResult(result, limit));
       } catch (err) {
         return handleToolError(err);
       }
@@ -649,18 +657,23 @@ export function registerDataTools(server: InstrumentedServer): void {
     {
       address: z.string().describe("Wallet address"),
       networks: z.array(z.string()).optional().describe("Network identifiers to query (e.g. ['eth-mainnet', 'base-mainnet']). If omitted, queries all supported networks."),
+      limit: PORTFOLIO_LIMIT,
     },
     READ_ONLY,
-    async ({ address, networks }, { authInfo }) => {
+    async ({ address, networks, limit }, { authInfo }) => {
       try {
         const apiKey = await getApiKey(authInfo);
         const entry = { address, ...(networks && { networks }) };
         const body = { addresses: [entry] };
         const result = await mcpDataClient.create(apiKey).portfolio.getNFTContractsByAddress(body);
-        return toolResult(formatResult(result));
+        return toolResult(formatPortfolioResult(result, limit));
       } catch (err) {
         return handleToolError(err);
       }
     },
   );
+}
+
+function formatPortfolioResult(result: unknown, limit: number | undefined): string {
+  return formatResult(normalizePortfolioOutput(limitPortfolioPayload(result, limit)));
 }
