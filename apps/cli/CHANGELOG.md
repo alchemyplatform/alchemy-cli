@@ -1,5 +1,11 @@
 # @alchemy/cli
 
+## 0.14.0
+
+### Minor Changes
+
+- [#77](https://github.com/OMGWINNING/alchemy-cli/pull/77) [`d7016ce`](https://github.com/OMGWINNING/alchemy-cli/commit/d7016cec1a468a9ed41bd4a96d09f2505b8c68e6) Thanks [@blakecduncan](https://github.com/blakecduncan)! - Add scoped agent prompts, transaction preflight guidance, delegated wallet call capabilities, and structured EVM preflight revert errors.
+
 ## 0.13.0
 
 ### Minor Changes
