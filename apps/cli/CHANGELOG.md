@@ -1,5 +1,15 @@
 # @alchemy/cli
 
+## 0.15.0
+
+### Minor Changes
+
+- [#78](https://github.com/OMGWINNING/alchemy-cli/pull/78) [`cc2d916`](https://github.com/OMGWINNING/alchemy-cli/commit/cc2d9167d000b7061c5e295cb8cf87ca46d54eef) Thanks [@blakecduncan](https://github.com/blakecduncan)! - Add scoped agent prompts, transaction preflight guidance, delegated wallet call capabilities, and structured EVM preflight revert errors.
+
+- [#78](https://github.com/OMGWINNING/alchemy-cli/pull/78) [`cc2d916`](https://github.com/OMGWINNING/alchemy-cli/commit/cc2d9167d000b7061c5e295cb8cf87ca46d54eef) Thanks [@blakecduncan](https://github.com/blakecduncan)! - Compact app list JSON output by default, add a full sanitized app payload mode, and send app network updates with the Admin API's `networkAllowlist` field.
+
+- [#78](https://github.com/OMGWINNING/alchemy-cli/pull/78) [`cc2d916`](https://github.com/OMGWINNING/alchemy-cli/commit/cc2d9167d000b7061c5e295cb8cf87ca46d54eef) Thanks [@blakecduncan](https://github.com/blakecduncan)! - Add Solana debug and DAS plan messaging plus portfolio balance normalization for hex balance fields.
+
 ## 0.14.0
 
 ### Minor Changes
