@@ -257,7 +257,7 @@ export class AdminClient {
     networks: string[],
   ): Promise<App> {
     const resp = await this.request<{ data: App }>("PUT", `/v1/apps/${id}/networks`, {
-      chainNetworks: networks,
+      networkAllowlist: networks,
     });
     return resp.data;
   }

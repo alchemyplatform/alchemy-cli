@@ -22,6 +22,8 @@ type AppWithPotentialSecrets = {
   apiKey?: string;
   webhookApiKey?: string;
   chainNetworks?: Array<{
+    id?: string;
+    name?: string;
     rpcUrl?: string;
     wsUrl?: string;
     grpcUrl?: string;
@@ -84,6 +86,23 @@ function appToTableRow(app: App): string[] {
   return [app.id, app.name, String(app.chainNetworks.length), app.createdAt];
 }
 
+function appToListJSON(app: App): Record<string, unknown> {
+  return {
+    id: app.id,
+    name: app.name,
+    createdAt: app.createdAt,
+    networkCount: app.chainNetworks.length,
+    networks: app.chainNetworks.map((network) => ({
+      id: network.id,
+      name: network.name,
+    })),
+  };
+}
+
+function appToJSON(app: App, opts: { full?: boolean }): Record<string, unknown> {
+  return opts.full ? (maskAppSecrets(app) as unknown as Record<string, unknown>) : appToListJSON(app);
+}
+
 function handleDryRun(
   opts: { dryRun?: boolean },
   action: string,
@@ -112,6 +131,7 @@ export function registerApps(program: Command) {
     .option("--all", "Fetch all pages")
     .option("--search <query>", "Search apps by name or id (client-side)")
     .option("--id <appId>", "Filter by exact app id (client-side)")
+    .option("--full", "Return full sanitized app payload in JSON mode")
     .action(async (opts) => {
       try {
         const admin = adminClientFromFlags(program);
@@ -150,7 +170,7 @@ export function registerApps(program: Command) {
 
           if (isJSONMode()) {
             printJSON({
-              apps: filteredApps.map(maskAppSecrets),
+              apps: filteredApps.map((app) => appToJSON(app, { full: opts.full })),
               pageInfo: {
                 mode: fetchAll ? "all" : "search",
                 pages: result.pages,
@@ -190,7 +210,10 @@ export function registerApps(program: Command) {
         );
 
         if (isJSONMode()) {
-          printJSON({ ...result, apps: result.apps.map(maskAppSecrets) });
+          printJSON({
+            ...result,
+            apps: result.apps.map((app) => appToJSON(app, { full: opts.full })),
+          });
           return;
         }
 
@@ -306,7 +329,7 @@ export function registerApps(program: Command) {
 
         const payload = {
           name: opts.name,
-          networks,
+          networkAllowlist: networks,
           ...(opts.description && { description: opts.description }),
           ...(products && { products }),
         };
@@ -430,7 +453,12 @@ export function registerApps(program: Command) {
       try {
         const networks = splitCommaList(opts.networks);
 
-        if (handleDryRun(opts, "networks", { id, networks }, `Would update networks for app ${id}: ${networks.join(", ")}`)) return;
+        if (handleDryRun(
+          opts,
+          "networks",
+          { id, networkAllowlist: networks },
+          `Would update networks for app ${id}: ${networks.join(", ")}`,
+        )) return;
 
         const admin = adminClientFromFlags(program);
         const app = await withSpinner(

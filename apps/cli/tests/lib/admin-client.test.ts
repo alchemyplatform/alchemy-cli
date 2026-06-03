@@ -299,6 +299,28 @@ describe("AdminClient", () => {
     expect(parsed.chainNetworks).toBeUndefined();
   });
 
+  it("updateNetworkAllowlist sends networkAllowlist", async () => {
+    let body = "";
+    let requestUrl = "";
+    const url = await createTestServer((req, res) => {
+      requestUrl = req.url || "";
+      let data = "";
+      req.on("data", (chunk: string) => (data += chunk));
+      req.on("end", () => {
+        body = data;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ data: MOCK_APP }));
+      });
+    });
+
+    const client = new TestAdminClient(url);
+    await client.updateNetworkAllowlist("app-123", ["ETH_MAINNET"]);
+    const parsed = JSON.parse(body);
+    expect(requestUrl).toBe("/v1/apps/app-123/networks");
+    expect(parsed.networkAllowlist).toEqual(["ETH_MAINNET"]);
+    expect(parsed.chainNetworks).toBeUndefined();
+  });
+
   it("deleteApp sends DELETE request", async () => {
     let method = "";
     let requestUrl = "";

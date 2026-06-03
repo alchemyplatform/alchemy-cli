@@ -46,11 +46,20 @@ describe("app command", () => {
     await runRegisteredCommand(registerApps, ["app", "list"]);
 
     expect(listApps).toHaveBeenCalledWith({ cursor: undefined, limit: undefined });
-    expect(printJSON).toHaveBeenCalledWith({ apps: [APP_ONE], cursor: "cursor_2" });
+    expect(printJSON).toHaveBeenCalledWith({
+      apps: [{
+        id: "app_1",
+        name: "First App",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        networkCount: 0,
+        networks: [],
+      }],
+      cursor: "cursor_2",
+    });
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
-  it("redacts API keys embedded in app RPC URLs in JSON mode", async () => {
+  it("omits secrets and URLs from compact app list JSON", async () => {
     const { printJSON } = installBaseCommandMocks({ jsonMode: true });
     const listApps = vi.fn().mockResolvedValue({
       apps: [
@@ -73,6 +82,45 @@ describe("app command", () => {
 
     const { registerApps } = await import("../../src/commands/apps.js");
     await runRegisteredCommand(registerApps, ["app", "list"]);
+
+    const payload = printJSON.mock.calls[0][0];
+    expect(JSON.stringify(payload)).not.toContain("api-key-1");
+    expect(JSON.stringify(payload)).not.toContain("rpcUrl");
+    expect(JSON.stringify(payload)).not.toContain("wsUrl");
+    expect(payload).toEqual({
+      apps: [{
+        id: "app_1",
+        name: "First App",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        networkCount: 1,
+        networks: [{ id: "ETH_MAINNET", name: "Ethereum" }],
+      }],
+    });
+  });
+
+  it("redacts API keys embedded in app RPC URLs in --full JSON mode", async () => {
+    const { printJSON } = installBaseCommandMocks({ jsonMode: true });
+    const listApps = vi.fn().mockResolvedValue({
+      apps: [
+        {
+          ...APP_ONE,
+          chainNetworks: [
+            {
+              id: "ETH_MAINNET",
+              name: "Ethereum",
+              rpcUrl: "https://eth-mainnet.g.alchemy.com/v2/api-key-1",
+              wsUrl: "wss://eth-mainnet.g.alchemy.com/v2/api-key-1",
+            },
+          ],
+        },
+      ],
+    });
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ listApps }),
+    }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    await runRegisteredCommand(registerApps, ["app", "list", "--full"]);
 
     const payload = printJSON.mock.calls[0][0] as {
       apps: Array<{ chainNetworks: Array<{ rpcUrl: string; wsUrl: string }> }>;
@@ -98,7 +146,22 @@ describe("app command", () => {
 
     expect(listAllApps).toHaveBeenCalledWith({ limit: undefined });
     expect(printJSON).toHaveBeenCalledWith({
-      apps: [APP_ONE, APP_TWO],
+      apps: [
+        {
+          id: "app_1",
+          name: "First App",
+          createdAt: "2025-01-01T00:00:00.000Z",
+          networkCount: 0,
+          networks: [],
+        },
+        {
+          id: "app_2",
+          name: "Second App",
+          createdAt: "2025-01-02T00:00:00.000Z",
+          networkCount: 0,
+          networks: [],
+        },
+      ],
       pageInfo: {
         mode: "all",
         pages: 2,
@@ -113,7 +176,13 @@ describe("app command", () => {
       title: "search filtering",
       args: ["app", "list", "--search", "second"],
       expected: {
-        apps: [APP_TWO],
+        apps: [{
+          id: "app_2",
+          name: "Second App",
+          createdAt: "2025-01-02T00:00:00.000Z",
+          networkCount: 0,
+          networks: [],
+        }],
         pageInfo: { mode: "search", pages: 1, scannedApps: 2, search: "second" },
       },
     },
@@ -121,7 +190,13 @@ describe("app command", () => {
       title: "id filtering",
       args: ["app", "list", "--id", "app_2"],
       expected: {
-        apps: [APP_TWO],
+        apps: [{
+          id: "app_2",
+          name: "Second App",
+          createdAt: "2025-01-02T00:00:00.000Z",
+          networkCount: 0,
+          networks: [],
+        }],
         pageInfo: { mode: "search", pages: 1, scannedApps: 2, id: "app_2" },
       },
     },
@@ -176,10 +251,39 @@ describe("app command", () => {
       action: "create",
       payload: {
         name: "My App",
-        networks: ["eth-mainnet", "base-mainnet"],
+        networkAllowlist: ["eth-mainnet", "base-mainnet"],
       },
     });
     expect(createApp).not.toHaveBeenCalled();
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("uses networkAllowlist in networks --dry-run preview output", async () => {
+    const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
+    const updateNetworkAllowlist = vi.fn();
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      adminClientFromFlags: () => ({ updateNetworkAllowlist }),
+    }));
+
+    const { registerApps } = await import("../../src/commands/apps.js");
+    await runRegisteredCommand(registerApps, [
+      "app",
+      "networks",
+      "app_123",
+      "--networks",
+      "eth-mainnet,base-mainnet",
+      "--dry-run",
+    ]);
+
+    expect(printJSON).toHaveBeenCalledWith({
+      dryRun: true,
+      action: "networks",
+      payload: {
+        id: "app_123",
+        networkAllowlist: ["eth-mainnet", "base-mainnet"],
+      },
+    });
+    expect(updateNetworkAllowlist).not.toHaveBeenCalled();
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
