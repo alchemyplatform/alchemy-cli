@@ -88,6 +88,7 @@ describe("new API namespace commands", () => {
 
   it("solana rpc forwards method", async () => {
     const call = vi.fn().mockResolvedValue({ ok: true });
+    const debug = vi.fn();
     vi.doMock("../../src/lib/resolve.js", () => ({
       clientFromFlags: () => ({ call }),
       resolveSolanaNetwork: () => "solana-mainnet",
@@ -96,6 +97,7 @@ describe("new API namespace commands", () => {
       withSpinner: async (_a: string, _b: string, fn: () => Promise<unknown>) => fn(),
       printSyntaxJSON: vi.fn(),
     }));
+    vi.doMock("../../src/lib/output.js", () => ({ debug }));
     vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError: vi.fn() }));
 
     const { registerSolana } = await import("../../src/commands/solana.js");
@@ -103,5 +105,82 @@ describe("new API namespace commands", () => {
     registerSolana(program);
     await program.parseAsync(["node", "test", "solana", "rpc", "getBalance", '"addr"'], { from: "node" });
     expect(call).toHaveBeenCalledWith("getBalance", ["addr"]);
+    expect(debug).toHaveBeenCalledWith("solana rpc getBalance params", ["addr"]);
+    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/^solana rpc getBalance ok \d+ms$/));
+  });
+
+  it("solana das maps plan entitlement errors to PAYMENT_REQUIRED", async () => {
+    const call = vi.fn().mockRejectedValue(
+      new Error("DAS is not available on your Free tier plan. Upgrade to PAYG."),
+    );
+    const exitWithError = vi.fn();
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+      resolveSolanaNetwork: () => "solana-mainnet",
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_a: string, _b: string, fn: () => Promise<unknown>) => fn(),
+      printSyntaxJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({ debug: vi.fn() }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerSolana } = await import("../../src/commands/solana.js");
+    const program = new Command();
+    registerSolana(program);
+    await program.parseAsync(
+      ["node", "test", "solana", "das", "getAssetsByOwner", '{"ownerAddress":"addr"}'],
+      { from: "node" },
+    );
+
+    expect(call).toHaveBeenCalledWith("getAssetsByOwner", { ownerAddress: "addr" });
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      code: "PAYMENT_REQUIRED",
+      message: "Solana DAS request requires a paid Alchemy plan.",
+    }));
+  });
+
+  it("generated solana DAS commands share debug logs and paywall mapping", async () => {
+    const call = vi.fn().mockRejectedValue(
+      new Error("DAS is not available on your Free tier plan. Upgrade to PAYG."),
+    );
+    const debug = vi.fn();
+    const exitWithError = vi.fn();
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      clientFromFlags: () => ({ call }),
+      resolveSolanaNetwork: () => "solana-mainnet",
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_a: string, _b: string, fn: () => Promise<unknown>) => fn(),
+      printSyntaxJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({ debug }));
+    vi.doMock("../../src/lib/errors.js", async () => ({ ...(await vi.importActual("../../src/lib/errors.js")), exitWithError }));
+
+    const { registerSolana } = await import("../../src/commands/solana.js");
+    const program = new Command();
+    registerSolana(program);
+    await program.parseAsync(
+      [
+        "node",
+        "test",
+        "solana",
+        "solana_getAssetsByOwner",
+        "--params",
+        '{"ownerAddress":"addr"}',
+      ],
+      { from: "node" },
+    );
+
+    expect(call).toHaveBeenCalledWith("getAssetsByOwner", { ownerAddress: "addr" });
+    expect(debug).toHaveBeenCalledWith("solana das getAssetsByOwner params", { ownerAddress: "addr" });
+    expect(debug).toHaveBeenCalledWith(
+      expect.stringMatching(/^solana das getAssetsByOwner failed \d+ms$/),
+      "DAS is not available on your Free tier plan. Upgrade to PAYG.",
+    );
+    expect(exitWithError).toHaveBeenCalledWith(expect.objectContaining({
+      code: "PAYMENT_REQUIRED",
+      message: "Solana DAS request requires a paid Alchemy plan.",
+    }));
   });
 });

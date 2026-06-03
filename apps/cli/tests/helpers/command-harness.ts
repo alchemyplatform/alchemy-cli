@@ -22,6 +22,7 @@ export function installBaseCommandMocks(opts?: { jsonMode?: boolean }) {
   const promptSelect = vi.fn().mockResolvedValue("stop");
 
   vi.doMock("../../src/lib/output.js", () => ({
+    debug: vi.fn(),
     isJSONMode: () => jsonMode,
     isRevealMode: () => false,
     printJSON,

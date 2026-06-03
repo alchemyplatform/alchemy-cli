@@ -28,6 +28,11 @@ import {
 import { parseRequiredJSON } from "../lib/params.js";
 import { timeout as globalTimeout } from "../lib/output.js";
 import { printSyntaxJSON, withSpinner } from "../lib/ui.js";
+import {
+  callSolana,
+  normalizeSolanaDasPaywallError,
+  solanaRpcFamilyForMethod,
+} from "../lib/solana-rpc.js";
 
 type RpcParams = unknown[] | Record<string, unknown>;
 type DataObject = Record<string, unknown>;
@@ -119,7 +124,7 @@ function registerRpcSurfaceCommand({ root, parent, method }: RpcRegistrationArgs
             ? clientFromFlags(root, { forceNetwork: resolveSolanaNetwork(root) })
             : clientFromFlags(root);
           result = await withSpinner(`Calling ${method.name}...`, `Called ${method.name}`, () =>
-            client.call(method.rpcMethod, params),
+            callNetworkRpcMethod(client, method, params),
           );
         }
 
@@ -128,6 +133,26 @@ function registerRpcSurfaceCommand({ root, parent, method }: RpcRegistrationArgs
         exitWithError(mapRpcError(err));
       }
     });
+}
+
+async function callNetworkRpcMethod(
+  client: { call(method: string, params: unknown): Promise<unknown> },
+  method: RpcApiSurfaceMethod,
+  params: RpcParams,
+): Promise<unknown> {
+  if (method.family !== "solana") {
+    return await client.call(method.rpcMethod, params);
+  }
+
+  const solanaFamily = solanaRpcFamilyForMethod(method.rpcMethod);
+  try {
+    return await callSolana(client, solanaFamily, method.rpcMethod, params);
+  } catch (err) {
+    if (solanaFamily === "das") {
+      throw normalizeSolanaDasPaywallError(err) ?? err;
+    }
+    throw err;
+  }
 }
 
 function parseRpcParams(input: string): RpcParams {

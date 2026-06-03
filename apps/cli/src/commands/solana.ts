@@ -3,6 +3,10 @@ import { clientFromFlags, resolveSolanaNetwork } from "../lib/resolve.js";
 import { errInvalidArgs, exitWithError } from "../lib/errors.js";
 import { parseCLIParams } from "../lib/params.js";
 import { printSyntaxJSON, withSpinner } from "../lib/ui.js";
+import {
+  callSolana,
+  normalizeSolanaDasPaywallError,
+} from "../lib/solana-rpc.js";
 import { registerNetwork } from "./network.js";
 import { registerSolanaDelegate } from "./solana-delegate.js";
 import { registerSolanaProgram } from "./solana-program.js";
@@ -49,7 +53,7 @@ export function registerSolana(program: Command) {
           forceNetwork: resolveSolanaNetwork(program),
         });
         const result = await withSpinner(`Calling ${method}…`, `Called ${method}`, () =>
-          client.call(method, parseCLIParams(params)),
+          callSolana(client, "rpc", method, parseCLIParams(params)),
         );
         printSyntaxJSON(result);
       } catch (err) {
@@ -72,7 +76,9 @@ export function registerSolana(program: Command) {
           ? (parsed[0] as Record<string, unknown>)
           : parsed;
         const result = await withSpinner(`Calling ${method}…`, `Called ${method}`, () =>
-          client.call(method, rpcParams),
+          callSolana(client, "das", method, rpcParams).catch((err) => {
+            throw normalizeSolanaDasPaywallError(err) ?? err;
+          }),
         );
         printSyntaxJSON(result);
       } catch (err) {

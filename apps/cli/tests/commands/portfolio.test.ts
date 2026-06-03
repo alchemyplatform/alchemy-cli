@@ -62,6 +62,74 @@ describe("portfolio command", () => {
     expect(exitWithError).not.toHaveBeenCalled();
   });
 
+  it("limits nested portfolio arrays in JSON output", async () => {
+    const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
+    const callApiData = vi.fn().mockResolvedValue({
+      data: {
+        tokens: [{ symbol: "ETH" }, { symbol: "USDC" }],
+        owners: [{ address: "0x1" }, { address: "0x2" }],
+      },
+    });
+    vi.doMock("../../src/lib/rest.js", () => ({ callApiData }));
+    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key", resolveX402Client: () => null }));
+
+    const { registerData } = await import("../../src/commands/data.js");
+    await runRegisteredCommand(registerData, [
+      "data",
+      "portfolio",
+      "tokens",
+      "--body",
+      '{"addresses":[{"address":"0xabc","networks":["eth-mainnet"]}]}',
+      "--limit",
+      "1",
+    ]);
+
+    expect(printJSON).toHaveBeenCalledWith({
+      data: {
+        tokens: [{ symbol: "ETH" }],
+        owners: [{ address: "0x1" }],
+      },
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
+  it("adds decimal and formatted fields for hex token balances", async () => {
+    const { printJSON, exitWithError } = installBaseCommandMocks({ jsonMode: true });
+    const callApiData = vi.fn().mockResolvedValue({
+      items: [
+        {
+          symbol: "USDC",
+          tokenBalance: "0x000000000000000000000000000f4240",
+          tokenMetadata: { decimals: 6 },
+        },
+      ],
+    });
+    vi.doMock("../../src/lib/rest.js", () => ({ callApiData }));
+    vi.doMock("../../src/lib/resolve.js", () => ({ resolveAPIKey: () => "api_key", resolveX402Client: () => null }));
+
+    const { registerData } = await import("../../src/commands/data.js");
+    await runRegisteredCommand(registerData, [
+      "data",
+      "portfolio",
+      "token-balances",
+      "--body",
+      '{"addresses":[{"address":"0xabc","networks":["eth-mainnet"]}]}',
+    ]);
+
+    expect(printJSON).toHaveBeenCalledWith({
+      items: [
+        {
+          symbol: "USDC",
+          tokenBalance: "0x000000000000000000000000000f4240",
+          tokenBalanceDecimal: "1000000",
+          tokenBalanceFormatted: "1",
+          tokenMetadata: { decimals: 6 },
+        },
+      ],
+    });
+    expect(exitWithError).not.toHaveBeenCalled();
+  });
+
   it("routes invalid JSON body errors to exitWithError", async () => {
     const { exitWithError } = installBaseCommandMocks({ jsonMode: true });
     const callApiData = vi.fn();
