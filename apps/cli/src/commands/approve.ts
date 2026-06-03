@@ -27,6 +27,7 @@ import {
   formatTokenAmount,
 } from "../lib/token-amounts.js";
 import { NATIVE_TOKEN_ADDRESS } from "../lib/token-registry.js";
+import { withPreflightRevert } from "../lib/preflight-errors.js";
 
 interface ApproveOpts {
   tokenAddress: string;
@@ -303,10 +304,10 @@ async function performApprove(
   const { id } = await withSpinner(
     "Sending approval…",
     "Approval submitted",
-    () => client.sendCalls({
+    () => withPreflightRevert(() => client.sendCalls({
       calls,
       capabilities: paymaster ? { paymaster } : undefined,
-    }),
+    })),
   );
 
   const status = await withSpinner(

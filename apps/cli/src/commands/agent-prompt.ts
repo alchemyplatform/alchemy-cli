@@ -1,5 +1,11 @@
 import type { Command } from "commander";
-import { ErrorCode, EXIT_CODES, type ErrorCodeType } from "../lib/errors.js";
+import {
+  ErrorCode,
+  EXIT_CODES,
+  errInvalidArgs,
+  exitWithError,
+  type ErrorCodeType,
+} from "../lib/errors.js";
 import { isJSONMode, printJSON, printHuman } from "../lib/output.js";
 
 interface CommandSchema {
@@ -18,8 +24,10 @@ interface ErrorEntry {
 }
 
 interface AgentPrompt {
+  scope?: AgentPromptScope;
   executionPolicy: string[];
   preflight: { command: string; description: string };
+  transactionPreflight: string[];
   runtimeDiscovery: {
     installed: { command: string; description: string };
     latest: { command: string; description: string };
@@ -45,6 +53,53 @@ interface AgentPrompt {
   examples: string[];
   docs: string;
 }
+
+type AgentPromptScope =
+  | "wallet"
+  | "evm"
+  | "solana"
+  | "webhook"
+  | "app"
+  | "data"
+  | "xchain";
+
+const AGENT_PROMPT_SCOPES: AgentPromptScope[] = [
+  "wallet",
+  "evm",
+  "solana",
+  "webhook",
+  "app",
+  "data",
+  "xchain",
+];
+
+const SCOPE_COMMAND_PATHS: Record<AgentPromptScope, string[]> = {
+  app: ["app", "auth", "config"],
+  data: ["evm data", "evm logs", "evm block", "evm tx", "evm receipt"],
+  evm: ["evm"],
+  solana: ["solana"],
+  wallet: [
+    "wallet",
+    "evm send",
+    "evm contract",
+    "evm swap",
+    "evm approve",
+    "evm status",
+    "xchain bridge",
+  ],
+  webhook: ["webhook", "config set webhook-api-key"],
+  xchain: ["xchain"],
+};
+
+const SCOPE_EXAMPLE_MATCHERS: Record<AgentPromptScope, string[]> = {
+  app: [" app ", " auth ", " config "],
+  data: [" evm data ", " evm logs ", " evm block ", " evm tx ", " evm receipt "],
+  evm: [" evm "],
+  solana: [" solana "],
+  wallet: [" wallet ", " evm send ", " evm swap ", " evm approve ", " xchain bridge "],
+  webhook: [" webhook "],
+  xchain: [" xchain "],
+};
 
 const RETRYABLE_CODES: ReadonlySet<string> = new Set([
   ErrorCode.RATE_LIMITED,
@@ -78,6 +133,8 @@ const ERROR_RECOVERY: Record<ErrorCodeType, string> = {
     "Run preflight: alchemy --json --no-interactive config status, then follow nextCommands",
   QUOTE_FAILED:
     "Quote unavailable; check data.cause for the specific reason (INSUFFICIENT_BALANCE, INSUFFICIENT_LIQUIDITY, UNSUPPORTED_ROUTE, QUOTE_REVERTED, QUOTE_FAILED) and follow the hint",
+  PREFLIGHT_REVERT:
+    "Transaction preflight reverted; inspect data.reason, fix balance/allowance/calldata, and retry with --dry-run when available",
   INTERNAL_ERROR:
     "Unexpected error; retry or report a bug",
 };
@@ -122,6 +179,68 @@ function buildCommandSchema(cmd: Command): CommandSchema {
   return schema;
 }
 
+function commandMatchesPath(cmd: CommandSchema, path: string[]): CommandSchema | null {
+  if (path[0] !== cmd.name) return null;
+  if (path.length === 1) return cmd;
+  if (!cmd.subcommands) return null;
+
+  const childMatches = filterCommandSchemas(cmd.subcommands, [path.slice(1)]);
+  if (childMatches.length === 0) return null;
+  return {
+    ...cmd,
+    subcommands: childMatches,
+  };
+}
+
+function filterCommandSchemas(
+  commands: CommandSchema[],
+  paths: string[][],
+): CommandSchema[] {
+  const filtered: CommandSchema[] = [];
+  for (const cmd of commands) {
+    const matches = paths
+      .map((path) => commandMatchesPath(cmd, path))
+      .filter((match): match is CommandSchema => Boolean(match));
+    if (matches.length === 0) continue;
+    if (matches.some((match) => match === cmd)) {
+      filtered.push(cmd);
+      continue;
+    }
+    const subcommands = matches.flatMap((match) => match.subcommands ?? []);
+    filtered.push({
+      ...cmd,
+      subcommands,
+    });
+  }
+  return filtered;
+}
+
+function parseScope(value: string | undefined): AgentPromptScope | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (AGENT_PROMPT_SCOPES.includes(normalized as AgentPromptScope)) {
+    return normalized as AgentPromptScope;
+  }
+  throw errInvalidArgs(
+    `Unknown agent-prompt scope '${value}'. Use one of: ${AGENT_PROMPT_SCOPES.join(", ")}.`,
+  );
+}
+
+function applyScope(payload: AgentPrompt, scope: AgentPromptScope | undefined): void {
+  if (!scope) return;
+
+  payload.scope = scope;
+  payload.commands = filterCommandSchemas(
+    payload.commands,
+    SCOPE_COMMAND_PATHS[scope].map((path) => path.split(" ")),
+  );
+
+  const matchers = SCOPE_EXAMPLE_MATCHERS[scope];
+  payload.examples = payload.examples.filter((example) =>
+    matchers.some((matcher) => ` ${example} `.includes(matcher)),
+  );
+}
+
 function buildAgentPrompt(program: Command): AgentPrompt {
   const errors: Record<string, ErrorEntry> = {};
   for (const [code, exitCode] of Object.entries(EXIT_CODES)) {
@@ -155,6 +274,11 @@ function buildAgentPrompt(program: Command): AgentPrompt {
       description:
         "Check auth readiness before first command. Use capabilities.rpc_data/admin_api/notify_webhooks/wallet_signing/x402 to scope setup to the intended command family.",
     },
+    transactionPreflight: [
+      "Before `evm send`, check the sender's native balance with `alchemy --json --no-interactive evm data balance <address> -n <network>`.",
+      "Before ERC-20 sends, swaps, approvals, or bridges, verify the source token balance/allowance or request a quote first; do not infer spendability from a configured wallet alone.",
+      "If a balance is zero or below the requested amount, stop and report the funding gap instead of retrying the transaction.",
+    ],
     runtimeDiscovery: {
       installed: {
         command: "alchemy --json --no-interactive agent-prompt",
@@ -299,6 +423,12 @@ function formatAsSystemPrompt(payload: AgentPrompt): string {
   lines.push(`  ${payload.preflight.description}`);
   lines.push("");
 
+  lines.push("Transaction preflight:");
+  for (const rule of payload.transactionPreflight) {
+    lines.push(`  - ${rule}`);
+  }
+  lines.push("");
+
   lines.push("Runtime discovery:");
   lines.push(`  Installed CLI: ${payload.runtimeDiscovery.installed.command}`);
   lines.push(`    ${payload.runtimeDiscovery.installed.description}`);
@@ -363,13 +493,19 @@ export function registerAgentPrompt(program: Command) {
   program
     .command("agent-prompt")
     .description("Emit complete agent/automation usage instructions")
+    .option("--scope <scope>", "Filter output to a command area: wallet, evm, solana, webhook, app, data, xchain")
     .option("--commands <list>", "Filter to specific commands in JSON output (requires --json). Comma-separated (e.g. data,rpc,gas)")
-    .action((opts: { commands?: string }) => {
-      const payload = buildAgentPrompt(program);
-      if (opts.commands) {
-        const filter = new Set(opts.commands.split(",").map((s) => s.trim().toLowerCase()));
-        payload.commands = payload.commands.filter((cmd) => filter.has(cmd.name.toLowerCase()));
+    .action((opts: { commands?: string; scope?: string }) => {
+      try {
+        const payload = buildAgentPrompt(program);
+        applyScope(payload, parseScope(opts.scope));
+        if (opts.commands) {
+          const filter = new Set(opts.commands.split(",").map((s) => s.trim().toLowerCase()));
+          payload.commands = payload.commands.filter((cmd) => filter.has(cmd.name.toLowerCase()));
+        }
+        printHuman(formatAsSystemPrompt(payload), payload);
+      } catch (err) {
+        exitWithError(err);
       }
-      printHuman(formatAsSystemPrompt(payload), payload);
     });
 }

@@ -13,6 +13,7 @@ import { resolveAddress } from "../lib/validators.js";
 import { isJSONMode, printJSON } from "../lib/output.js";
 import { CLIError, ErrorCode, exitWithError, errInvalidArgs } from "../lib/errors.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
+import { withPreflightRevert } from "../lib/preflight-errors.js";
 import { withSpinner, printKeyValue, green, dim, successBadge } from "../lib/ui.js";
 
 /**
@@ -424,10 +425,10 @@ export async function performContractCall(
   const { id } = await withSpinner(
     "Sending transaction…",
     "Transaction submitted",
-    () => client.sendCalls({
+    () => withPreflightRevert(() => client.sendCalls({
       calls: [call],
       capabilities: paymaster ? { paymaster } : undefined,
-    }),
+    })),
   );
 
   const status = await withSpinner(

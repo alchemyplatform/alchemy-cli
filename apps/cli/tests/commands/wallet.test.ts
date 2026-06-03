@@ -1144,11 +1144,13 @@ describe("wallet command", () => {
       requestSignerVersion: "v1",
       chains: ["evm", "solana"],
       capabilities: {
-        evm: {
+        evm: expect.objectContaining({
           "evm.signMessage": true,
           "evm.signTypedData": true,
           "evm.signAuthorization": true,
-        },
+          "evm.prepareCalls": true,
+          "evm.sendCalls": true,
+        }),
         solana: {
           "solana.signTransaction": true,
         },
@@ -1185,6 +1187,8 @@ describe("wallet command", () => {
         "evm.signMessage": true,
         "evm.signTypedData": true,
         "evm.signAuthorization": true,
+        "evm.prepareCalls": true,
+        "evm.sendCalls": true,
         "solana.signTransaction": true,
       },
       expiresAt: "2026-04-21T00:00:00.000Z",

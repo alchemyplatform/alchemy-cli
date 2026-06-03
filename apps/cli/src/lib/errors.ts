@@ -14,6 +14,7 @@ export const ErrorCode = {
   PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
   SETUP_REQUIRED: "SETUP_REQUIRED",
   QUOTE_FAILED: "QUOTE_FAILED",
+  PREFLIGHT_REVERT: "PREFLIGHT_REVERT",
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
@@ -38,6 +39,7 @@ export const EXIT_CODES: Record<ErrorCodeType, number> = {
   PAYMENT_REQUIRED: 9,
   SETUP_REQUIRED: 3,
   QUOTE_FAILED: 10,
+  PREFLIGHT_REVERT: 11,
   INTERNAL_ERROR: 1,
 };
 
@@ -153,6 +155,16 @@ export function errRPC(code: number, message: string): CLIError {
 
 export function errInvalidArgs(detail: string): CLIError {
   return new CLIError(ErrorCode.INVALID_ARGS, detail);
+}
+
+export function errPreflightRevert(reason: string, details?: string): CLIError {
+  return new CLIError(
+    ErrorCode.PREFLIGHT_REVERT,
+    `Transaction preflight reverted: ${reason}`,
+    "Fix the revert reason, lower the amount, adjust allowance/balance, or try a dry run before submitting again.",
+    details,
+    { reason },
+  );
 }
 
 export function errNotFound(resource: string): CLIError {

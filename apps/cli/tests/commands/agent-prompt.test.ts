@@ -33,6 +33,7 @@ describe("agent-prompt command", () => {
 
     expect(payload).toHaveProperty("executionPolicy");
     expect(payload).toHaveProperty("preflight");
+    expect(payload).toHaveProperty("transactionPreflight");
     expect(payload).toHaveProperty("runtimeDiscovery");
     expect(payload).toHaveProperty("auth");
     expect(payload).toHaveProperty("commands");
@@ -188,6 +189,68 @@ describe("agent-prompt command", () => {
     );
     expect(formatted).toContain("Runtime discovery:");
     expect(formatted).toContain("Latest npm CLI: npx -y @alchemy/cli@latest --json --no-interactive agent-prompt");
+  });
+
+  it("includes balance preflight guidance for transaction commands", async () => {
+    const printHuman = vi.fn();
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman,
+    }));
+
+    const { registerAgentPrompt } = await import(
+      "../../src/commands/agent-prompt.js"
+    );
+    const program = new Command();
+    registerAgentPrompt(program);
+
+    await program.parseAsync(["node", "test", "agent-prompt"], {
+      from: "node",
+    });
+
+    const formatted = printHuman.mock.calls[0][0] as string;
+    const payload = printHuman.mock.calls[0][1];
+
+    expect(payload.transactionPreflight).toContain(
+      "Before `evm send`, check the sender's native balance with `alchemy --json --no-interactive evm data balance <address> -n <network>`.",
+    );
+    expect(formatted).toContain("Transaction preflight:");
+    expect(formatted).toContain("Before `evm send`, check the sender's native balance");
+  });
+
+  it("filters command tree with --scope", async () => {
+    const printHuman = vi.fn();
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+      printHuman,
+    }));
+
+    const { registerAgentPrompt } = await import(
+      "../../src/commands/agent-prompt.js"
+    );
+    const program = new Command();
+    const evm = program.command("evm").description("EVM commands");
+    evm.command("send").description("Send tokens");
+    evm.command("block").description("Get blocks");
+    program.command("wallet").description("Manage wallets");
+    program.command("webhook").description("Manage webhooks");
+    registerAgentPrompt(program);
+
+    await program.parseAsync(["node", "test", "agent-prompt", "--scope", "wallet"], {
+      from: "node",
+    });
+
+    const payload = printHuman.mock.calls[0][1];
+    const commandNames = payload.commands.map((c: { name: string }) => c.name);
+    const evmCommand = payload.commands.find((c: { name: string }) => c.name === "evm");
+
+    expect(payload.scope).toBe("wallet");
+    expect(commandNames).toContain("wallet");
+    expect(commandNames).toContain("evm");
+    expect(commandNames).not.toContain("webhook");
+    expect(evmCommand.subcommands.map((c: { name: string }) => c.name)).toEqual(["send"]);
   });
 
   it("includes auth entries for all method types", async () => {

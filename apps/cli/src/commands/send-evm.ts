@@ -8,6 +8,7 @@ import { isJSONMode, printJSON } from "../lib/output.js";
 import { withSpinner, printKeyValue, green, successBadge } from "../lib/ui.js";
 import { addSignerOption, parseSignerOpt } from "../lib/params.js";
 import { fetchTokenDecimals, parseAmount } from "../lib/token-amounts.js";
+import { withPreflightRevert } from "../lib/preflight-errors.js";
 
 const NATIVE_EVM_DECIMALS = 18;
 
@@ -154,10 +155,10 @@ export async function performEvmSend(
   const { id } = await withSpinner(
     "Sending transaction…",
     "Transaction submitted",
-    () => client.sendCalls({
+    () => withPreflightRevert(() => client.sendCalls({
       calls,
       capabilities: paymaster ? { paymaster } : undefined,
-    }),
+    })),
   );
 
   const status = await withSpinner(

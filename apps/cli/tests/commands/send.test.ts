@@ -192,6 +192,60 @@ describe("performEvmSend", () => {
     });
   });
 
+  it("maps EVM send preflight reverts to actionable CLI errors", async () => {
+    vi.doUnmock("../../src/commands/send-evm.js");
+
+    const sendCalls = vi.fn().mockRejectedValue(new Error(
+      "execution reverted: ERC20: transfer amount exceeds allowance",
+    ));
+    const waitForCallsStatus = vi.fn();
+
+    vi.doMock("../../src/lib/smart-wallet.js", () => ({
+      ensureGasPolicyResolved: vi.fn().mockResolvedValue(undefined),
+      buildWalletClient: () => ({
+        client: { sendCalls, waitForCallsStatus },
+        network: "eth-mainnet",
+        address: "0xfrom",
+        paymaster: undefined,
+      }),
+    }));
+    vi.doMock("../../src/lib/resolve.js", () => ({
+      apiKeyClientFromFlags: () => ({ rpc: true }),
+      resolveRequiredNetwork: () => "eth-mainnet",
+    }));
+    vi.doMock("../../src/lib/validators.js", () => ({
+      resolveAddress: async () => "0xto",
+      validateAddress: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/networks.js", () => ({
+      nativeTokenSymbol: () => "ETH",
+    }));
+    vi.doMock("../../src/lib/output.js", () => ({
+      isJSONMode: () => true,
+      printJSON: vi.fn(),
+    }));
+    vi.doMock("../../src/lib/ui.js", () => ({
+      withSpinner: async (_label: string, _doneLabel: string, fn: () => Promise<unknown>) => fn(),
+      printKeyValue: vi.fn(),
+      printKeyValueBox: vi.fn(),
+      green: (s: string) => s,
+      successBadge: () => "✓",
+    }));
+    vi.doMock("viem", () => ({
+      encodeFunctionData: vi.fn(),
+      erc20Abi: [],
+    }));
+
+    const { performEvmSend } = await import("../../src/commands/send-evm.js");
+    await expect(
+      performEvmSend({} as Command, "vitalik.eth", "1.5"),
+    ).rejects.toMatchObject({
+      code: ErrorCode.PREFLIGHT_REVERT,
+      data: { reason: "ERC20: transfer amount exceeds allowance" },
+    });
+    expect(waitForCallsStatus).not.toHaveBeenCalled();
+  });
+
   it("previews a native EVM transfer without signing or sending", async () => {
     vi.doUnmock("../../src/commands/send-evm.js");
 

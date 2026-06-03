@@ -17,6 +17,7 @@ import { nativeTokenSymbol } from "../lib/networks.js";
 import { networkToChain } from "../lib/chains.js";
 import { resolveNetwork } from "../lib/resolve.js";
 import { normalizeQuoteError } from "../lib/quote-errors.js";
+import { withPreflightRevert } from "../lib/preflight-errors.js";
 import {
   parseAmount,
   fetchTokenDecimals,
@@ -137,10 +138,10 @@ async function prepareQuoteForExecution(
   const preparedQuote = await withSpinner(
     "Preparing swap…",
     "Swap prepared",
-    () => client.prepareCalls({
+    () => withPreflightRevert(() => client.prepareCalls({
       ...permitQuote.modifiedRequest,
       paymasterPermitSignature: permitSignature,
-    }),
+    })),
   );
 
   if ("type" in preparedQuote && preparedQuote.type === "paymaster-permit") {
@@ -338,15 +339,15 @@ async function performSwapExecute(program: Command, opts: SwapOpts) {
     async () => {
       if ("rawCalls" in preparedQuote && preparedQuote.rawCalls === true) {
         const rawCallsQuote = preparedQuote as RawCallsQuote;
-        return client.sendCalls({
+        return withPreflightRevert(() => client.sendCalls({
           calls: rawCallsQuote.calls,
           capabilities: paymaster ? { paymaster } : undefined,
-        });
+        }));
       }
 
       const executablePreparedQuote = preparedQuote as ExecutablePreparedQuote;
       const signedQuote = await client.signPreparedCalls(executablePreparedQuote);
-      return client.sendPreparedCalls(signedQuote);
+      return withPreflightRevert(() => client.sendPreparedCalls(signedQuote));
     },
   );
 

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { existsSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -71,6 +70,129 @@ describe("wallet-session", () => {
     expect(existsSync(join(dirname(process.env.ALCHEMY_CONFIG), "wallet-session.json"))).toBe(false);
     expect(clearSession()).toBe(true);
     expect(loadSession()).toBeNull();
+  });
+
+  it("does not persist delegated transaction capabilities older CLIs reject", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "alchemy-wallet-session-capabilities-"));
+    process.env.ALCHEMY_CONFIG = join(tempDir, "config.json");
+
+    const {
+      createPendingSession,
+      updateSession,
+    } = await import("../../src/lib/wallet-session.js");
+
+    createPendingSession();
+    updateSession({
+      status: "approved",
+      chainType: "evm",
+      evmWalletId: "wallet_123",
+      evmAddress: "0x123",
+      capabilities: {
+        "evm.signMessage": true,
+        "evm.prepareCalls": true,
+        "evm.sendCalls": true,
+      },
+      sessionsByChain: {
+        evm: {
+          sessionId: crypto.randomUUID(),
+          status: "approved",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          chainType: "evm",
+          walletId: "wallet_123",
+          walletAddress: "0x123",
+          capabilities: {
+            "evm.signMessage": true,
+            "evm.prepareCalls": true,
+            "evm.sendCalls": true,
+          },
+        },
+      },
+    });
+
+    const raw = JSON.parse(
+      readFileSync(join(dirname(process.env.ALCHEMY_CONFIG), "wallet-session.json"), "utf-8"),
+    );
+
+    expect(JSON.stringify(raw)).not.toContain("evm.prepareCalls");
+    expect(JSON.stringify(raw)).not.toContain("evm.sendCalls");
+    expect(raw).toMatchObject({
+      capabilities: {
+        "evm.signMessage": true,
+      },
+      sessionsByChain: {
+        evm: {
+          capabilities: {
+            "evm.signMessage": true,
+          },
+        },
+      },
+    });
+  });
+
+  it("loads previously persisted delegated transaction capabilities", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "alchemy-wallet-session-capabilities-load-"));
+    process.env.ALCHEMY_CONFIG = join(tempDir, "config.json");
+
+    const {
+      createPendingSession,
+      loadStoredSession,
+    } = await import("../../src/lib/wallet-session.js");
+
+    const session = createPendingSession();
+    writeFileSync(
+      join(dirname(process.env.ALCHEMY_CONFIG), "wallet-session.json"),
+      JSON.stringify(
+        {
+          ...session,
+          status: "approved",
+          chainType: "evm",
+          evmWalletId: "wallet_123",
+          evmAddress: "0x123",
+          capabilities: {
+            "evm.prepareCalls": true,
+            "evm.sendCalls": true,
+            "evm.futureCapability": true,
+          },
+          sessionsByChain: {
+            evm: {
+              sessionId: crypto.randomUUID(),
+              status: "approved",
+              expiresAt: new Date(Date.now() + 60_000).toISOString(),
+              chainType: "evm",
+              walletId: "wallet_123",
+              walletAddress: "0x123",
+              capabilities: {
+                "evm.prepareCalls": true,
+                "evm.sendCalls": true,
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    const loaded = loadStoredSession();
+    const loadedCapabilities = loaded?.capabilities as
+      | Record<string, boolean>
+      | undefined;
+
+    expect(loaded).toMatchObject({
+      capabilities: {
+        "evm.prepareCalls": true,
+        "evm.sendCalls": true,
+      },
+      sessionsByChain: {
+        evm: {
+          capabilities: {
+            "evm.prepareCalls": true,
+            "evm.sendCalls": true,
+          },
+        },
+      },
+    });
+    expect(loadedCapabilities?.["evm.futureCapability"]).toBe(true);
   });
 
   it("only treats approved, non-expired sessions as valid delegated sessions", async () => {

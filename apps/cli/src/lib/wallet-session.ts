@@ -13,9 +13,11 @@ const walletSessionCapabilitiesSchema = z
     "evm.signMessage": z.boolean().optional(),
     "evm.signTypedData": z.boolean().optional(),
     "evm.signAuthorization": z.boolean().optional(),
+    "evm.prepareCalls": z.boolean().optional(),
+    "evm.sendCalls": z.boolean().optional(),
     "solana.signTransaction": z.boolean().optional(),
   })
-  .strict();
+  .catchall(z.boolean());
 
 const walletSessionEnvironmentSchema = z
   .object({
@@ -127,9 +129,68 @@ export interface WalletSession {
     "evm.signMessage"?: boolean;
     "evm.signTypedData"?: boolean;
     "evm.signAuthorization"?: boolean;
+    "evm.prepareCalls"?: boolean;
+    "evm.sendCalls"?: boolean;
     "solana.signTransaction"?: boolean;
   };
   sessionsByChain?: Partial<Record<WalletChainType, ChainWalletSession>>;
+}
+
+const LEGACY_PERSISTED_CAPABILITY_KEYS = [
+  "evm.signMessage",
+  "evm.signTypedData",
+  "evm.signAuthorization",
+  "solana.signTransaction",
+] as const;
+
+function persistedCapabilities(
+  capabilities: WalletSession["capabilities"] | undefined,
+): WalletSession["capabilities"] | undefined {
+  if (!capabilities) return undefined;
+
+  const persisted: WalletSession["capabilities"] = {};
+  for (const key of LEGACY_PERSISTED_CAPABILITY_KEYS) {
+    const value = capabilities[key];
+    if (value !== undefined) {
+      persisted[key] = value;
+    }
+  }
+
+  return Object.keys(persisted).length > 0 ? persisted : undefined;
+}
+
+function withPersistedChainCapabilities(
+  chainSession: ChainWalletSession,
+): ChainWalletSession {
+  const { capabilities, ...rest } = chainSession;
+  const persisted = persistedCapabilities(capabilities);
+  return persisted ? { ...rest, capabilities: persisted } : rest;
+}
+
+function toPersistedSession(session: WalletSession): WalletSession {
+  const aliased = withCompatibilityAliases(session);
+  const { capabilities, sessionsByChain, ...rest } = aliased;
+  const persistedCapabilitiesForSession = persistedCapabilities(capabilities);
+  const persistedSessionsByChain = sessionsByChain
+    ? {
+        ...(sessionsByChain.evm
+          ? { evm: withPersistedChainCapabilities(sessionsByChain.evm) }
+          : {}),
+        ...(sessionsByChain.solana
+          ? { solana: withPersistedChainCapabilities(sessionsByChain.solana) }
+          : {}),
+      }
+    : undefined;
+
+  return {
+    ...rest,
+    ...(persistedCapabilitiesForSession
+      ? { capabilities: persistedCapabilitiesForSession }
+      : {}),
+    ...(persistedSessionsByChain
+      ? { sessionsByChain: persistedSessionsByChain }
+      : {}),
+  };
 }
 
 interface P256Keypair {
@@ -366,7 +427,7 @@ export function loadStoredSession(): WalletSession | null {
 }
 
 export function saveSession(session: WalletSession): void {
-  getWalletSessionStore().save(withCompatibilityAliases(session));
+  getWalletSessionStore().save(toPersistedSession(session));
 }
 
 export function updateSession(updates: Partial<WalletSession>): WalletSession | null {

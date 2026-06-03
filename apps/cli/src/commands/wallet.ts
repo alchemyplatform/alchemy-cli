@@ -56,6 +56,8 @@ const DEFAULT_WALLET_CAPABILITIES = {
   "evm.signMessage": true,
   "evm.signTypedData": true,
   "evm.signAuthorization": true,
+  "evm.prepareCalls": true,
+  "evm.sendCalls": true,
 } as const;
 const DEFAULT_SOLANA_SESSION_CAPABILITIES = {
   "solana.signTransaction": true,
@@ -284,6 +286,35 @@ function resolveEnabledCapabilities(
 function formatWalletStatus(value: WalletStatus): string {
   if (value === "active") return green("active");
   return dim(value);
+}
+
+function walletModeSummary(args: {
+  sessionActive: boolean;
+  localEvmConfigured: boolean;
+  localSolanaConfigured: boolean;
+}): Record<string, unknown> {
+  return {
+    session: {
+      available: args.sessionActive,
+      signing: "delegated session approval",
+      transactionSupport: ["wallet_prepareCalls", "wallet_sendCalls"],
+      preflightSimulation: true,
+      sponsorshipEligible: true,
+      nonceManagement: "Alchemy smart wallet",
+      supportedCallShapes: ["single call", "batch calls", "paymaster capabilities"],
+    },
+    local: {
+      available: args.localEvmConfigured || args.localSolanaConfigured,
+      evmConfigured: args.localEvmConfigured,
+      solanaConfigured: args.localSolanaConfigured,
+      signing: "local private key",
+      transactionSupport: ["wallet_sendCalls for EVM smart-wallet commands", "Solana transaction signing"],
+      preflightSimulation: false,
+      sponsorshipEligible: true,
+      nonceManagement: "local signer / chain-specific client",
+      supportedCallShapes: ["single call", "batch calls when routed through EVM smart-wallet commands"],
+    },
+  };
 }
 
 function walletKeysDirPath(): string {
@@ -1289,6 +1320,11 @@ export function registerWallets(program: Command) {
         );
 
         if (isJSONMode()) {
+          const modes = walletModeSummary({
+            sessionActive: snap.status === "active",
+            localEvmConfigured: Boolean(localState.evmAddress),
+            localSolanaConfigured: Boolean(localSolanaAddress),
+          });
           printJSON({
             // Preserved top-level fields (session-scoped, backward-compatible).
             walletAddress: snap.walletAddress,
@@ -1327,6 +1363,7 @@ export function registerWallets(program: Command) {
               ? { address: localSolanaAddress, keyFile: localState.solanaKeyFile }
               : null,
             activeSigner,
+            modes,
           });
           return;
         }
@@ -1341,6 +1378,12 @@ export function registerWallets(program: Command) {
           ["Local Solana", localSolanaAddress ?? dim("not configured")],
           ["Environment", snap.environment ?? dim("none")],
           ["Signer Capabilities", snap.signerCapabilities.length > 0 ? snap.signerCapabilities.join(", ") : dim("none")],
+          ["Session Mode", snap.status === "active"
+            ? "smart-wallet calls, preflight simulation, sponsorship eligible, managed nonce"
+            : dim("not active")],
+          ["Local Mode", localState.evmAddress || localSolanaAddress
+            ? "local key signing; sponsorship only where command supports it"
+            : dim("not configured")],
         ];
         if (snap.connectionRequestId) {
           pairs.push(["Connection Request ID", snap.connectionRequestId]);
