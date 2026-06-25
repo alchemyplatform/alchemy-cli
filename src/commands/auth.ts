@@ -1,12 +1,14 @@
 import { Command } from "commander";
 import * as config from "../lib/config.js";
-import { AUTH_PORT, prepareBrowserLogin, performBrowserLogin, revokeToken, waitForCallback, openBrowser, exchangeCodeForToken } from "../lib/auth.js";
+import { AUTH_PORT, prepareBrowserLogin, performBrowserLogin, revokeToken, waitForCallback, openBrowser, exchangeCodeForToken, parseHeadlessCallback } from "../lib/auth.js";
+import type { PreparedLogin, HeadlessCallback, TokenExchangeResult } from "../lib/auth.js";
 import { AdminClient } from "../lib/admin-client.js";
 import type { App } from "../lib/admin-client.js";
 import { CLIError, ErrorCode, exitWithError } from "../lib/errors.js";
 import { printHuman, isJSONMode, debug } from "../lib/output.js";
 import { promptAutocomplete, promptText } from "../lib/terminal-ui.js";
 import { isInteractiveAllowed } from "../lib/interaction.js";
+import { readStdinArg } from "../lib/validators.js";
 import { resolveAuthToken } from "../lib/resolve.js";
 import { green, dim, bold, brand, maskIf, withSpinner } from "../lib/ui.js";
 import { saveCredentials, deleteCredentials, getCredentials, getStorageBackend } from "../lib/credential-storage.js";
@@ -22,8 +24,15 @@ export function registerAuth(program: Command) {
     .description("Log in via browser")
     .option("--force", "Force re-authentication even if a valid token exists")
     .option("-y, --yes", "Skip confirmation prompt and open browser immediately")
-    .action(async (opts: { force?: boolean; yes?: boolean }) => {
+    .option(
+      "--headless",
+      "Print the login URL and paste back the redirect (for remote/SSH machines with no reachable browser)",
+    )
+    .option("--no-browser", "Alias for --headless")
+    .action(async (opts: { force?: boolean; yes?: boolean; headless?: boolean; browser?: boolean }) => {
       const yes = opts.yes || cmd.opts().yes;
+      // `--no-browser` sets `browser` to false (Commander negatable option).
+      const headless = Boolean(opts.headless) || opts.browser === false;
       try {
         // Skip browser flow if we already have a valid token
         if (!opts.force) {
@@ -56,9 +65,17 @@ export function registerAuth(program: Command) {
           await deleteCredentials();
         }
 
-        // Prepare PKCE + URL and start callback server immediately so the
-        // URL is usable even if the user pastes it before pressing Enter.
+        // Prepare PKCE values + authorize URL once, then either run the local
+        // browser/callback flow or the headless paste-back flow.
         const prepared = prepareBrowserLogin();
+
+        if (headless) {
+          await runHeadlessLogin(program, prepared);
+          return;
+        }
+
+        // Start callback server immediately so the URL is usable even if the
+        // user pastes it before pressing Enter.
         const callbackPromise = waitForCallback(AUTH_PORT);
 
         if (!isJSONMode()) {
@@ -103,46 +120,14 @@ export function registerAuth(program: Command) {
 
         const callback = await callbackPromise;
 
-        // Validate state to prevent CSRF
-        if (callback.state !== prepared.state) {
-          callback.sendError("State mismatch — possible CSRF attack.");
-          throw new Error("OAuth state mismatch. Authentication aborted.");
-        }
-
-        let result;
-        try {
-          result = await exchangeCodeForToken(callback.code, AUTH_PORT, {
-            codeVerifier: prepared.codeVerifier,
-          });
-          callback.sendSuccess();
-        } catch (err) {
-          callback.sendError("Failed to complete authentication. Please try again.");
-          throw err;
-        }
-
-        // Save token to secure credential storage (Keychain on macOS, file fallback)
-        await saveCredentials({
-          auth_token: result.token,
-          auth_token_expires_at: result.expiresAt,
-        });
-
-        // Clean up any legacy token from config.json
-        const cfg = config.load();
-        if (cfg.auth_token) {
-          config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
-        }
-
-        const expiresAt = result.expiresAt;
-        const backend = await getStorageBackend();
-
-        printHuman(
-          `  ${green("✓")} Logged in successfully\n` +
-            `  ${dim("Credentials stored in")} ${backend}\n` +
-            `  ${dim("Expires:")} ${expiresAt}\n`,
+        // The callback server always echoes state, so validate it strictly.
+        const result = await completeLogin(
+          prepared,
+          { code: callback.code, state: callback.state },
           {
-            status: "authenticated",
-            expiresAt,
-            storageBackend: backend,
+            requireState: true,
+            onSuccess: () => callback.sendSuccess(),
+            onError: (message) => callback.sendError(message),
           },
         );
 
@@ -258,6 +243,133 @@ export function registerAuth(program: Command) {
         exitWithError(err);
       }
     });
+}
+
+/**
+ * Shared post-authorization path used by both the local-browser callback flow
+ * and the `--headless` paste-back flow: validate state, exchange the code for a
+ * token via PKCE, persist credentials, clean up legacy config, and print the
+ * success summary.
+ *
+ * `requireState` is true for the callback server (which always returns state)
+ * and false for headless input (a raw-code paste has no state — PKCE still
+ * protects the exchange, so we only validate state when it is present).
+ */
+async function completeLogin(
+  prepared: PreparedLogin,
+  received: HeadlessCallback,
+  opts: {
+    requireState: boolean;
+    onSuccess?: () => void;
+    onError?: (message: string) => void;
+  },
+): Promise<TokenExchangeResult> {
+  // Validate state to prevent CSRF (only when we have one, unless required).
+  if (
+    (opts.requireState || received.state !== null) &&
+    received.state !== prepared.state
+  ) {
+    opts.onError?.("State mismatch — possible CSRF attack.");
+    throw new Error("OAuth state mismatch. Authentication aborted.");
+  }
+
+  let result: TokenExchangeResult;
+  try {
+    result = await exchangeCodeForToken(received.code, AUTH_PORT, {
+      codeVerifier: prepared.codeVerifier,
+    });
+    opts.onSuccess?.();
+  } catch (err) {
+    opts.onError?.("Failed to complete authentication. Please try again.");
+    throw err;
+  }
+
+  // Save token to secure credential storage (Keychain on macOS, file fallback)
+  await saveCredentials({
+    auth_token: result.token,
+    auth_token_expires_at: result.expiresAt,
+  });
+
+  // Clean up any legacy token from config.json
+  const cfg = config.load();
+  if (cfg.auth_token) {
+    config.save({ ...cfg, auth_token: undefined, auth_token_expires_at: undefined });
+  }
+
+  const backend = await getStorageBackend();
+  printHuman(
+    `  ${green("✓")} Logged in successfully\n` +
+      `  ${dim("Credentials stored in")} ${backend}\n` +
+      `  ${dim("Expires:")} ${result.expiresAt}\n`,
+    {
+      status: "authenticated",
+      expiresAt: result.expiresAt,
+      storageBackend: backend,
+    },
+  );
+
+  return result;
+}
+
+/**
+ * Headless login: no browser is opened and no local callback server is started.
+ * We print the authorize URL, the user authorizes in any browser, then pastes
+ * the (unreachable) localhost redirect URL — or just the code — back to us.
+ */
+async function runHeadlessLogin(
+  program: Command,
+  prepared: PreparedLogin,
+): Promise<void> {
+  const stdinPiped = !process.stdin.isTTY;
+
+  if (isJSONMode()) {
+    // JSON mode must emit valid JSON only, so we cannot interactively prompt.
+    // Require the code/redirect on stdin (single round-trip keeps PKCE valid).
+    if (!stdinPiped) {
+      throw new CLIError(
+        ErrorCode.AUTH_REQUIRED,
+        `Headless login in --json mode needs the authorization code on stdin. ` +
+          `Open ${prepared.authorizeUrl} in a browser, authorize, then run: ` +
+          `echo "<code-or-redirect-url>" | alchemy auth login --headless --json`,
+      );
+    }
+  } else {
+    console.log("");
+    console.log(`  ${brand("◆")} ${bold("Alchemy Authentication (headless)")}`);
+    console.log(`  ${dim("────────────────────────────────────")}`);
+    console.log("");
+    console.log(`  ${dim("Open this URL in any browser and authorize:")}`);
+    console.log("");
+    console.log(`  ${prepared.authorizeUrl}`);
+    console.log("");
+    console.log(
+      `  ${dim(`The browser will land on http://localhost:${AUTH_PORT}/callback?… which won't load — that's expected.`)}`,
+    );
+    console.log(
+      `  ${dim("Copy the full URL from the address bar (or just the code value) and paste it below.")}`,
+    );
+  }
+
+  // Read the pasted URL/code: piped stdin first, otherwise an interactive prompt.
+  let input: string | null;
+  if (stdinPiped) {
+    input = await readStdinArg("authorization code");
+  } else {
+    input = await promptText({
+      message: "Paste the redirected URL (or just the code)",
+      cancelMessage: "Login cancelled.",
+    });
+  }
+  if (input === null) return; // user cancelled the prompt
+
+  const received = parseHeadlessCallback(input);
+  const result = await completeLogin(prepared, received, { requireState: false });
+
+  if (isInteractiveAllowed(program)) {
+    await selectAppAfterAuth(result.token);
+  }
+
+  process.exit(0);
 }
 
 export async function selectAppAfterAuth(authToken: string): Promise<void> {

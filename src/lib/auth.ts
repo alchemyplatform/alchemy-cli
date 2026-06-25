@@ -74,6 +74,72 @@ export function prepareBrowserLogin(port = AUTH_PORT): PreparedLogin {
 }
 
 // ---------------------------------------------------------------------------
+// Headless callback parsing
+// ---------------------------------------------------------------------------
+
+export interface HeadlessCallback {
+  code: string;
+  state: string | null;
+}
+
+/**
+ * Parse what a user pastes back during a headless login.
+ *
+ * On a remote/SSH machine the browser cannot reach the local callback server,
+ * so instead of a redirect we ask the user to copy what the browser landed on.
+ * Accepts any of:
+ *   - the full redirected URL: `http://localhost:16424/callback?code=…&state=…`
+ *   - a bare callback path:    `/callback?code=…&state=…`
+ *   - a raw authorization code with no query string (state is then `null`)
+ *
+ * PKCE still protects the token exchange, so a raw-code paste is safe.
+ *
+ * @throws if no authorization code can be found, or the URL carries an OAuth error.
+ */
+export function parseHeadlessCallback(input: string): HeadlessCallback {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    throw new Error(
+      "No input provided. Paste the redirected URL, or just the authorization code.",
+    );
+  }
+
+  // Looks like a URL or a path → parse it; otherwise treat it as a raw code.
+  const looksLikeUrl =
+    trimmed.includes("://") || trimmed.startsWith("/") || trimmed.includes("?");
+  if (!looksLikeUrl) {
+    return { code: trimmed, state: null };
+  }
+
+  let url: URL;
+  try {
+    // Tolerate a bare path by prefixing the expected localhost callback origin.
+    url = trimmed.includes("://")
+      ? new URL(trimmed)
+      : new URL(trimmed, `http://localhost:${AUTH_PORT}`);
+  } catch {
+    throw new Error(
+      "Could not parse the pasted URL. Copy the full redirected URL, or paste just the code value.",
+    );
+  }
+
+  const error = url.searchParams.get("error");
+  if (error) {
+    const description = url.searchParams.get("error_description") || error;
+    throw new Error(`Authentication failed: ${description}`);
+  }
+
+  const code = url.searchParams.get("code");
+  if (!code) {
+    throw new Error(
+      "No authorization code found in the pasted URL. Copy the full redirected URL, or paste just the code value.",
+    );
+  }
+
+  return { code, state: url.searchParams.get("state") };
+}
+
+// ---------------------------------------------------------------------------
 // Browser
 // ---------------------------------------------------------------------------
 

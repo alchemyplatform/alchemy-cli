@@ -51,6 +51,14 @@ If you run `alchemy` with no command and no auth configured, the CLI will guide 
 
 If you have an auth token but haven't selected an app yet, the CLI will prompt you to pick one before running any command that requires an API key. Teams with many apps can type to search by name.
 
+On a remote/SSH/headless machine the browser cannot reach this machine's `localhost` callback, so use headless login instead:
+
+```bash
+alchemy auth login --headless   # alias: --no-browser
+```
+
+This prints the login URL and opens no browser and no local callback server. Open the URL in any browser, authorize, then paste the FULL redirected URL back. The browser will land on a `http://localhost:16424/callback?…` page that won't load — that's expected; copy it from the address bar (or just the `code` value). It reuses the same PKCE flow, so there are no security trade-offs. For automation, pipe the code: `echo "<code>" | alchemy auth login --headless --json`.
+
 If you use Notify webhooks, add webhook auth on top via `alchemy config set webhook-api-key <key>`, `--webhook-api-key`, or `ALCHEMY_WEBHOOK_API_KEY`.
 
 ### Usage By Workflow
@@ -228,7 +236,7 @@ Additional env vars:
 
 | Command | Flags |
 |---|---|
-| `auth login` | `--force`, `-y, --yes` |
+| `auth login` | `--force`, `-y, --yes`, `--headless` (alias `--no-browser`) |
 | `nfts` | `--limit <n>`, `--page-key <key>` |
 | `nfts metadata` | `--contract <address>` (required), `--token-id <id>` (required) |
 | `tokens` | `--page-key <key>` |
@@ -262,6 +270,9 @@ alchemy auth
 
 # Skip the confirmation prompt
 alchemy auth -y
+
+# Headless login (remote/SSH) — prints the URL, no local browser or callback server
+alchemy auth login --headless        # alias: --no-browser
 
 # Force re-authentication
 alchemy auth login --force
