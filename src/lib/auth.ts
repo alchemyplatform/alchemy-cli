@@ -10,6 +10,9 @@ const AUTH_PORT = 16424;
 const AUTH_CALLBACK_PATH = "/callback";
 // Public OAuth client — security relies on PKCE, not client secrets.
 const OAUTH_CLIENT_ID = "alchemy-cli";
+// Upper bound for auth backend HTTP calls. Without this, a stalled auth
+// server leaves the CLI hanging forever (no socket timeout by default).
+const AUTH_REQUEST_TIMEOUT_MS = 30_000;
 
 // Environment-based auth URL
 function getAuthBaseUrl(): string {
@@ -204,6 +207,8 @@ export async function exchangeCodeForToken(
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
+    // Bound the request: a stalled auth server must not hang the CLI forever
+    signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -294,6 +299,8 @@ export async function revokeToken(token: string): Promise<RevokeResult> {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      // Bound the request; on abort we fall into the existing network_error path
+      signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
     });
     if (response.ok) {
       return "revoked";
